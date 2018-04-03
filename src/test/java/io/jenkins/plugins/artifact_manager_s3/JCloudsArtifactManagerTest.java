@@ -24,27 +24,21 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
-import hudson.model.FreeStyleBuild;
-import hudson.model.FreeStyleProject;
-import hudson.remoting.Which;
-import hudson.tasks.ArtifactArchiver;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.UUID;
 import java.util.logging.Level;
-import jenkins.model.ArtifactManagerConfiguration;
-import jenkins.model.ArtifactManagerFactory;
-import jenkins.model.Jenkins;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
-import static org.hamcrest.Matchers.*;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import static org.junit.Assert.assertThat;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,7 +46,23 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
 
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
+import hudson.model.Run;
+import hudson.remoting.Which;
+import hudson.tasks.ArtifactArchiver;
+import jenkins.model.ArtifactManager;
+import jenkins.model.ArtifactManagerConfiguration;
+import jenkins.model.ArtifactManagerFactory;
+import jenkins.model.Jenkins;
+
 public class JCloudsArtifactManagerTest {
+
+    private String prefix;;
 
     @BeforeClass
     public static void live() {
@@ -67,8 +77,31 @@ public class JCloudsArtifactManagerTest {
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
+    private String uuid;
+
+    private static class ArtifactManagerFactoryForTesting extends JCloudsArtifactManagerFactory {
+        private String uuid;
+
+        public ArtifactManagerFactoryForTesting(String uuid) {
+            this.uuid = uuid;
+        }
+
+        @Override
+        public ArtifactManager managerFor(Run<?, ?> build) {
+            // use a different dir for each test
+            JCloudsArtifactManager manager = (JCloudsArtifactManager) super.managerFor(build);
+            manager.setPrefix(String.format("%s%s/", manager.getPrefix(), uuid));
+            return manager;
+        }
+    }
+
+    @Before
+    public void generateUUID() {
+        this.uuid = UUID.randomUUID().toString();
+    }
+
     protected ArtifactManagerFactory getArtifactManagerFactory() {
-        return new JCloudsArtifactManagerFactory();
+        return new ArtifactManagerFactoryForTesting(uuid);
     }
 
     @Test

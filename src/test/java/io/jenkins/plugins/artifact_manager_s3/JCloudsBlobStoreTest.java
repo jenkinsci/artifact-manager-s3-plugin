@@ -197,9 +197,15 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
 
     @Test
     public void toURI() throws Exception {
-        assertEquals(new URI(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), getPrefix().replaceFirst("/$", ""))),
+        assertEquals(new URI(
+                String.format("https://%s.s3.amazonaws.com/%s", getContainer(), getPrefix().replaceFirst("/$", ""))),
                 subdir.toURI());
         assertEquals(new URI(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), filePath)), vf.toURI());
+        // weird chars
+        assertEquals(
+                new URI(String.format("https://%s.s3.amazonaws.com/%s", getContainer(),
+                        "xxx%23%3F:%24%26%27%22%3C%3E%C4%8D%E0%A5%90")),
+                newJCloudsBlobStore("xxx#?:$&'\"<>čॐ").toURI());
     }
 
 }
