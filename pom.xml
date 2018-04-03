@@ -71,11 +71,10 @@
     </dependency>
 
     <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-s3</artifactId>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>aws-java-sdk</artifactId>
       <version>1.11.248</version>
     </dependency>
-
 <!--
     <dependency>
       <groupId>org.apache.jclouds.provider</groupId>
