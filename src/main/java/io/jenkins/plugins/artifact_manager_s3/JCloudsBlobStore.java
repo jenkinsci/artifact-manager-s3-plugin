@@ -109,12 +109,6 @@ class JCloudsBlobStore extends VirtualFile {
         return key;
     }
 
-    @Override
-    @NonNull
-    public VirtualFile asRemotable() {
-        return this;
-    }
-
     /**
      * Returns the base name
      */
