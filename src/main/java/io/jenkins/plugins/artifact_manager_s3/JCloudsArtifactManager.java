@@ -84,11 +84,9 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
     private static final String PREFIX = System.getenv("S3_DIR");
 
     private transient String key; // e.g. myorg/myrepo/master#123
-    private String id; // serialized
 
     JCloudsArtifactManager(Run<?, ?> build) {
         onLoad(build);
-        id = UUID.randomUUID().toString();
     }
 
     @Override
@@ -96,12 +94,12 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         this.key = build.getExternalizableId();
     }
 
-    private static String getBlobPath(String prefix, String key, String id) {
-        return String.format("%s%s/%s", prefix, key, id);
+    private static String getBlobPath(String prefix, String key) {
+        return String.format("%s%s/%s", prefix, key);
     }
 
-    private static String getBlobPath(String s3path, String prefix, String key, String id) {
-        return String.format("%s/%s", getBlobPath(prefix, key, id), s3path);
+    private static String getBlobPath(String s3path, String prefix, String key) {
+        return String.format("%s/%s", getBlobPath(prefix, key), s3path);
     }
 
     /*
@@ -117,7 +115,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
     @Override
     public boolean delete() throws IOException, InterruptedException {
         BlobStore blobStore = getContext(BLOB_CONTAINER).getBlobStore();
-        String prefix = getBlobPath("", PREFIX, key, id);
+        String prefix = getBlobPath("", PREFIX, key);
         Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
         boolean found = false;
         while (it.hasNext()) {
@@ -133,7 +131,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
 
     @Override
     public VirtualFile root() {
-        return new JCloudsBlobStore(getExtension(PROVIDER), BLOB_CONTAINER, getBlobPath("artifacts", PREFIX, key, id));
+        return new JCloudsBlobStore(getExtension(PROVIDER), BLOB_CONTAINER, getBlobPath("artifacts", PREFIX, key));
     }
 
     @Override
@@ -210,7 +208,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
 
     @Override
     public void clearAllStashes(TaskListener listener) throws IOException, InterruptedException {
-        String prefix = getBlobPath("stashes/", PREFIX, key, id);
+        String prefix = getBlobPath("stashes/", PREFIX, key);
         BlobStore blobStore = getContext(BLOB_CONTAINER).getBlobStore();
         Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
         while (it.hasNext()) {
@@ -230,14 +228,14 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
             throw new AbortException("Cannot copy artifacts and stashes to " + to + " using " + am.getClass().getName());
         }
         JCloudsArtifactManager dest = (JCloudsArtifactManager) am;
-        String prefix = getBlobPath("", PREFIX, key, id);
+        String prefix = getBlobPath("", PREFIX, key);
         BlobStore blobStore = getContext(BLOB_CONTAINER).getBlobStore();
         Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
         while (it.hasNext()) {
             StorageMetadata sm = it.next();
             String path = sm.getName();
             assert path.startsWith(prefix);
-            String destPath = getBlobPath(path.substring(prefix.length()), PREFIX, dest.key, dest.id);
+            String destPath = getBlobPath(path.substring(prefix.length()), PREFIX, dest.key);
             LOGGER.fine("copying " + path + " to " + destPath);
             blobStore.copyBlob(BLOB_CONTAINER, path, BLOB_CONTAINER, destPath, CopyOptions.NONE);
         }
@@ -300,13 +298,12 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
 
         private static final long serialVersionUID = 1L;
         protected final String blobContainer;
-        private final String prefix, key, id;
+        private final String prefix, key;
 
         protected BlobCallable(JCloudsArtifactManager artifactManager) {
             blobContainer = BLOB_CONTAINER;
             prefix = PREFIX;
             key = artifactManager.key;
-            id = artifactManager.id;
         }
 
         @Override
@@ -316,7 +313,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         }
 
         protected final String getBlobPath(String s3path) {
-            return JCloudsArtifactManager.getBlobPath(s3path, prefix, key, id);
+            return JCloudsArtifactManager.getBlobPath(s3path, prefix, key);
         }
 
         protected abstract void run(File f, BlobStore blobStore) throws IOException, InterruptedException;
