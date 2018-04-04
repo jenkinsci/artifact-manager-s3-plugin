@@ -68,19 +68,6 @@ public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serial
     public abstract URI toURI(@NonNull String container, @NonNull String key);
 
     /**
-     * Calls #toExternalURL(Blob, boolean) with {@link HttpMethod#GET}
-     * 
-     * @param blob
-     *            blob to generate the URL for
-     * @return the URL
-     * @throws IOException
-     */
-    @CheckForNull
-    public URL toExternalURL(@NonNull Blob blob) throws IOException {
-        return toExternalURL(blob, HttpMethod.GET);
-    }
-
-    /**
      * Generate a URL valid for downloading OR uploading the blob for a limited period of time
      * 
      * @param blob
