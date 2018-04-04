@@ -37,7 +37,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -59,6 +58,7 @@ import jenkins.model.ArtifactManager;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
+import org.jenkinsci.test.acceptance.docker.DockerImage;
 
 public class JCloudsArtifactManagerTest {
 
@@ -67,6 +67,13 @@ public class JCloudsArtifactManagerTest {
     @BeforeClass
     public static void live() {
         JCloudsAbstractTest.live();
+    }
+
+    private static DockerImage image;
+
+    @BeforeClass
+    public static void doPrepareImage() throws Exception {
+        image = ArtifactManagerTest.prepareImage();
     }
 
     @Rule
@@ -107,7 +114,7 @@ public class JCloudsArtifactManagerTest {
     @Test
     public void smokes() throws Exception {
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.run(j, getArtifactManagerFactory(), /* TODO S3BlobStore.list does not seem to handle weird characters */false);
+        ArtifactManagerTest.run(j, getArtifactManagerFactory(), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
     }
 
     @Test
