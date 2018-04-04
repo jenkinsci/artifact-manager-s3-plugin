@@ -175,7 +175,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         workspace.act(new Stash(url, listener, includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote()));
     }
 
-    private static final class Stash extends BlobCallable {
+    private static final class Stash extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
         private final URL url;
         private final TaskListener listener;
@@ -195,7 +195,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         }
 
         @Override
-        protected void run(File f) throws IOException, InterruptedException {
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             // TODO JCLOUDS-769 streaming upload is not currently straightforward, so using a temp file pending rewrite to use multipart uploads
             // (we prefer not to upload individual files for stashes, so as to preserve symlinks & file permissions, as StashManager’s default does)
             Path tempDirP = Paths.get(tempDir);
@@ -216,6 +216,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
             } finally {
                 Files.delete(tmp);
             }
+            return null;
         }
     }
 
@@ -236,7 +237,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         workspace.act(new Unstash(url, listener));
     }
 
-    private static final class Unstash extends BlobCallable {
+    private static final class Unstash extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
         private final TaskListener listener;
         private final URL url;
@@ -248,12 +249,12 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         }
 
         @Override
-        protected void run(File f) throws IOException, InterruptedException {
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            try (InputStream is = connection.getInputStream()) {
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+            try (InputStream is = url.openStream()) {
                 new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
             }
             // TODO print some summary to listener
+            return null;
         }
     }
 
@@ -318,21 +319,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         }
     }
 
-    private static abstract class BlobCallable extends MasterToSlaveFileCallable<Void> {
-
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            run(f);
-            return null;
-        }
-
-        protected abstract void run(File f) throws IOException, InterruptedException;
-
-    }
-
-    private static class UploadToBlobStorage extends BlobCallable {
+    private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
 
         private final BuildListener listener;
@@ -347,7 +334,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         }
 
         @Override
-        public void run(File f) throws IOException, InterruptedException {
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             for (Map.Entry<String, String> entry : artifacts.entrySet()) {
                 Path local = f.toPath().resolve(entry.getValue());
                 URL url = urls.get(entry.getKey());
@@ -355,6 +342,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
                         new String[] { local.toAbsolutePath().toString(), url.toString() });
                 uploadFile(local, url);
             }
+            return null;
         }
     }
 
