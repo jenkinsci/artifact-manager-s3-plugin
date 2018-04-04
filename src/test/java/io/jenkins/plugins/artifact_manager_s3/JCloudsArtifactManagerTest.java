@@ -24,6 +24,8 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
+import com.amazonaws.SdkClientException;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
@@ -52,13 +54,17 @@ import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Run;
+import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
+import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
 import jenkins.model.ArtifactManager;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
+import jenkins.security.MasterToSlaveCallable;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
+import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
 
 public class JCloudsArtifactManagerTest {
 
@@ -113,8 +119,29 @@ public class JCloudsArtifactManagerTest {
 
     @Test
     public void smokes() throws Exception {
+        if (image != null) {
+            System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
+            try (JavaContainer container = image.start(JavaContainer.class).start()) {
+                DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test", "test", "", ""));
+                Jenkins.get().addNode(agent);
+                j.waitOnline(agent);
+                try {
+                    agent.getChannel().call(new LoadS3Credentials());
+                    fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
+                } catch (SdkClientException x) {
+                    System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
+                }
+            }
+        }
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
         ArtifactManagerTest.run(j, getArtifactManagerFactory(), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
+    }
+    private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
+        @Override
+        public Void call() {
+            AmazonS3ClientBuilder.standard().build();
+            return null;
+        }
     }
 
     @Test

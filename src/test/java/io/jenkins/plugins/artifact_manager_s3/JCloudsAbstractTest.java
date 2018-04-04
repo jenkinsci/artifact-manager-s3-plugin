@@ -59,6 +59,7 @@ public abstract class JCloudsAbstractTest {
             assumeTrue(S3_BUCKET + " bucket does not exist", builder.build().doesBucketExistV2(S3_BUCKET));
             assumeThat("can get credentials from environment", builder.getCredentials().getCredentials(), notNullValue());
         } catch (SdkClientException x) {
+            x.printStackTrace();
             assumeNoException("failed to connect to S3 with current credentials", x);
         }
     }
