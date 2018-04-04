@@ -123,7 +123,7 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
     public void archive(FilePath workspace, Launcher launcher, BuildListener listener, Map<String, String> artifacts)
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
-        Map<String, URL> urls = new HashMap<>();
+        Map<String, URL> artifactUrls = new HashMap<>();
         BlobStore blobStore = getContext(getExtension(PROVIDER).getCredentialsSupplier())
                 .getBlobStore();
         JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
@@ -134,10 +134,10 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
             String blobPath = getBlobPath(s3path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(BLOB_CONTAINER);
-            urls.put(entry.getKey(), extension.toExternalURL(blob, HttpMethod.PUT));
+            artifactUrls.put(entry.getValue(), extension.toExternalURL(blob, HttpMethod.PUT));
         }
 
-        workspace.act(new UploadToBlobStorage(listener, artifacts, urls));
+        workspace.act(new UploadToBlobStorage(listener, artifactUrls));
     }
 
     @Override
@@ -323,21 +323,19 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         private static final long serialVersionUID = 1L;
 
         private final BuildListener listener;
-        private final Map<String, String> artifacts; // e.g. "x.war", "target/x.war"
-        private final Map<String, URL> urls;
+        private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
 
-        public UploadToBlobStorage(BuildListener listener, Map<String, String> artifacts, Map<String, URL> urls) {
+        public UploadToBlobStorage(BuildListener listener, Map<String, URL> artifactUrls) {
             super();
             this.listener = listener;
-            this.artifacts = artifacts;
-            this.urls = urls;
+            this.artifactUrls = artifactUrls;
         }
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            for (Map.Entry<String, String> entry : artifacts.entrySet()) {
-                Path local = f.toPath().resolve(entry.getValue());
-                URL url = urls.get(entry.getKey());
+            for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
+                Path local = f.toPath().resolve(entry.getKey());
+                URL url = entry.getValue();
                 LOGGER.log(Level.FINE, "Uploading {0} to {1}",
                         new String[] { local.toAbsolutePath().toString(), url.toString() });
                 uploadFile(local, url);
