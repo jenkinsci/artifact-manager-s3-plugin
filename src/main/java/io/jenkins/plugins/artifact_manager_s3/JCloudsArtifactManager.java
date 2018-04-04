@@ -78,10 +78,10 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
-    private static final String PROVIDER = System.getProperty("jclouds.provider", "aws-s3");
+    private static String PROVIDER = System.getProperty("jclouds.provider", "aws-s3");
 
-    private static final String BLOB_CONTAINER = System.getenv("S3_BUCKET");
-    private static final String PREFIX = System.getenv("S3_DIR");
+    private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
+    private static String PREFIX = System.getenv("S3_DIR");
 
     private transient String key; // e.g. myorg/myrepo/master#123
     private String id; // serialized
