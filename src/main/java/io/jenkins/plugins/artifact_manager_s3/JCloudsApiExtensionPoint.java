@@ -24,21 +24,27 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.ExtensionPoint;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
+
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
+
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.ExtensionPoint;
 import shaded.com.google.common.base.Supplier;
 
 public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serializable {
 
     private static final long serialVersionUID = -861350249543443493L;
+
+    public enum HttpMethod {
+        GET, PUT;
+    }
 
     @NonNull
     public abstract String id();
@@ -51,13 +57,28 @@ public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serial
 
     /**
      * Get a provider-specific URI.
+     * 
+     * @param container
+     *            container where this exists.
+     * @param key
+     *            fully qualified name relative to the container.
+     * @return the URI
      */
     @NonNull
-    public abstract URI toURI(String container, String key);
+    public abstract URI toURI(@NonNull String container, @NonNull String key);
 
+    /**
+     * Generate a URL valid for downloading OR uploading the blob for a limited period of time
+     * 
+     * @param blob
+     *            blob to generate the URL for
+     * @param httpMethod
+     *            HTTP method to create a URL for (downloads or uploads)
+     * @return the URL
+     * @throws IOException
+     */
     @CheckForNull
-    public URL toExternalURL(Blob blob) throws IOException {
+    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
         return null;
     }
-
 }

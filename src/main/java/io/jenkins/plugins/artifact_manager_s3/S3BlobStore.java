@@ -24,19 +24,20 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
-import com.amazonaws.auth.AWSSessionCredentials;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import hudson.Extension;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javax.annotation.Nonnull;
+
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
@@ -44,6 +45,13 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.osgi.ProviderRegistry;
+
+import com.amazonaws.auth.AWSSessionCredentials;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.Extension;
 import shaded.com.google.common.base.Supplier;
 
 /**
@@ -66,7 +74,8 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
         LOGGER.log(Level.FINEST, "Building context for {0}", id());
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
-            return ContextBuilder.newBuilder(id()).credentialsSupplier(getCredentialsSupplier()).buildView(BlobStoreContext.class);
+            return ContextBuilder.newBuilder(id()).credentialsSupplier(getCredentialsSupplier())
+                    .buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
         }
@@ -98,23 +107,44 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
 
     @Nonnull
     @Override
-    public URI toURI(String container, String key) {
+    public URI toURI(@NonNull String container, @NonNull String key) {
+        assert container != null;
+        assert key != null;
         try {
-            return new URI(String.format("https://%s.s3.amazonaws.com/%s", container, key));
-        } catch (URISyntaxException e) {
+            // TODO proper encoding
+            return new URI(String.format("https://%s.s3.amazonaws.com/%s", container,
+                    URLEncoder.encode(key, "UTF-8").replaceAll("%2F", "/").replaceAll("%3A", ":")));
+        } catch (URISyntaxException | UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
     }
 
-    /** @see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURLJavaSDK.html">Generate a Pre-signed Object URL using AWS SDK for Java</a> */
+    /**
+     * @see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURLJavaSDK.html">Generate a
+     *      Pre-signed Object URL using AWS SDK for Java</a>
+     */
     @Override
-    public URL toExternalURL(Blob blob) throws IOException {
+    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
+        assert blob != null;
+        assert httpMethod != null;
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         Date expiration = new Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
-        LOGGER.log(Level.FINE, "generating presigned URL for {0} / {1}", new Object[] {container, name});
-        return builder.build().generatePresignedUrl(container, name, expiration);
+        LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
+                new Object[] { container, name, httpMethod });
+        com.amazonaws.HttpMethod awsMethod;
+        switch (httpMethod) {
+        case PUT:
+            awsMethod = com.amazonaws.HttpMethod.PUT;
+            break;
+        case GET:
+            awsMethod = com.amazonaws.HttpMethod.GET;
+            break;
+        default:
+            throw new IOException("HTTP Method " + httpMethod + " not supported for extension " + id());
+        }
+        return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
     }
 
 }

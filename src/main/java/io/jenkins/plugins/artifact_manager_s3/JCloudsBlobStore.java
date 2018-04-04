@@ -27,6 +27,8 @@ package io.jenkins.plugins.artifact_manager_s3;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.remoting.Callable;
+import io.jenkins.plugins.artifact_manager_s3.JCloudsApiExtensionPoint.HttpMethod;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -136,7 +138,7 @@ class JCloudsBlobStore extends VirtualFile {
 
     @Override
     public URL toExternalURL() throws IOException {
-        return provider.toExternalURL(getBlob());
+        return provider.toExternalURL(getBlob(), HttpMethod.GET);
     }
 
     @Override
