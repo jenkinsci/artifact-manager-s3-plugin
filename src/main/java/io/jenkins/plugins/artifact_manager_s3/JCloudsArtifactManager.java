@@ -355,7 +355,10 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
             Files.copy(f, out);
         }
         int responseCode = connection.getResponseCode();
-        LOGGER.log(Level.FINE, "Uploaded {0} to {1}: {2}",
-                new String[] { f.toAbsolutePath().toString(), url.toString(), Integer.toString(responseCode) });
+        if (responseCode < 200 || responseCode >= 300) {
+            throw new IOException(String.format("Failed to upload %s to %s, response: %d %s", f.toAbsolutePath(), url,
+                    responseCode, connection.getResponseMessage()));
+        }
+        LOGGER.log(Level.FINE, "Uploaded {0} to {1}: {2}", new Object[] { f.toAbsolutePath(), url, responseCode });
     }
 }
