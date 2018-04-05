@@ -24,31 +24,33 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.*;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.logging.Level;
-import jenkins.util.VirtualFile;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import static org.hamcrest.Matchers.*;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.junit.After;
-import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.LoggerRule;
+
+import jenkins.util.VirtualFile;
 import shaded.com.google.common.collect.ImmutableSet;
 
 public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
 
     protected File tmpFile;
-    protected String filePath;
-    protected String missingFilePath;
-    protected JCloudsBlobStore root, subdir, vf, missing;
+    protected String filePath, missingFilePath, weirdCharactersPath;
+    protected JCloudsBlobStore root, subdir, vf, missing, weirdCharacters, weirdCharactersMissing;
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
@@ -68,6 +70,15 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
 
         missingFilePath = getPrefix() + "missing";
         missing = newJCloudsBlobStore(missingFilePath);
+
+        // ampersand '&' fails the tests
+        // it works using the aws-sdk directly so we can just assume it's a jclouds issue
+        // https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html#object-keys
+        weirdCharactersPath = getPrefix() + "xxx#?:$'\"<>čॐ";
+        weirdCharacters = newJCloudsBlobStore(weirdCharactersPath);
+        weirdCharactersMissing = newJCloudsBlobStore(weirdCharactersPath + "missing");
+        LOGGER.log(Level.INFO, "Adding test blob {0} {1}", new String[] { getContainer(), weirdCharactersPath });
+        blobStore.putBlob(getContainer(), blobStore.blobBuilder(weirdCharactersPath).payload(tmpFile).build());
     }
 
     private JCloudsBlobStore newJCloudsBlobStore(String path) {
@@ -76,11 +87,9 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
 
     @After
     public void tearDown() throws Exception {
-        LOGGER.log(Level.INFO, "Tearing down");
-        if (blobStore != null && filePath != null && blobStore.blobExists(getContainer(), filePath)) {
-            LOGGER.log(Level.INFO, "Removing blob {0} {1}", new String[] { getContainer(), filePath });
-            blobStore.removeBlob(getContainer(), filePath);
-        }
+        LOGGER.log(Level.INFO, "Deleting blobs at {0} {1}", new Object[] { getContainer(), getPrefix() });
+        blobStore.removeBlob(getContainer(), filePath);
+        blobStore.removeBlob(getContainer(), weirdCharactersPath);
     }
 
     @Test
@@ -95,6 +104,8 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
         assertTrue(subdir.exists());
         assertTrue(vf.exists());
         assertFalse(missing.exists());
+        assertTrue(weirdCharacters.exists());
+        assertFalse(weirdCharactersMissing.exists());
     }
 
     @Test
@@ -118,6 +129,17 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
         assertTrue(subdir.isDirectory());
         assertFalse(vf.isDirectory());
         assertFalse(missing.isDirectory());
+        assertFalse(weirdCharacters.isDirectory());
+        assertFalse(weirdCharactersMissing.isDirectory());
+
+        // currently fails with AuthorizationException due to ampersand see above
+        // assertFalse(newJCloudsBlobStore(getPrefix() + "/chartest/xxx&").isDirectory());
+
+        // but this succeeds
+        // final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
+        // ListObjectsV2Result listObjectsV2 = s3.listObjectsV2(getContainer(), getPrefix() +
+        // "/chartest/xxx#?:$&'\"<>čॐ");
+        // ObjectListing listObjects = s3.listObjects(getContainer(), getPrefix() + "/chartest/xxx#?:$&'\"<>čॐ");
     }
 
     @Test
@@ -126,6 +148,8 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
         assertFalse(subdir.isFile());
         assertTrue(vf.isFile());
         assertFalse(missing.isFile());
+        assertTrue(weirdCharacters.isFile());
+        assertFalse(weirdCharactersMissing.isFile());
     }
 
     @Test
@@ -153,7 +177,7 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
     public void list() throws Exception {
         VirtualFile[] rootList = root.list();
         assertTrue("Expected list to contain files: " + Arrays.toString(rootList), rootList.length > 0);
-        assertVirtualFileArrayEquals(new JCloudsBlobStore[] { vf }, subdir.list());
+        assertVirtualFileArrayEquals(new JCloudsBlobStore[] { vf, weirdCharacters }, subdir.list());
         assertVirtualFileArrayEquals(new JCloudsBlobStore[0], vf.list());
         assertVirtualFileArrayEquals(new JCloudsBlobStore[0], missing.list());
     }
@@ -164,14 +188,14 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
         httpLogging.record(InvokeHttpMethod.class, Level.FINE);
         httpLogging.capture(1000);
         String timestampDir = getPrefix().replaceFirst(".*/([^/?]+/)$", "$1");
-        assertEquals(ImmutableSet.of(timestampDir + vf.getName()),
+        assertEquals(ImmutableSet.of(timestampDir + weirdCharacters.getName(), timestampDir + vf.getName()),
                 subdir.getParent().list(timestampDir + "*", null, true));
         int httpCount = httpLogging.getRecords().size();
         System.err.println("total count: " + httpCount);
         // TODO current count is 5, but this test is bad (nondeterministic)—lists files in the bucket not created by this test
         // should rather create a directory with a specific number of files (enough to exceed a single iterator page!)
         assertThat(httpCount, lessThanOrEqualTo(100));
-        assertArrayEquals(new String[] { vf.getName() }, subdir.list("**/**"));
+        assertArrayEquals(new String[] { vf.getName(), weirdCharacters.getName() }, subdir.list("**/**"));
         assertArrayEquals(new String[] { vf.getName() }, subdir.list(tmpFile.getName().substring(0, 4) + "*"));
         assertArrayEquals(new String[0], subdir.list("**/something**"));
         assertArrayEquals(new String[0], vf.list("**/**"));
