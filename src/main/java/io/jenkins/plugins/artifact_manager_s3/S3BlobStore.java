@@ -45,8 +45,6 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.osgi.ProviderRegistry;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.Beta;
 
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -60,7 +58,6 @@ import shaded.com.google.common.base.Supplier;
  * profiles,...
  */
 @Extension
-@Restricted(Beta.class)
 public class S3BlobStore extends JCloudsApiExtensionPoint {
 
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
