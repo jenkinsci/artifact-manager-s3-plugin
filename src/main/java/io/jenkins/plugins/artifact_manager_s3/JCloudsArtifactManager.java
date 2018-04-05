@@ -50,8 +50,6 @@ import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.domain.Credentials;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
@@ -98,12 +96,12 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
         this.key = build.getExternalizableId();
     }
 
-    @Restricted(NoExternalUse.class) // testing only
+    // testing only
     String getPrefix() {
         return prefix == null ? PREFIX : prefix;
     }
 
-    @Restricted(NoExternalUse.class) // testing only
+    // testing only
     void setPrefix(String prefix) {
         this.prefix = prefix;
     }
