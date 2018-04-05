@@ -58,7 +58,7 @@ import shaded.com.google.common.base.Supplier;
  * profiles,...
  */
 @Extension
-public class S3BlobStore extends JCloudsApiExtensionPoint {
+class S3BlobStore extends JCloudsApiExtensionPoint {
 
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
 

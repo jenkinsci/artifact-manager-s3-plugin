@@ -51,7 +51,6 @@ import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.domain.Credentials;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.Beta;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -77,8 +76,7 @@ import shaded.com.google.common.base.Supplier;
 /**
  * Artifact manager that stores files in a JClouds BlobStore using any of JClouds supported backends
  */
-@Restricted(Beta.class)
-public class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
+class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
