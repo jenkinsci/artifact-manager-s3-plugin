@@ -114,7 +114,7 @@
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
-      <version>1.7-20180404.203821-2</version> <!-- TODO https://github.com/jenkinsci/docker-fixtures/pull/19 -->
+      <version>1.7</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
