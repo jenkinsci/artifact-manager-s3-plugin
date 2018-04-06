@@ -25,6 +25,7 @@
 package io.jenkins.plugins.artifact_manager_s3;
 
 import static org.hamcrest.Matchers.*;
+import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
 import static org.junit.Assert.*;
 
 import java.io.File;
@@ -32,16 +33,26 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.blobstore.domain.PageSet;
+import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.LoggerRule;
+
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.ListObjectsV2Result;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import jenkins.util.VirtualFile;
 import shaded.com.google.common.collect.ImmutableSet;
@@ -232,4 +243,27 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
                 newJCloudsBlobStore("xxx#?:$&'\"<>čॐ").toURI());
     }
 
+    @Ignore("blocked by jClouds issue")
+    @Test
+    @Issue({ "JENKINS-50591", "JCLOUDS-1401" })
+    public void testAmpersand() throws Exception {
+        String key = getPrefix() + "xxx#?:&$'\"<>čॐ";
+
+        try {
+            blobStore.putBlob(getContainer(), blobStore.blobBuilder(key).payload("test").build());
+
+            final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
+            ListObjectsV2Result result = s3.listObjectsV2(getContainer(), key);
+            List<S3ObjectSummary> objects = result.getObjectSummaries();
+            assertThat(objects, not(empty()));
+
+            // fails with
+            // org.jclouds.rest.AuthorizationException: The request signature we calculated does not match the signature
+            // you provided. Check your key and signing method.
+            PageSet<? extends StorageMetadata> list = blobStore.list(getContainer(), prefix(key));
+            assertThat(list, not(empty()));
+        } finally {
+            blobStore.removeBlob(getContainer(), key);
+        }
+    }
 }
