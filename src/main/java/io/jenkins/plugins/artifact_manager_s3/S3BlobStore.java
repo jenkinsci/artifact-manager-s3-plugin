@@ -45,10 +45,11 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.osgi.ProviderRegistry;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
@@ -59,6 +60,7 @@ import shaded.com.google.common.base.Supplier;
  * profiles,...
  */
 @Extension
+@Restricted(NoExternalUse.class)
 public class S3BlobStore extends JCloudsApiExtensionPoint {
 
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());

@@ -32,12 +32,15 @@ import java.net.URL;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.Beta;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionPoint;
 import shaded.com.google.common.base.Supplier;
 
+@Restricted(Beta.class)
 public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serializable {
 
     private static final long serialVersionUID = -861350249543443493L;

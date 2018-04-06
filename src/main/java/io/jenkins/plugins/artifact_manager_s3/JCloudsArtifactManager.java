@@ -50,8 +50,6 @@ import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.domain.Credentials;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
@@ -76,7 +74,7 @@ import shaded.com.google.common.base.Supplier;
 /**
  * Artifact manager that stores files in a JClouds BlobStore using any of JClouds supported backends
  */
-public class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
+class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
@@ -98,12 +96,12 @@ public class JCloudsArtifactManager extends ArtifactManager implements StashMana
         this.key = build.getExternalizableId();
     }
 
-    @Restricted(NoExternalUse.class) // testing only
+    // testing only
     String getPrefix() {
         return prefix == null ? PREFIX : prefix;
     }
 
-    @Restricted(NoExternalUse.class) // testing only
+    // testing only
     void setPrefix(String prefix) {
         this.prefix = prefix;
     }
