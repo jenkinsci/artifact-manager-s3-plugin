@@ -136,7 +136,8 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
             artifactUrls.put(entry.getValue(), extension.toExternalURL(blob, HttpMethod.PUT));
         }
 
-        workspace.act(new UploadToBlobStorage(listener, artifactUrls));
+        workspace.act(new UploadToBlobStorage(artifactUrls));
+        listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), getExtension(PROVIDER).toURI(BLOB_CONTAINER, getBlobPath("artifacts/")));
     }
 
     @Override
@@ -163,38 +164,38 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
 
     @Override
     public void stash(String name, FilePath workspace, Launcher launcher, EnvVars env, TaskListener listener, String includes, String excludes, boolean useDefaultExcludes, boolean allowEmpty) throws IOException, InterruptedException {
-        BlobStore blobStore = getContext(getExtension(PROVIDER).getCredentialsSupplier())
-                .getBlobStore();
         JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
+        BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
 
         // Map stash to url for upload
-        Blob blob = blobStore.blobBuilder(getBlobPath("stashes/" + name + ".tgz")).build();
+        String path = getBlobPath("stashes/" + name + ".tgz");
+        Blob blob = blobStore.blobBuilder(path).build();
         blob.getMetadata().setContainer(BLOB_CONTAINER);
         URL url = extension.toExternalURL(blob, HttpMethod.PUT);
-        workspace.act(new Stash(url, listener, includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote()));
+        int count = workspace.act(new Stash(url, includes, excludes, useDefaultExcludes, WorkspaceList.tempDir(workspace).getRemote()));
+        if (count == 0 && !allowEmpty) {
+            throw new AbortException("No files included in stash");
+        }
+        listener.getLogger().printf("Stashed %d file(s) to %s%n", count, extension.toURI(BLOB_CONTAINER, path));
     }
 
-    private static final class Stash extends MasterToSlaveFileCallable<Void> {
+    private static final class Stash extends MasterToSlaveFileCallable<Integer> {
         private static final long serialVersionUID = 1L;
         private final URL url;
-        private final TaskListener listener;
         private final String includes, excludes;
-        private final boolean useDefaultExcludes, allowEmpty;
+        private final boolean useDefaultExcludes;
         private final String tempDir;
 
-        Stash(URL url, TaskListener listener, String includes, String excludes, boolean useDefaultExcludes, boolean allowEmpty, String tempDir) throws IOException {
-            super();
+        Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir) throws IOException {
             this.url = url;
-            this.listener = listener;
             this.includes = includes;
             this.excludes = excludes;
             this.useDefaultExcludes = useDefaultExcludes;
-            this.allowEmpty = allowEmpty;
             this.tempDir = tempDir;
         }
 
         @Override
-        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+        public Integer invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             // TODO JCLOUDS-769 streaming upload is not currently straightforward, so using a temp file pending rewrite to use multipart uploads
             // (we prefer not to upload individual files for stashes, so as to preserve symlinks & file permissions, as StashManager’s default does)
             Path tempDirP = Paths.get(tempDir);
@@ -204,26 +205,23 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
                 int count;
                 try (OutputStream os = Files.newOutputStream(tmp)) {
                     count = new FilePath(f).archive(ArchiverFactory.TARGZ, os, new DirScanner.Glob(Util.fixEmpty(includes) == null ? "**" : includes, excludes, useDefaultExcludes));
-                    if (count == 0 && !allowEmpty) {
-                        throw new AbortException("No files included in stash");
-                    }
-                    listener.getLogger().println("Stashed " + count + " file(s)");
                 } catch (InvalidPathException e) {
                     throw new IOException(e);
                 }
-                uploadFile(tmp, url);
+                if (count > 0) {
+                    uploadFile(tmp, url);
+                }
+                return count;
             } finally {
                 Files.delete(tmp);
             }
-            return null;
         }
     }
 
     @Override
     public void unstash(String name, FilePath workspace, Launcher launcher, EnvVars env, TaskListener listener) throws IOException, InterruptedException {
-        BlobStore blobStore = getContext(getExtension(PROVIDER).getCredentialsSupplier())
-                .getBlobStore();
         JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
+        BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
 
         // Map stash to url for download
         String blobPath = getBlobPath("stashes/" + name + ".tgz");
@@ -233,17 +231,15 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
                     String.format("No such saved stash ‘%s’ found at %s/%s", name, BLOB_CONTAINER, blobPath));
         }
         URL url = extension.toExternalURL(blob, HttpMethod.GET);
-        workspace.act(new Unstash(url, listener));
+        workspace.act(new Unstash(url));
+        listener.getLogger().printf("Unstashed file(s) from %s%n", extension.toURI(BLOB_CONTAINER, blobPath));
     }
 
     private static final class Unstash extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
-        private final TaskListener listener;
         private final URL url;
 
-        Unstash(URL url, TaskListener listener) throws IOException {
-            super();
-            this.listener = listener;
+        Unstash(URL url) throws IOException {
             this.url = url;
         }
 
@@ -251,25 +247,28 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             try (InputStream is = url.openStream()) {
                 new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
+                // Note that this API currently offers no count of files in the tarball we could report.
             }
-            // TODO print some summary to listener
             return null;
         }
     }
 
     @Override
     public void clearAllStashes(TaskListener listener) throws IOException, InterruptedException {
-        String prefix = getBlobPath("stashes/");
-        BlobStore blobStore = getContext(getExtension(PROVIDER).getCredentialsSupplier()).getBlobStore();
-        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
+        String stashPrefix = getBlobPath("stashes/");
+        JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
+        BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
+        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(stashPrefix).recursive());
+        int count = 0;
         while (it.hasNext()) {
             StorageMetadata sm = it.next();
             String path = sm.getName();
-            assert path.startsWith(prefix);
+            assert path.startsWith(stashPrefix);
             LOGGER.fine("deleting " + path);
             blobStore.removeBlob(BLOB_CONTAINER, path);
+            count++;
         }
-        // TODO print some summary to listener
+        listener.getLogger().printf("Deleted %d stash(es) from %s%n", count, extension.toURI(BLOB_CONTAINER, stashPrefix));
     }
 
     @Override
@@ -279,18 +278,21 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
             throw new AbortException("Cannot copy artifacts and stashes to " + to + " using " + am.getClass().getName());
         }
         JCloudsArtifactManager dest = (JCloudsArtifactManager) am;
-        String prefix = getBlobPath("");
-        BlobStore blobStore = getContext(getExtension(PROVIDER).getCredentialsSupplier()).getBlobStore();
-        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
+        String allPrefix = getBlobPath("");
+        JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
+        BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
+        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(allPrefix).recursive());
+        int count = 0;
         while (it.hasNext()) {
             StorageMetadata sm = it.next();
             String path = sm.getName();
-            assert path.startsWith(prefix);
-            String destPath = getBlobPath(dest.key, path.substring(prefix.length()));
+            assert path.startsWith(allPrefix);
+            String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
             LOGGER.fine("copying " + path + " to " + destPath);
             blobStore.copyBlob(BLOB_CONTAINER, path, BLOB_CONTAINER, destPath, CopyOptions.NONE);
+            count++;
         }
-        // TODO print some summary to listener
+        listener.getLogger().printf("Copied %d artifact(s)/stash(es) from %s to %s%n", count, extension.toURI(BLOB_CONTAINER, allPrefix), extension.toURI(BLOB_CONTAINER, dest.getBlobPath("")));
     }
 
     /**
@@ -324,12 +326,9 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
     private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
 
-        private final BuildListener listener;
         private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
 
-        public UploadToBlobStorage(BuildListener listener, Map<String, URL> artifactUrls) {
-            super();
-            this.listener = listener;
+        UploadToBlobStorage(Map<String, URL> artifactUrls) {
             this.artifactUrls = artifactUrls;
         }
 
