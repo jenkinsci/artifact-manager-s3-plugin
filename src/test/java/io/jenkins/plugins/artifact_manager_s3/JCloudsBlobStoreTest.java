@@ -42,7 +42,6 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.PageSet;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.rest.internal.InvokeHttpMethod;
-import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -94,13 +93,6 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
 
     private JCloudsBlobStore newJCloudsBlobStore(String path) {
         return new JCloudsBlobStore(new S3BlobStore(), getContainer(), path.replaceFirst("/$", ""));
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        LOGGER.log(Level.INFO, "Deleting blobs at {0} {1}", new Object[] { getContainer(), getPrefix() });
-        blobStore.removeBlob(getContainer(), filePath);
-        blobStore.removeBlob(getContainer(), weirdCharactersPath);
     }
 
     @Test

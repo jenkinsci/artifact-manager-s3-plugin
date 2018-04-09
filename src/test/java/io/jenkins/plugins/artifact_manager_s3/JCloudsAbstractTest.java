@@ -26,14 +26,24 @@ package io.jenkins.plugins.artifact_manager_s3;
 
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+
+import shaded.com.google.common.base.Supplier;
+
+import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import static org.hamcrest.Matchers.*;
+
+import org.apache.commons.lang.RandomStringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.domain.StorageMetadata;
+import org.jclouds.blobstore.options.ListContainerOptions;
+import org.jclouds.domain.Credentials;
 import org.junit.After;
 import static org.junit.Assume.*;
 import org.junit.Before;
@@ -74,12 +84,24 @@ public abstract class JCloudsAbstractTest {
     protected BlobStore blobStore;
     private String prefix;
 
-    protected static String getContainer() {
+    public static String getProvider() {
+        return PROVIDER;
+    }
+
+    public static String getContainer() {
         return S3_BUCKET;
     }
 
-    protected static String getProvider() {
-        return PROVIDER;
+    public static Supplier<Credentials> getCredentialsSupplier() throws IOException {
+        return new S3BlobStore().getCredentialsSupplier();
+    }
+
+    /**
+     * To run each test in its own subdir
+     */
+    public static String generateUniquePrefix() {
+        return String.format("%s%s-%s/", S3_DIR, ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT),
+                RandomStringUtils.randomAlphabetic(4).toLowerCase());
     }
 
     protected String getPrefix() {
@@ -91,9 +113,9 @@ public abstract class JCloudsAbstractTest {
         loggerRule.recordPackage(JCloudsBlobStore.class, Level.FINE);
 
         // run each test under its own dir
-        prefix = S3_DIR + ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT) + "/";
+        prefix = generateUniquePrefix();
 
-        context = ContextBuilder.newBuilder("aws-s3").credentialsSupplier(new S3BlobStore().getCredentialsSupplier())
+        context = ContextBuilder.newBuilder(getProvider()).credentialsSupplier(getCredentialsSupplier())
                 .buildView(BlobStoreContext.class);
 
         blobStore = context.getBlobStore();
@@ -110,4 +132,10 @@ public abstract class JCloudsAbstractTest {
             context.close();
         }
     }
+
+    @After
+    public void deleteBlobs() throws Exception {
+        JCloudsArtifactManager.delete(prefix);
+    }
+
 }

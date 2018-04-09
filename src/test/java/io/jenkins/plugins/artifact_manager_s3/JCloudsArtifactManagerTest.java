@@ -24,28 +24,32 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
-import com.amazonaws.SdkClientException;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.UUID;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import org.junit.Before;
+import org.jenkinsci.test.acceptance.docker.DockerImage;
+import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
+
+import com.amazonaws.SdkClientException;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import hudson.FilePath;
 import hudson.Launcher;
@@ -63,12 +67,8 @@ import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
-import org.jenkinsci.test.acceptance.docker.DockerImage;
-import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
-import org.junit.ClassRule;
-import org.jvnet.hudson.test.BuildWatcher;
 
-public class JCloudsArtifactManagerTest {
+public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
 
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
@@ -89,35 +89,26 @@ public class JCloudsArtifactManagerTest {
     public JenkinsRule j = new JenkinsRule();
 
     @Rule
-    public LoggerRule loggerRule = new LoggerRule().recordPackage(JCloudsBlobStore.class, Level.ALL);
-    @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
-    private String uuid;
-
     private static class ArtifactManagerFactoryForTesting extends JCloudsArtifactManagerFactory {
-        private String uuid;
+        private String prefix;
 
-        public ArtifactManagerFactoryForTesting(String uuid) {
-            this.uuid = uuid;
+        public ArtifactManagerFactoryForTesting(String prefix) {
+            this.prefix = prefix;
         }
 
         @Override
         public ArtifactManager managerFor(Run<?, ?> build) {
             // use a different dir for each test
             JCloudsArtifactManager manager = (JCloudsArtifactManager) super.managerFor(build);
-            manager.setPrefix(String.format("%s%s/", manager.getPrefix(), uuid));
+            manager.setPrefix(prefix);
             return manager;
         }
     }
 
-    @Before
-    public void generateUUID() {
-        this.uuid = UUID.randomUUID().toString();
-    }
-
     protected ArtifactManagerFactory getArtifactManagerFactory() {
-        return new ArtifactManagerFactoryForTesting(uuid);
+        return new ArtifactManagerFactoryForTesting(getPrefix());
     }
 
     @Test
