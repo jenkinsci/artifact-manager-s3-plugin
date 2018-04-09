@@ -84,7 +84,7 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
     private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
     private static String PREFIX = System.getenv("S3_DIR");
 
-    private transient String key; // e.g. myorg/myrepo/master#123
+    private transient String key; // e.g. myorg/myrepo/master/123
 
     private transient String prefix;
 
@@ -94,7 +94,7 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
 
     @Override
     public void onLoad(Run<?, ?> build) {
-        this.key = build.getExternalizableId();
+        this.key = String.format("%s/%s", build.getParent().getFullName(), build.getNumber());
     }
 
     // testing only
