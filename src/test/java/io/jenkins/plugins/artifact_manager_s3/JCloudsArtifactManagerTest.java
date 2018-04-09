@@ -65,10 +65,13 @@ import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
 import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
+import org.junit.ClassRule;
+import org.jvnet.hudson.test.BuildWatcher;
 
 public class JCloudsArtifactManagerTest {
 
-    private String prefix;;
+    @ClassRule
+    public static BuildWatcher buildWatcher = new BuildWatcher();
 
     @BeforeClass
     public static void live() {
