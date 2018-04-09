@@ -135,7 +135,7 @@ public abstract class JCloudsAbstractTest {
 
     @After
     public void deleteBlobs() throws Exception {
-        JCloudsArtifactManager.delete(prefix);
+        JCloudsArtifactManager.delete(blobStore, prefix);
     }
 
 }
