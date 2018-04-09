@@ -45,6 +45,7 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.osgi.ProviderRegistry;
+import org.jclouds.providers.ProviderMetadata;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -70,6 +71,11 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
     @Override
     public String id() {
         return "aws-s3";
+    }
+
+    @Override
+    public ProviderMetadata getProvider() {
+        return AWSS3ProviderMetadata.builder().build();
     }
 
     public BlobStoreContext getContext() throws IOException {

@@ -32,6 +32,7 @@ import java.net.URL;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
+import org.jclouds.providers.ProviderMetadata;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.Beta;
 
@@ -51,6 +52,9 @@ public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serial
 
     @NonNull
     public abstract String id();
+
+    @NonNull
+    public abstract ProviderMetadata getProvider();
 
     @NonNull
     public abstract BlobStoreContext getContext() throws IOException;

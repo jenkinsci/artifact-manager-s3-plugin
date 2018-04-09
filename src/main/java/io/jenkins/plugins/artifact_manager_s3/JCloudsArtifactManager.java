@@ -49,6 +49,7 @@ import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.domain.Credentials;
+import org.jclouds.osgi.ProviderRegistry;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -309,6 +310,9 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
 
     private static BlobStoreContext getContext(Supplier<Credentials> credentialsSupplier) throws IOException {
         try {
+            // for some reason it won't find it at runtime otherwise
+            ProviderRegistry.registerProvider(getExtension(PROVIDER).getProvider());
+
             return ContextBuilder.newBuilder(PROVIDER)
                     .credentialsSupplier(credentialsSupplier)
                     .buildView(BlobStoreContext.class);
