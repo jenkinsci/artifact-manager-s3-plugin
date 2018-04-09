@@ -349,6 +349,7 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setDoOutput(true);
         connection.setRequestMethod("PUT");
+        connection.setFixedLengthStreamingMode(Files.size(f)); // prevent loading file in memory
         try (OutputStream out = connection.getOutputStream()) {
             Files.copy(f, out);
         }
