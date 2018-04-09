@@ -142,14 +142,13 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
 
     @Override
     public boolean delete() throws IOException, InterruptedException {
-        return delete(getBlobPath(""));
+        return delete(getContext(getExtension(PROVIDER).getCredentialsSupplier()).getBlobStore(), getBlobPath(""));
     }
 
     /**
      * Delete all blobs starting with prefix
      */
-    static boolean delete(String prefix) throws IOException, InterruptedException {
-        BlobStore blobStore = getContext(getExtension(PROVIDER).getCredentialsSupplier()).getBlobStore();
+    static boolean delete(BlobStore blobStore, String prefix) throws IOException, InterruptedException {
         Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
         boolean found = false;
         while (it.hasNext()) {
