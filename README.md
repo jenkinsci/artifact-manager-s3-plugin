@@ -3,6 +3,51 @@
 Artifact manager implementation for Amazon S3, currently using the jClouds library.
 [wiki](https://wiki.jenkins.io/display/JENKINS/Artifact+Manager+S3+Plugin)
 
+# Configuration
+
+The plugin is expected to run with a IAM profile and the S3 bucket must be already created.
+When running in AWS that means the instance needs to have
+an IAM role set with a policy that allows access to the S3 bucket to be used.
+
+This is an example policy
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowListingOfFolder",
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::my-bucket-name",
+            "Condition": {
+                "StringLike": {
+                    "s3:prefix": "some/path/*"
+                }
+            }
+        },
+        {
+            "Sid": "AllowS3ActionsInFolder",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject",
+                "s3:ListObjects"
+            ],
+            "Resource": "arn:aws:s3:::my-bucket-name/some/path/*"
+        }
+    ]
+}
+```
+
+Then, run the Jenkins master with the environment variables. Note the `/` at the end of `S3_DIR`
+
+```
+S3_BUCKET=my-bucket-name
+S3_DIR=some/path/
+```
+
 # Testing
 
 Pick an AWS profile and region, then create a scratch bucket and choose a subdirectory within it for testing.
