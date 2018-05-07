@@ -1,0 +1,56 @@
+metadata:
+  # labels and annotations are key: value string attributes
+  labels:
+    name: bom-it
+    # Needed to make PCT happy
+    groupId: org.jenkins-ci.main
+    artifactId: jenkins-war
+    version: 2.118-artifact-manager-s3-SNAPSHOT
+spec:
+  core:
+    version: 2.118
+  plugins:
+    - groupId: "org.jenkins-ci.plugins.workflow"
+      artifactId: "workflow-api"
+      version:  2.28-rc333.0675e9e9cb4c
+    - groupId: "org.jenkins-ci.plugins"
+      artifactId: "copyartifact"
+      version: 1.40-rc298.60da56cfabea
+    # Maven HPI Plugin improperly resolves dependency trees, needs upper bounds check
+    - groupId: "org.jenkins-ci.plugins"
+      artifactId: "structs"
+      version: 1.14
+    - groupId: "org.jenkins-ci.plugins.workflow"
+      artifactId: "workflow-step-api"
+      version: 2.14
+    - groupId: "org.jenkins-ci.plugins.workflow"
+      artifactId: "workflow-job"
+      version: 2.20
+    - groupId: "org.jenkins-ci.plugins.workflow"
+      artifactId: "workflow-basic-steps"
+      version: 2.7
+    - groupId: "org.jenkins-ci.plugins.workflow"
+      artifactId: "workflow-support"
+      version: 2.18
+    - groupId: "org.jenkins-ci.plugins"
+      artifactId: "junit"
+      version: 1.24
+    - groupId: "org.jenkins-ci.plugins"
+      artifactId: "mailer"
+      version: 1.21
+    - groupId: "org.jenkins-ci.plugins"
+      artifactId: "scm-api"
+      version: 2.2.7
+    - groupId: "org.jenkins-ci.plugins"
+      artifactId: "script-security"
+      version: 1.44
+    - groupId: "org.jenkins-ci.plugins"
+      artifactId: "aws-java-sdk"
+      version: 1.11.264
+  environments:
+    - name: aws
+      plugins:
+        #TODO: BOM does not support FileSystem REFs, so somebody needs to add BOM auto-update logic here
+        - groupId: "io.jenkins.plugins"
+          artifactId: "artifact-manager-s3"
+          version: 1.0-alpha-1-rc20.60688a35a736
