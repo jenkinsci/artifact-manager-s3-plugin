@@ -1,5 +1,4 @@
 target
-.flattened-pom.xml
 
 # mvn hpi:run
 work
