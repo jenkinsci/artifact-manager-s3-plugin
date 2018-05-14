@@ -13,7 +13,6 @@ packaging:
         source:
           dir: initScripts
 ath:
-  disabled: true
   useLocalSnapshots: false
   tests:
     - "core.ArtifactsTest"
@@ -24,7 +23,6 @@ ath:
   categories:
     - "org.jenkinsci.test.acceptance.junit.SmokeTest"
 pct:
-  disabled: true
   useLocalSnapshots: false
   jth:
     version: 2.38
