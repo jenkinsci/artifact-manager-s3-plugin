@@ -11,7 +11,7 @@ packaging:
       - type: "init"
         id: "initScripts"
         source:
-          dir: src/main/groovy
+          dir: initScripts
 ath:
   disabled: true
   useLocalSnapshots: false
