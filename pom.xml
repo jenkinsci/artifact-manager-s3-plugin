@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>3.10</version>
+    <version>3.11</version>
     <relativePath />
   </parent>
   <groupId>io.jenkins.plugins</groupId>
@@ -74,7 +74,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-java-sdk</artifactId>
-      <version>1.11.248</version>
+      <version>1.11.329-rc66.01440ec9cbda</version> <!-- TODO https://github.com/jenkinsci/aws-java-sdk-plugin/pull/17 -->
     </dependency>
 <!--
     <dependency>
