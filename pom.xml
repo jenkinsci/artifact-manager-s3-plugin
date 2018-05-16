@@ -74,7 +74,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-java-sdk</artifactId>
-      <version>1.11.329-rc65.fbd9789cabb0</version> <!-- TODO https://github.com/jenkinsci/aws-java-sdk-plugin/pull/17 -->
+      <version>1.11.329-rc66.01440ec9cbda</version> <!-- TODO https://github.com/jenkinsci/aws-java-sdk-plugin/pull/17 -->
     </dependency>
 <!--
     <dependency>
