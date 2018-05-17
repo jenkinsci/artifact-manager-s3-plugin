@@ -30,12 +30,10 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import static org.junit.Assert.*;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class MockApiMetadataTest {
 
-    @Ignore("TODO unimplemented")
     @Test
     public void smokes() throws Exception {
         BlobStoreContext bsc = ContextBuilder.newBuilder("mock").buildView(BlobStoreContext.class);

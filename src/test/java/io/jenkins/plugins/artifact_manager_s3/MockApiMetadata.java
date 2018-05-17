@@ -28,6 +28,8 @@ import com.google.inject.AbstractModule;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import org.jclouds.apis.ApiMetadata;
 import org.jclouds.apis.internal.BaseApiMetadata;
 import org.jclouds.blobstore.BlobRequestSigner;
@@ -113,19 +115,21 @@ public final class MockApiMetadata extends BaseApiMetadata {
     /** Like {@link TransientStorageStrategy}. */
     public static final class MockStrategy implements LocalStorageStrategy {
 
+        private final Map<String, Map<String, Blob>> blobsByContainer = new HashMap<>();
+
         @Override
         public boolean containerExists(String container) {
-            throw new UnsupportedOperationException(); // TODO
+            return blobsByContainer.containsKey(container);
         }
 
         @Override
         public Collection<String> getAllContainerNames() {
-            throw new UnsupportedOperationException(); // TODO
+            return blobsByContainer.keySet();
         }
 
         @Override
         public boolean createContainerInLocation(String container, Location location, CreateContainerOptions options) {
-            throw new UnsupportedOperationException(); // TODO
+            return blobsByContainer.putIfAbsent(container, new HashMap<>()) == null;
         }
 
         @Override
@@ -140,12 +144,12 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
         @Override
         public void deleteContainer(String container) {
-            throw new UnsupportedOperationException(); // TODO
+            blobsByContainer.remove(container);
         }
 
         @Override
         public void clearContainer(String container) {
-            throw new UnsupportedOperationException(); // TODO
+            blobsByContainer.get(container).clear();
         }
 
         @Override
@@ -160,42 +164,43 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
         @Override
         public boolean blobExists(String container, String key) {
-            throw new UnsupportedOperationException(); // TODO
+            return blobsByContainer.get(container).containsKey(key);
         }
 
         @Override
         public Iterable<String> getBlobKeysInsideContainer(String container) throws IOException {
-            throw new UnsupportedOperationException(); // TODO
+            return blobsByContainer.get(container).keySet();
         }
 
         @Override
         public Blob getBlob(String containerName, String blobName) {
-            throw new UnsupportedOperationException(); // TODO
+            return blobsByContainer.get(containerName).get(blobName);
         }
 
         @Override
         public String putBlob(String containerName, Blob blob) throws IOException {
-            throw new UnsupportedOperationException(); // TODO
+            blobsByContainer.get(containerName).put(blob.getMetadata().getName(), blob);
+            return null;
         }
 
         @Override
         public void removeBlob(String container, String key) {
-            throw new UnsupportedOperationException(); // TODO
+            blobsByContainer.get(container).remove(key);
         }
 
         @Override
         public BlobAccess getBlobAccess(String container, String key) {
-            throw new UnsupportedOperationException(); // TODO
+            return BlobAccess.PRIVATE;
         }
 
         @Override
         public void setBlobAccess(String container, String key, BlobAccess access) {
-            throw new UnsupportedOperationException(); // TODO
+            // ignore
         }
 
         @Override
         public Location getLocation(String containerName) {
-            throw new UnsupportedOperationException(); // TODO
+            return null;
         }
 
         @Override
