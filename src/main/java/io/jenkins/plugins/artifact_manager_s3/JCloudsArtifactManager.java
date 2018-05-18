@@ -149,17 +149,21 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
      * Delete all blobs starting with prefix
      */
     static boolean delete(BlobStore blobStore, String prefix) throws IOException, InterruptedException {
-        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
-        boolean found = false;
-        while (it.hasNext()) {
-            StorageMetadata sm = it.next();
-            String path = sm.getName();
-            assert path.startsWith(prefix);
-            LOGGER.fine("deleting " + path);
-            blobStore.removeBlob(BLOB_CONTAINER, path);
-            found = true;
+        try {
+            Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
+            boolean found = false;
+            while (it.hasNext()) {
+                StorageMetadata sm = it.next();
+                String path = sm.getName();
+                assert path.startsWith(prefix);
+                LOGGER.fine("deleting " + path);
+                blobStore.removeBlob(BLOB_CONTAINER, path);
+                found = true;
+            }
+            return found;
+        } catch (RuntimeException x) {
+            throw new IOException(x);
         }
-        return found;
     }
 
     @Override
@@ -263,15 +267,19 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
         String stashPrefix = getBlobPath("stashes/");
         JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
         BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
-        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(stashPrefix).recursive());
         int count = 0;
-        while (it.hasNext()) {
-            StorageMetadata sm = it.next();
-            String path = sm.getName();
-            assert path.startsWith(stashPrefix);
-            LOGGER.fine("deleting " + path);
-            blobStore.removeBlob(BLOB_CONTAINER, path);
-            count++;
+        try {
+            Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(stashPrefix).recursive());
+            while (it.hasNext()) {
+                StorageMetadata sm = it.next();
+                String path = sm.getName();
+                assert path.startsWith(stashPrefix);
+                LOGGER.fine("deleting " + path);
+                blobStore.removeBlob(BLOB_CONTAINER, path);
+                count++;
+            }
+        } catch (RuntimeException x) {
+            throw new IOException(x);
         }
         listener.getLogger().printf("Deleted %d stash(es) from %s%n", count, extension.toURI(BLOB_CONTAINER, stashPrefix));
     }
@@ -286,16 +294,20 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
         String allPrefix = getBlobPath("");
         JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
         BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
-        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(allPrefix).recursive());
         int count = 0;
-        while (it.hasNext()) {
-            StorageMetadata sm = it.next();
-            String path = sm.getName();
-            assert path.startsWith(allPrefix);
-            String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
-            LOGGER.fine("copying " + path + " to " + destPath);
-            blobStore.copyBlob(BLOB_CONTAINER, path, BLOB_CONTAINER, destPath, CopyOptions.NONE);
-            count++;
+        try {
+            Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(allPrefix).recursive());
+            while (it.hasNext()) {
+                StorageMetadata sm = it.next();
+                String path = sm.getName();
+                assert path.startsWith(allPrefix);
+                String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
+                LOGGER.fine("copying " + path + " to " + destPath);
+                blobStore.copyBlob(BLOB_CONTAINER, path, BLOB_CONTAINER, destPath, CopyOptions.NONE);
+                count++;
+            }
+        } catch (RuntimeException x) {
+            throw new IOException(x);
         }
         listener.getLogger().printf("Copied %d artifact(s)/stash(es) from %s to %s%n", count, extension.toURI(BLOB_CONTAINER, allPrefix), extension.toURI(BLOB_CONTAINER, dest.getBlobPath("")));
     }
