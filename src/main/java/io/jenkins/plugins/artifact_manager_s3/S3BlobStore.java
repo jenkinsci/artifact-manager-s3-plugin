@@ -89,6 +89,8 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
         }
     }
 
+    static boolean BREAK_CREDS;
+
     @Override
     public Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
@@ -99,10 +101,15 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
             throw new IOException("Unable to get credentials from environment");
         }
 
+        String sessionToken = awsCredentials.getSessionToken();
+        if (BREAK_CREDS) {
+            sessionToken = "<broken>";
+        }
+
         SessionCredentials sessionCredentials = SessionCredentials.builder()
                 .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
                 .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(awsCredentials.getSessionToken()) //
+                .sessionToken(sessionToken) //
                 .build();
 
         return new Supplier<Credentials>() {
