@@ -69,7 +69,6 @@ import jenkins.security.MasterToSlaveCallable;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.junit.Ignore;
 import org.jvnet.hudson.test.Issue;
 
 public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
@@ -177,7 +176,6 @@ public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
         assertThat(httpCount, lessThanOrEqualTo(11));
     }
 
-    @Ignore("TODO")
     @Issue({"JENKINS-51390", "JCLOUDS-1200"})
     @Test
     public void serializationProblem() throws Exception {

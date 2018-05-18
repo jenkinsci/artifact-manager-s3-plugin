@@ -177,6 +177,18 @@
         <version>2.15-rc308.607bdefd8c6a</version>
         <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.workflow</groupId>
+        <artifactId>workflow-support</artifactId>
+        <version>2.19-rc289.691fb60f3fa6</version> <!-- TODO https://github.com/jenkinsci/workflow-support-plugin/pull/61 -->
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>scm-api</artifactId>
+        <version>2.2.7</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
