@@ -31,15 +31,12 @@ import java.net.URL;
 
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.domain.Credentials;
-import org.jclouds.providers.ProviderMetadata;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.Beta;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionPoint;
-import shaded.com.google.common.base.Supplier;
 
 @Restricted(Beta.class)
 public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serializable {
@@ -51,16 +48,10 @@ public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serial
     }
 
     @NonNull
-    public abstract String id();
-
-    @NonNull
-    public abstract ProviderMetadata getProvider();
+    public abstract String id(); // TODO this can go away when it is Describable
 
     @NonNull
     public abstract BlobStoreContext getContext() throws IOException;
-
-    @NonNull
-    public abstract Supplier<Credentials> getCredentialsSupplier() throws IOException;
 
     /**
      * Get a provider-specific URI.

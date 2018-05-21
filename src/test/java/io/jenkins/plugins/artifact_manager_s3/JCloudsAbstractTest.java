@@ -27,23 +27,15 @@ package io.jenkins.plugins.artifact_manager_s3;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
-import shaded.com.google.common.base.Supplier;
-
-import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import static org.hamcrest.Matchers.*;
 
 import org.apache.commons.lang.RandomStringUtils;
-import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.StorageMetadata;
-import org.jclouds.blobstore.options.ListContainerOptions;
-import org.jclouds.domain.Credentials;
 import org.junit.After;
 import static org.junit.Assume.*;
 import org.junit.Before;
@@ -92,10 +84,6 @@ public abstract class JCloudsAbstractTest {
         return S3_BUCKET;
     }
 
-    public static Supplier<Credentials> getCredentialsSupplier() throws IOException {
-        return new S3BlobStore().getCredentialsSupplier();
-    }
-
     /**
      * To run each test in its own subdir
      */
@@ -115,8 +103,7 @@ public abstract class JCloudsAbstractTest {
         // run each test under its own dir
         prefix = generateUniquePrefix();
 
-        context = ContextBuilder.newBuilder(getProvider()).credentialsSupplier(getCredentialsSupplier())
-                .buildView(BlobStoreContext.class);
+        context = new S3BlobStore().getContext();
 
         blobStore = context.getBlobStore();
 

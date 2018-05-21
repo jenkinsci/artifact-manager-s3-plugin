@@ -45,7 +45,6 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.osgi.ProviderRegistry;
-import org.jclouds.providers.ProviderMetadata;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -73,11 +72,6 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
         return "aws-s3";
     }
 
-    @Override
-    public ProviderMetadata getProvider() {
-        return AWSS3ProviderMetadata.builder().build();
-    }
-
     public BlobStoreContext getContext() throws IOException {
         LOGGER.log(Level.FINEST, "Building context for {0}", id());
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
@@ -89,8 +83,7 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
         }
     }
 
-    @Override
-    public Supplier<Credentials> getCredentialsSupplier() throws IOException {
+    private Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         // Assume we are using session credentials
