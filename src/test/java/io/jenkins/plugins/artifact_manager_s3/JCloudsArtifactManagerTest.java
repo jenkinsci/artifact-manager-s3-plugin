@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
@@ -57,16 +56,18 @@ import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
-import hudson.model.Run;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
 import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
-import jenkins.model.ArtifactManager;
+import java.net.URI;
+import java.net.URL;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
+import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.domain.Blob;
 
 public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
 
@@ -91,25 +92,41 @@ public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
-    private static class ArtifactManagerFactoryForTesting extends JCloudsArtifactManagerFactory {
-        private final String prefix;
-
-        ArtifactManagerFactoryForTesting(String prefix, BlobStoreProvider provider) {
-            super(provider);
-            this.prefix = prefix;
-        }
-
-        @Override
-        public ArtifactManager managerFor(Run<?, ?> build) {
-            // use a different dir for each test
-            JCloudsArtifactManager manager = (JCloudsArtifactManager) super.managerFor(build);
-            manager.setPrefix(prefix);
-            return manager;
-        }
+    protected ArtifactManagerFactory getArtifactManagerFactory() {
+        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix()));
     }
 
-    protected ArtifactManagerFactory getArtifactManagerFactory() {
-        return new ArtifactManagerFactoryForTesting(getPrefix(), provider);
+    private static final class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
+        private final BlobStoreProvider delegate;
+        private final String prefix;
+        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix) {
+            this.delegate = delegate;
+            this.prefix = prefix;
+        }
+        @Override
+        public String getPrefix() {
+            return prefix;
+        }
+        @Override
+        public String getContainer() {
+            return delegate.getContainer();
+        }
+        @Override
+        public BlobStoreContext getContext() throws IOException {
+            return delegate.getContext();
+        }
+        @Override
+        public URI toURI(String container, String key) {
+            return delegate.toURI(container, key);
+        }
+        @Override
+        public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
+            return delegate.toExternalURL(blob, httpMethod);
+        }
+        @Override
+        public BlobStoreProviderDescriptor getDescriptor() {
+            return delegate.getDescriptor();
+        }
     }
 
     @Test

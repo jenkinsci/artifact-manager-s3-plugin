@@ -48,10 +48,8 @@ import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.EnvVars;
-import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
@@ -78,8 +76,6 @@ final class JCloudsArtifactManager extends ArtifactManager implements StashManag
 
     private transient String key; // e.g. myorg/myrepo/master/123
 
-    private transient String prefix;
-
     JCloudsArtifactManager(Run<?, ?> build, BlobStoreProvider provider) {
         this.provider = provider;
         onLoad(build);
@@ -90,22 +86,12 @@ final class JCloudsArtifactManager extends ArtifactManager implements StashManag
         this.key = String.format("%s/%s", build.getParent().getFullName(), build.getNumber());
     }
 
-    // testing only
-    String getPrefix() {
-        return prefix == null ? provider.getPrefix() : prefix;
-    }
-
-    // testing only
-    void setPrefix(String prefix) {
-        this.prefix = prefix;
-    }
-
     private String getBlobPath(String s3path) {
         return getBlobPath(key, s3path);
     }
 
     private String getBlobPath(String key, String s3path) {
-        return String.format("%s%s/%s", getPrefix(), key, s3path);
+        return String.format("%s%s/%s", provider.getPrefix(), key, s3path);
     }
 
     /*
