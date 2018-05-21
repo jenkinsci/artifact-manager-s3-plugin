@@ -39,7 +39,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionPoint;
 
 @Restricted(Beta.class)
-public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serializable {
+public abstract class BlobStoreProvider implements ExtensionPoint, Serializable {
 
     private static final long serialVersionUID = -861350249543443493L;
 

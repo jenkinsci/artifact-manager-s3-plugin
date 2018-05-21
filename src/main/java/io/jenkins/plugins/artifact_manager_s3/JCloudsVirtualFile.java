@@ -27,7 +27,7 @@ package io.jenkins.plugins.artifact_manager_s3;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.remoting.Callable;
-import io.jenkins.plugins.artifact_manager_s3.JCloudsApiExtensionPoint.HttpMethod;
+import io.jenkins.plugins.artifact_manager_s3.BlobStoreProvider.HttpMethod;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -63,14 +63,14 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 /**
  * <a href="https://jclouds.apache.org/start/blobstore/">JClouds BlobStore Guide</a>
  */
-class JCloudsBlobStore extends VirtualFile {
+class JCloudsVirtualFile extends VirtualFile {
 
     private static final long serialVersionUID = -5126878907895121335L;
 
-    private static final Logger LOGGER = Logger.getLogger(JCloudsBlobStore.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFile.class.getName());
 
     @NonNull
-    private JCloudsApiExtensionPoint provider;
+    private BlobStoreProvider provider;
     @NonNull
     private final String container;
     @NonNull
@@ -80,7 +80,7 @@ class JCloudsBlobStore extends VirtualFile {
     @CheckForNull
     private transient BlobStoreContext context;
 
-    JCloudsBlobStore(@NonNull JCloudsApiExtensionPoint provider, @NonNull String container, @NonNull String key) {
+    JCloudsVirtualFile(@NonNull BlobStoreProvider provider, @NonNull String container, @NonNull String key) {
         this.provider = provider;
         this.container = container;
         this.key = key;
@@ -144,7 +144,7 @@ class JCloudsBlobStore extends VirtualFile {
     @Override
     public VirtualFile getParent() {
         // undefined to go outside …/artifacts
-        return new JCloudsBlobStore(provider, getContainer(), key.replaceFirst("/[^/]+$", ""));
+        return new JCloudsVirtualFile(provider, getContainer(), key.replaceFirst("/[^/]+$", ""));
     }
 
     @Override
@@ -203,11 +203,11 @@ class JCloudsBlobStore extends VirtualFile {
                 filter(f -> f.startsWith(relSlash)). // those inside this dir
                 map(f -> f.substring(relSlash.length()).replaceFirst("/.+", "")). // just the file simple name, or direct subdir name
                 distinct(). // ignore duplicates if have multiple files under one direct subdir
-                map(simple -> new JCloudsBlobStore(provider, container, keyS + simple)). // direct children
+                map(simple -> new JCloudsVirtualFile(provider, container, keyS + simple)). // direct children
                 toArray(VirtualFile[]::new);
         }
         VirtualFile[] list = listStorageMetadata(false)
-                .map(meta -> new JCloudsBlobStore(provider, getContainer(), meta.getName().replaceFirst("/$", "")))
+                .map(meta -> new JCloudsVirtualFile(provider, getContainer(), meta.getName().replaceFirst("/$", "")))
                 .toArray(VirtualFile[]::new);
         LOGGER.log(Level.FINEST, "Listing files from {0} {1}: {2}",
                 new String[] { getContainer(), getKey(), Arrays.toString(list) });
@@ -216,7 +216,7 @@ class JCloudsBlobStore extends VirtualFile {
 
     @Override
     public VirtualFile child(String name) {
-        return new JCloudsBlobStore(provider, getContainer(), key + "/" + name);
+        return new JCloudsVirtualFile(provider, getContainer(), key + "/" + name);
     }
 
     @Override

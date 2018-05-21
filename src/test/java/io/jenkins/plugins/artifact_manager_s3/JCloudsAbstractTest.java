@@ -46,7 +46,7 @@ import org.jvnet.hudson.test.LoggerRule;
 
 public abstract class JCloudsAbstractTest {
 
-    protected static final Logger LOGGER = Logger.getLogger(JCloudsBlobStoreTest.class.getName());
+    protected static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
 
     private static final String S3_BUCKET = System.getenv("S3_BUCKET");
     protected static final String S3_DIR = System.getenv("S3_DIR");
@@ -98,7 +98,7 @@ public abstract class JCloudsAbstractTest {
 
     @Before
     public void setupContext() throws Exception {
-        loggerRule.recordPackage(JCloudsBlobStore.class, Level.FINE);
+        loggerRule.recordPackage(JCloudsVirtualFile.class, Level.FINE);
 
         // run each test under its own dir
         prefix = generateUniquePrefix();
