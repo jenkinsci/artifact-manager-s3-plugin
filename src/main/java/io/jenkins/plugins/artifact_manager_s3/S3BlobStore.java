@@ -72,6 +72,7 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
         return "aws-s3";
     }
 
+    @Override
     public BlobStoreContext getContext() throws IOException {
         LOGGER.log(Level.FINEST, "Building context for {0}", id());
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
@@ -98,12 +99,7 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
                 .sessionToken(awsCredentials.getSessionToken()) //
                 .build();
 
-        return new Supplier<Credentials>() {
-            @Override
-            public Credentials get() {
-                return sessionCredentials;
-            }
-        };
+        return () -> sessionCredentials;
     }
 
     @Nonnull
