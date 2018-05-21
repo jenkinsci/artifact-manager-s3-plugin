@@ -92,9 +92,10 @@ public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
     public LoggerRule httpLogging = new LoggerRule();
 
     private static class ArtifactManagerFactoryForTesting extends JCloudsArtifactManagerFactory {
-        private String prefix;
+        private final String prefix;
 
-        public ArtifactManagerFactoryForTesting(String prefix) {
+        ArtifactManagerFactoryForTesting(String prefix, BlobStoreProvider provider) {
+            super(provider);
             this.prefix = prefix;
         }
 
@@ -108,7 +109,7 @@ public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
     }
 
     protected ArtifactManagerFactory getArtifactManagerFactory() {
-        return new ArtifactManagerFactoryForTesting(getPrefix());
+        return new ArtifactManagerFactoryForTesting(getPrefix(), provider);
     }
 
     @Test

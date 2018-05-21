@@ -50,7 +50,7 @@ public abstract class JCloudsAbstractTest {
 
     private static final String S3_BUCKET = System.getenv("S3_BUCKET");
     protected static final String S3_DIR = System.getenv("S3_DIR");
-    private static final String PROVIDER = System.getProperty("jclouds.provider", "aws-s3");
+    protected BlobStoreProvider provider;
 
     @BeforeClass
     public static void live() {
@@ -76,10 +76,6 @@ public abstract class JCloudsAbstractTest {
     protected BlobStore blobStore;
     private String prefix;
 
-    public static String getProvider() {
-        return PROVIDER;
-    }
-
     public static String getContainer() {
         return S3_BUCKET;
     }
@@ -98,12 +94,14 @@ public abstract class JCloudsAbstractTest {
 
     @Before
     public void setupContext() throws Exception {
+        provider = new S3BlobStore();
+
         loggerRule.recordPackage(JCloudsVirtualFile.class, Level.FINE);
 
         // run each test under its own dir
         prefix = generateUniquePrefix();
 
-        context = new S3BlobStore().getContext();
+        context = provider.getContext();
 
         blobStore = context.getBlobStore();
 
@@ -122,7 +120,7 @@ public abstract class JCloudsAbstractTest {
 
     @After
     public void deleteBlobs() throws Exception {
-        JCloudsArtifactManager.delete(blobStore, prefix);
+        JCloudsArtifactManager.delete(provider, blobStore, prefix);
     }
 
 }

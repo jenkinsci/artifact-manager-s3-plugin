@@ -47,6 +47,7 @@ import org.jclouds.domain.Credentials;
 import org.jclouds.osgi.ProviderRegistry;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -59,7 +60,6 @@ import shaded.com.google.common.base.Supplier;
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
  * profiles,...
  */
-@Extension
 @Restricted(NoExternalUse.class)
 public class S3BlobStore extends BlobStoreProvider {
 
@@ -67,17 +67,31 @@ public class S3BlobStore extends BlobStoreProvider {
 
     private static final long serialVersionUID = -8864075675579867370L;
 
+    // For now, these are taken from the environment, rather than being configured.
+    @SuppressWarnings("FieldMayBeFinal")
+    private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static String PREFIX = System.getenv("S3_DIR");
+
+    @DataBoundConstructor
+    public S3BlobStore() {}
+
     @Override
-    public String id() {
-        return "aws-s3";
+    public String getPrefix() {
+        return PREFIX;
+    }
+
+    @Override
+    public String getContainer() {
+        return BLOB_CONTAINER;
     }
 
     @Override
     public BlobStoreContext getContext() throws IOException {
-        LOGGER.log(Level.FINEST, "Building context for {0}", id());
+        LOGGER.log(Level.FINEST, "Building context");
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
-            return ContextBuilder.newBuilder(id()).credentialsSupplier(getCredentialsSupplier())
+            return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
                     .buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
@@ -139,9 +153,19 @@ public class S3BlobStore extends BlobStoreProvider {
             awsMethod = com.amazonaws.HttpMethod.GET;
             break;
         default:
-            throw new IOException("HTTP Method " + httpMethod + " not supported for extension " + id());
+            throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
         }
         return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
+    }
+
+    @Extension
+    public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
+
+        @Override
+        public String getDisplayName() {
+            return "Amazon S3";
+        }
+
     }
 
 }

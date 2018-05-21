@@ -37,9 +37,10 @@ import org.kohsuke.accmod.restrictions.Beta;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionPoint;
+import hudson.model.AbstractDescribableImpl;
 
 @Restricted(Beta.class)
-public abstract class BlobStoreProvider implements ExtensionPoint, Serializable {
+public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStoreProvider> implements ExtensionPoint, Serializable {
 
     private static final long serialVersionUID = -861350249543443493L;
 
@@ -48,7 +49,10 @@ public abstract class BlobStoreProvider implements ExtensionPoint, Serializable 
     }
 
     @NonNull
-    public abstract String id(); // TODO this can go away when it is Describable
+    public abstract String getPrefix();
+
+    @NonNull
+    public abstract String getContainer();
 
     @NonNull
     public abstract BlobStoreContext getContext() throws IOException;
@@ -79,4 +83,10 @@ public abstract class BlobStoreProvider implements ExtensionPoint, Serializable 
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
         return null;
     }
+
+    @Override
+    public BlobStoreProviderDescriptor getDescriptor() {
+        return (BlobStoreProviderDescriptor) super.getDescriptor();
+    }
+
 }
