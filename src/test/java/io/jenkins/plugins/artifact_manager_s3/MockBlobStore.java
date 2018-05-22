@@ -26,8 +26,10 @@ package io.jenkins.plugins.artifact_manager_s3;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.domain.Blob;
 
 public final class MockBlobStore extends BlobStoreProvider {
 
@@ -48,6 +50,11 @@ public final class MockBlobStore extends BlobStoreProvider {
 
     @Override
     public URI toURI(String container, String key) {
+        throw new UnsupportedOperationException(); // TODO
+    }
+
+    @Override
+    public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
         throw new UnsupportedOperationException(); // TODO
     }
 
