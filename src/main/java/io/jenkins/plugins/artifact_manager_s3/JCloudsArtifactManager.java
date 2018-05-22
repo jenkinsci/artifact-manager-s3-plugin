@@ -354,8 +354,6 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
      * Upload a file to a URL
      */
     private static void uploadFile(Path f, URL url) throws IOException {
-        // AWS will redirect to the bucket region if different
-        HttpURLConnection.setFollowRedirects(true);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setDoOutput(true);
         connection.setRequestMethod("PUT");
