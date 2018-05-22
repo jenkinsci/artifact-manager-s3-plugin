@@ -362,7 +362,7 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
             Files.copy(f, out);
         }
         int responseCode = connection.getResponseCode();
-        if (responseCode < 200 || responseCode >= 300) {
+        if (responseCode < 200 || responseCode >= 400) {
             throw new IOException(String.format("Failed to upload %s to %s, response: %d %s", f.toAbsolutePath(), url,
                     responseCode, connection.getResponseMessage()));
         }
