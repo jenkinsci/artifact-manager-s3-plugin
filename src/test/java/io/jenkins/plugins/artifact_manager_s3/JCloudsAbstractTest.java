@@ -27,23 +27,15 @@ package io.jenkins.plugins.artifact_manager_s3;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
-import shaded.com.google.common.base.Supplier;
-
-import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import static org.hamcrest.Matchers.*;
 
 import org.apache.commons.lang.RandomStringUtils;
-import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.StorageMetadata;
-import org.jclouds.blobstore.options.ListContainerOptions;
-import org.jclouds.domain.Credentials;
 import org.junit.After;
 import static org.junit.Assume.*;
 import org.junit.Before;
@@ -54,11 +46,11 @@ import org.jvnet.hudson.test.LoggerRule;
 
 public abstract class JCloudsAbstractTest {
 
-    protected static final Logger LOGGER = Logger.getLogger(JCloudsBlobStoreTest.class.getName());
+    protected static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
 
     private static final String S3_BUCKET = System.getenv("S3_BUCKET");
     protected static final String S3_DIR = System.getenv("S3_DIR");
-    private static final String PROVIDER = System.getProperty("jclouds.provider", "aws-s3");
+    protected BlobStoreProvider provider;
 
     @BeforeClass
     public static void live() {
@@ -84,16 +76,8 @@ public abstract class JCloudsAbstractTest {
     protected BlobStore blobStore;
     private String prefix;
 
-    public static String getProvider() {
-        return PROVIDER;
-    }
-
     public static String getContainer() {
         return S3_BUCKET;
-    }
-
-    public static Supplier<Credentials> getCredentialsSupplier() throws IOException {
-        return new S3BlobStore().getCredentialsSupplier();
     }
 
     /**
@@ -110,13 +94,14 @@ public abstract class JCloudsAbstractTest {
 
     @Before
     public void setupContext() throws Exception {
-        loggerRule.recordPackage(JCloudsBlobStore.class, Level.FINE);
+        provider = new S3BlobStore();
+
+        loggerRule.recordPackage(JCloudsVirtualFile.class, Level.FINE);
 
         // run each test under its own dir
         prefix = generateUniquePrefix();
 
-        context = ContextBuilder.newBuilder(getProvider()).credentialsSupplier(getCredentialsSupplier())
-                .buildView(BlobStoreContext.class);
+        context = provider.getContext();
 
         blobStore = context.getBlobStore();
 
@@ -135,7 +120,7 @@ public abstract class JCloudsAbstractTest {
 
     @After
     public void deleteBlobs() throws Exception {
-        JCloudsArtifactManager.delete(blobStore, prefix);
+        JCloudsArtifactManager.delete(provider, blobStore, prefix);
     }
 
 }

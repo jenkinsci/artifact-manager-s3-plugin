@@ -31,18 +31,20 @@ import java.net.URL;
 
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.domain.Credentials;
-import org.jclouds.providers.ProviderMetadata;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.Beta;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionPoint;
-import shaded.com.google.common.base.Supplier;
+import hudson.model.AbstractDescribableImpl;
 
+/**
+ * Provider for jclouds-based blob stores usable for artifact storage.
+ * An instance will be copied into a build record together with any fields it defines.
+ */
 @Restricted(Beta.class)
-public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serializable {
+public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStoreProvider> implements ExtensionPoint, Serializable {
 
     private static final long serialVersionUID = -861350249543443493L;
 
@@ -50,17 +52,17 @@ public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serial
         GET, PUT;
     }
 
+    /** A constant for the blob path prefix to use. */
     @NonNull
-    public abstract String id();
+    public abstract String getPrefix();
 
+    /** A constant for the blob container name to use. */
     @NonNull
-    public abstract ProviderMetadata getProvider();
+    public abstract String getContainer();
 
+    /** Creates the jclouds handle for working with blobs. */
     @NonNull
     public abstract BlobStoreContext getContext() throws IOException;
-
-    @NonNull
-    public abstract Supplier<Credentials> getCredentialsSupplier() throws IOException;
 
     /**
      * Get a provider-specific URI.
@@ -88,4 +90,10 @@ public abstract class JCloudsApiExtensionPoint implements ExtensionPoint, Serial
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
         return null;
     }
+
+    @Override
+    public BlobStoreProviderDescriptor getDescriptor() {
+        return (BlobStoreProviderDescriptor) super.getDescriptor();
+    }
+
 }

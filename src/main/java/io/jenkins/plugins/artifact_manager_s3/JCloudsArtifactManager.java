@@ -37,25 +37,19 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
-import org.jclouds.domain.Credentials;
-import org.jclouds.osgi.ProviderRegistry;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.EnvVars;
-import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
@@ -66,29 +60,24 @@ import hudson.remoting.VirtualChannel;
 import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
-import io.jenkins.plugins.artifact_manager_s3.JCloudsApiExtensionPoint.HttpMethod;
+import io.jenkins.plugins.artifact_manager_s3.BlobStoreProvider.HttpMethod;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
-import shaded.com.google.common.base.Supplier;
 
 /**
  * Artifact manager that stores files in a JClouds BlobStore using any of JClouds supported backends
  */
-class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
+final class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
-    private static String PROVIDER = System.getProperty("jclouds.provider", "aws-s3");
-
-    private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
-    private static String PREFIX = System.getenv("S3_DIR");
+    private final BlobStoreProvider provider;
 
     private transient String key; // e.g. myorg/myrepo/master/123
 
-    private transient String prefix;
-
-    JCloudsArtifactManager(Run<?, ?> build) {
+    JCloudsArtifactManager(Run<?, ?> build, BlobStoreProvider provider) {
+        this.provider = provider;
         onLoad(build);
     }
 
@@ -97,22 +86,12 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
         this.key = String.format("%s/%s", build.getParent().getFullName(), build.getNumber());
     }
 
-    // testing only
-    String getPrefix() {
-        return prefix == null ? PREFIX : prefix;
-    }
-
-    // testing only
-    void setPrefix(String prefix) {
-        this.prefix = prefix;
-    }
-
     private String getBlobPath(String s3path) {
         return getBlobPath(key, s3path);
     }
 
     private String getBlobPath(String key, String s3path) {
-        return String.format("%s%s/%s", getPrefix(), key, s3path);
+        return String.format("%s%s/%s", provider.getPrefix(), key, s3path);
     }
 
     /*
@@ -123,40 +102,38 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
         Map<String, URL> artifactUrls = new HashMap<>();
-        BlobStore blobStore = getContext(getExtension(PROVIDER).getCredentialsSupplier())
-                .getBlobStore();
-        JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
+        BlobStore blobStore = getContext().getBlobStore();
 
         // Map artifacts to urls for upload
         for (Map.Entry<String, String> entry : artifacts.entrySet()) {
             String s3path = "artifacts/" + entry.getKey();
             String blobPath = getBlobPath(s3path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
-            blob.getMetadata().setContainer(BLOB_CONTAINER);
-            artifactUrls.put(entry.getValue(), extension.toExternalURL(blob, HttpMethod.PUT));
+            blob.getMetadata().setContainer(provider.getContainer());
+            artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
         }
 
         workspace.act(new UploadToBlobStorage(artifactUrls));
-        listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), getExtension(PROVIDER).toURI(BLOB_CONTAINER, getBlobPath("artifacts/")));
+        listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
 
     @Override
     public boolean delete() throws IOException, InterruptedException {
-        return delete(getContext(getExtension(PROVIDER).getCredentialsSupplier()).getBlobStore(), getBlobPath(""));
+        return delete(provider, getContext().getBlobStore(), getBlobPath(""));
     }
 
     /**
      * Delete all blobs starting with prefix
      */
-    static boolean delete(BlobStore blobStore, String prefix) throws IOException, InterruptedException {
-        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(prefix).recursive());
+    static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
+        Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
         boolean found = false;
         while (it.hasNext()) {
             StorageMetadata sm = it.next();
             String path = sm.getName();
             assert path.startsWith(prefix);
             LOGGER.fine("deleting " + path);
-            blobStore.removeBlob(BLOB_CONTAINER, path);
+            blobStore.removeBlob(provider.getContainer(), path);
             found = true;
         }
         return found;
@@ -164,24 +141,23 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
 
     @Override
     public VirtualFile root() {
-        return new JCloudsBlobStore(getExtension(PROVIDER), BLOB_CONTAINER, getBlobPath("artifacts"));
+        return new JCloudsVirtualFile(provider, provider.getContainer(), getBlobPath("artifacts"));
     }
 
     @Override
     public void stash(String name, FilePath workspace, Launcher launcher, EnvVars env, TaskListener listener, String includes, String excludes, boolean useDefaultExcludes, boolean allowEmpty) throws IOException, InterruptedException {
-        JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
-        BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
+        BlobStore blobStore = getContext().getBlobStore();
 
         // Map stash to url for upload
         String path = getBlobPath("stashes/" + name + ".tgz");
         Blob blob = blobStore.blobBuilder(path).build();
-        blob.getMetadata().setContainer(BLOB_CONTAINER);
-        URL url = extension.toExternalURL(blob, HttpMethod.PUT);
+        blob.getMetadata().setContainer(provider.getContainer());
+        URL url = provider.toExternalURL(blob, HttpMethod.PUT);
         int count = workspace.act(new Stash(url, includes, excludes, useDefaultExcludes, WorkspaceList.tempDir(workspace).getRemote()));
         if (count == 0 && !allowEmpty) {
             throw new AbortException("No files included in stash");
         }
-        listener.getLogger().printf("Stashed %d file(s) to %s%n", count, extension.toURI(BLOB_CONTAINER, path));
+        listener.getLogger().printf("Stashed %d file(s) to %s%n", count, provider.toURI(provider.getContainer(), path));
     }
 
     private static final class Stash extends MasterToSlaveFileCallable<Integer> {
@@ -225,19 +201,18 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
 
     @Override
     public void unstash(String name, FilePath workspace, Launcher launcher, EnvVars env, TaskListener listener) throws IOException, InterruptedException {
-        JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
-        BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
+        BlobStore blobStore = getContext().getBlobStore();
 
         // Map stash to url for download
         String blobPath = getBlobPath("stashes/" + name + ".tgz");
-        Blob blob = blobStore.getBlob(BLOB_CONTAINER, blobPath);
+        Blob blob = blobStore.getBlob(provider.getContainer(), blobPath);
         if (blob == null) {
             throw new AbortException(
-                    String.format("No such saved stash ‘%s’ found at %s/%s", name, BLOB_CONTAINER, blobPath));
+                    String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
         }
-        URL url = extension.toExternalURL(blob, HttpMethod.GET);
+        URL url = provider.toExternalURL(blob, HttpMethod.GET);
         workspace.act(new Unstash(url));
-        listener.getLogger().printf("Unstashed file(s) from %s%n", extension.toURI(BLOB_CONTAINER, blobPath));
+        listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
     }
 
     private static final class Unstash extends MasterToSlaveFileCallable<Void> {
@@ -261,19 +236,18 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
     @Override
     public void clearAllStashes(TaskListener listener) throws IOException, InterruptedException {
         String stashPrefix = getBlobPath("stashes/");
-        JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
-        BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
-        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(stashPrefix).recursive());
+        BlobStore blobStore = getContext().getBlobStore();
+        Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive());
         int count = 0;
         while (it.hasNext()) {
             StorageMetadata sm = it.next();
             String path = sm.getName();
             assert path.startsWith(stashPrefix);
             LOGGER.fine("deleting " + path);
-            blobStore.removeBlob(BLOB_CONTAINER, path);
+            blobStore.removeBlob(provider.getContainer(), path);
             count++;
         }
-        listener.getLogger().printf("Deleted %d stash(es) from %s%n", count, extension.toURI(BLOB_CONTAINER, stashPrefix));
+        listener.getLogger().printf("Deleted %d stash(es) from %s%n", count, provider.toURI(provider.getContainer(), stashPrefix));
     }
 
     @Override
@@ -284,9 +258,8 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
         }
         JCloudsArtifactManager dest = (JCloudsArtifactManager) am;
         String allPrefix = getBlobPath("");
-        JCloudsApiExtensionPoint extension = getExtension(PROVIDER);
-        BlobStore blobStore = getContext(extension.getCredentialsSupplier()).getBlobStore();
-        Iterator<StorageMetadata> it = new JCloudsBlobStore.PageSetIterable(blobStore, BLOB_CONTAINER, ListContainerOptions.Builder.prefix(allPrefix).recursive());
+        BlobStore blobStore = getContext().getBlobStore();
+        Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive());
         int count = 0;
         while (it.hasNext()) {
             StorageMetadata sm = it.next();
@@ -294,38 +267,14 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
             assert path.startsWith(allPrefix);
             String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
             LOGGER.fine("copying " + path + " to " + destPath);
-            blobStore.copyBlob(BLOB_CONTAINER, path, BLOB_CONTAINER, destPath, CopyOptions.NONE);
+            blobStore.copyBlob(provider.getContainer(), path, provider.getContainer(), destPath, CopyOptions.NONE);
             count++;
         }
-        listener.getLogger().printf("Copied %d artifact(s)/stash(es) from %s to %s%n", count, extension.toURI(BLOB_CONTAINER, allPrefix), extension.toURI(BLOB_CONTAINER, dest.getBlobPath("")));
+        listener.getLogger().printf("Copied %d artifact(s)/stash(es) from %s to %s%n", count, provider.toURI(provider.getContainer(), allPrefix), provider.toURI(provider.getContainer(), dest.getBlobPath("")));
     }
 
-    /**
-     * Get the extension implementation for the specific JClouds provider or api id
-     * 
-     * @param providerOrApi
-     * @throws IllegalStateException
-     *             if extension is not present or run from the agent
-     * @return the extension implementation
-     */
-    @NonNull
-    private static JCloudsApiExtensionPoint getExtension(String providerOrApi) {
-        return ExtensionList.lookup(JCloudsApiExtensionPoint.class).stream().filter(e -> providerOrApi.equals(e.id()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Could not find an extension for " + providerOrApi));
-    }
-
-    private static BlobStoreContext getContext(Supplier<Credentials> credentialsSupplier) throws IOException {
-        try {
-            // for some reason it won't find it at runtime otherwise
-            ProviderRegistry.registerProvider(getExtension(PROVIDER).getProvider());
-
-            return ContextBuilder.newBuilder(PROVIDER)
-                    .credentialsSupplier(credentialsSupplier)
-                    .buildView(BlobStoreContext.class);
-        } catch (NoSuchElementException x) {
-            throw new IOException(x);
-        }
+    private BlobStoreContext getContext() throws IOException {
+        return provider.getContext();
     }
 
     private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
