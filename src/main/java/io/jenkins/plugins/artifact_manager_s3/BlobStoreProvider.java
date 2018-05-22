@@ -34,7 +34,6 @@ import org.jclouds.blobstore.domain.Blob;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.Beta;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionPoint;
 import hudson.model.AbstractDescribableImpl;
@@ -86,10 +85,8 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
      * @return the URL
      * @throws IOException
      */
-    @CheckForNull
-    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
-        return null;
-    }
+    @NonNull
+    public abstract URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException;
 
     @Override
     public BlobStoreProviderDescriptor getDescriptor() {
