@@ -33,6 +33,8 @@ import org.jclouds.blobstore.domain.Blob;
 
 public final class MockBlobStore extends BlobStoreProvider {
 
+    private transient BlobStoreContext context;
+
     @Override
     public String getPrefix() {
         return "";
@@ -44,18 +46,21 @@ public final class MockBlobStore extends BlobStoreProvider {
     }
 
     @Override
-    public BlobStoreContext getContext() throws IOException {
-        return ContextBuilder.newBuilder("mock").buildView(BlobStoreContext.class);
+    public synchronized BlobStoreContext getContext() throws IOException {
+        if (context == null) {
+            context = ContextBuilder.newBuilder("mock").buildView(BlobStoreContext.class);
+        }
+        return context;
     }
 
     @Override
     public URI toURI(String container, String key) {
-        throw new UnsupportedOperationException(); // TODO
+        return URI.create("mock://" + container + "/" + key);
     }
 
     @Override
     public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
-        throw new UnsupportedOperationException(); // TODO
+        return new URL(MockApiMetadata.baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName());
     }
 
 }
