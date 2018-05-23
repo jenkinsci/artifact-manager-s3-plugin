@@ -24,6 +24,9 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
@@ -69,14 +72,14 @@ import jenkins.security.MasterToSlaveCallable;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 
-public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
+public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
 
     @BeforeClass
     public static void live() {
-        JCloudsAbstractTest.live();
+        S3AbstractTest.live();
     }
 
     private static DockerImage image;

@@ -21,27 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package io.jenkins.plugins.artifact_manager_s3;
 
-import java.util.stream.Collectors;
-import org.jclouds.ContextBuilder;
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.blobstore.domain.StorageMetadata;
-import static org.junit.Assert.*;
-import org.junit.Test;
+package io.jenkins.plugins.artifact_manager_jclouds;
 
-public class MockApiMetadataTest {
+import hudson.model.Descriptor;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.Beta;
 
-    @Test
-    public void smokes() throws Exception {
-        BlobStoreContext bsc = ContextBuilder.newBuilder("mock").buildView(BlobStoreContext.class);
-        BlobStore bs = bsc.getBlobStore();
-        bs.createContainerInLocation(null, "container");
-        Blob blob = bs.blobBuilder("file.txt").payload("content").build();
-        bs.putBlob("container", blob);
-        assertEquals("file.txt", bs.list("container").stream().map(StorageMetadata::getName).collect(Collectors.joining(":")));
-    }
-
-}
+/**
+ * Descriptor type for {@link BlobStoreProvider}.
+ */
+@Restricted(Beta.class)
+public abstract class BlobStoreProviderDescriptor extends Descriptor<BlobStoreProvider> {}

@@ -22,18 +22,21 @@
  * THE SOFTWARE.
  */
 
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds;
 
 import hudson.Extension;
 import hudson.model.Run;
 import jenkins.model.ArtifactManager;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.ArtifactManagerFactoryDescriptor;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * Factory for {@link ArtifactManager}
  */
+@Restricted(NoExternalUse.class)
 public class JCloudsArtifactManagerFactory extends ArtifactManagerFactory {
 
     private final BlobStoreProvider provider;

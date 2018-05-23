@@ -24,6 +24,7 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import static org.hamcrest.Matchers.*;
 import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
 import static org.junit.Assert.*;
@@ -56,7 +57,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import jenkins.util.VirtualFile;
 import shaded.com.google.common.collect.ImmutableSet;
 
-public class JCloudsVirtualFileTest extends JCloudsAbstractTest {
+public class JCloudsVirtualFileTest extends S3AbstractTest {
 
     protected File tmpFile;
     protected String filePath, missingFilePath, weirdCharactersPath;
