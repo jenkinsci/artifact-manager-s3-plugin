@@ -27,6 +27,7 @@ package io.jenkins.plugins.artifact_manager_jclouds;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -37,10 +38,14 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpVersion;
 import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
+import org.apache.http.message.BasicStatusLine;
 import org.apache.http.protocol.HttpContext;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -62,6 +67,12 @@ public final class MockBlobStore extends BlobStoreProvider {
     public String getContainer() {
         return "container";
     }
+    
+    private static final Set<String> fails = new ConcurrentHashSet<>();
+
+    static void failIn(String method, String key) {
+        fails.add(method + ":" + key);
+    }
 
     @Override
     public synchronized BlobStoreContext getContext() throws IOException {
@@ -70,12 +81,17 @@ public final class MockBlobStore extends BlobStoreProvider {
             HttpServer server = ServerBootstrap.bootstrap().
                 registerHandler("*", (HttpRequest request, HttpResponse response, HttpContext _context) -> {
                     String method = request.getRequestLine().getMethod();
-                    Matcher m = Pattern.compile("/([^/]+)/(.+)").matcher(request.getRequestLine().getUri());
+                    Matcher m = Pattern.compile("/([^/]+)/(.+)[?]method=" + method).matcher(request.getRequestLine().getUri());
                     if (!m.matches()) {
                         throw new IllegalStateException();
                     }
                     String container = m.group(1);
                     String key = m.group(2);
+                    if (fails.remove(method + ":" + key)) {
+                        response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, 500, "simulated failure"));
+                        response.setEntity(new StringEntity("Detailed explanation."));
+                        return;
+                    }
                     BlobStore blobStore = context.getBlobStore();
                     switch (method) {
                         case "GET": {
@@ -121,7 +137,7 @@ public final class MockBlobStore extends BlobStoreProvider {
 
     @Override
     public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
-        return new URL(baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName());
+        return new URL(baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName() + "?method=" + httpMethod);
     }
 
 }
