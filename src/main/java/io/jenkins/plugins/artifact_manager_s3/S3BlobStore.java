@@ -74,7 +74,7 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
 
     @Override
     public String id() {
-        return JCloudsArtifactManager.PROVIDER;
+        return "aws-s3";
     }
 
     @Override

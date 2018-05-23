@@ -79,11 +79,11 @@ class JCloudsArtifactManager extends ArtifactManager implements StashManager.Sta
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
-    public static String PROVIDER = System.getProperty("jclouds.provider", "aws-s3");
+    private static String PROVIDER = System.getProperty("jclouds.provider", "aws-s3");
 
     private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
     private static String PREFIX = System.getenv("S3_DIR");
-    public static String AWS_REGION = System.getenv(JCloudsArtifactManager.class.getName() + ".AWS_REGION");
+    public static String AWS_REGION = System.getProperty(JCloudsArtifactManager.class.getName() + ".AWS_REGION");
 
 
     private transient String key; // e.g. myorg/myrepo/master/123
