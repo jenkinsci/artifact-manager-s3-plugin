@@ -81,6 +81,13 @@ final class JCloudsArtifactManager extends ArtifactManager implements StashManag
         onLoad(build);
     }
 
+    private Object readResolve() {
+        if (provider == null) {
+            throw new IllegalStateException("Missing provider field");
+        }
+        return this;
+    }
+
     @Override
     public void onLoad(Run<?, ?> build) {
         this.key = String.format("%s/%s", build.getParent().getFullName(), build.getNumber());
