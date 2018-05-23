@@ -35,7 +35,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -46,20 +45,9 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.ExceptionLogger;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.impl.bootstrap.HttpServer;
-import org.apache.http.impl.bootstrap.ServerBootstrap;
-import org.apache.http.protocol.HttpContext;
 import org.jclouds.apis.ApiMetadata;
 import org.jclouds.apis.internal.BaseApiMetadata;
 import org.jclouds.blobstore.BlobRequestSigner;
@@ -91,7 +79,6 @@ import org.jclouds.blobstore.options.CreateContainerOptions;
 import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.blobstore.options.PutOptions;
-import org.jclouds.blobstore.util.BlobUtils;
 import org.jclouds.domain.Location;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
@@ -159,66 +146,10 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
     }
 
-    // TODO any clean way to get the instance out of Guice?
-    // Possible to override BlobBuilderImpl to intercept blob creation from JCloudsArtifactManager
-    // but not obvious how to tie that instance to anything else.
-    static URL baseURL;
-
     /** Like {@link TransientStorageStrategy}. */
     public static final class MockStrategy implements LocalStorageStrategy {
 
         private final Map<String, Map<String, Blob>> blobsByContainer = new HashMap<>();
-
-        @Inject
-        public MockStrategy(BlobUtils blobUtils) throws Exception {
-            HttpServer server = ServerBootstrap.bootstrap().
-                registerHandler("*", (HttpRequest request, HttpResponse response, HttpContext context) -> {
-                    String method = request.getRequestLine().getMethod();
-                    Matcher m = Pattern.compile("/([^/]+)/(.+)").matcher(request.getRequestLine().getUri());
-                    if (!m.matches()) {
-                        throw new IllegalStateException();
-                    }
-                    String container = m.group(1);
-                    String key = m.group(2);
-                    switch (method) {
-                        case "GET": {
-                            Map<String, Blob> blobs = blobsByContainer.get(container);
-                            if (blobs == null) {
-                                response.setStatusCode(404);
-                                return;
-                            }
-                            Blob blob = blobs.get(key);
-                            if (blob == null) {
-                                response.setStatusCode(404);
-                                return;
-                            }
-                            byte[] data = IOUtils.toByteArray(blob.getPayload().openStream());
-                            response.setStatusCode(200);
-                            response.setEntity(new ByteArrayEntity(data));
-                            LOGGER.log(Level.INFO, "Serving {0} bytes from {1}:{2}", new Object[] {data.length, container, key});
-                            return;
-                        } case "PUT": {
-                            Map<String, Blob> blobs = blobsByContainer.computeIfAbsent(container, __ -> new HashMap<>());
-                            Blob blob = blobs.computeIfAbsent(key, __ -> blobUtils.blobBuilder().name(key).build());
-                            HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
-                            byte[] data = IOUtils.toByteArray(entity.getContent());
-                            blob.setPayload(data);
-                            blob.getMetadata().setSize((long) data.length);
-                            blob.getMetadata().setContainer(container);
-                            response.setStatusCode(204);
-                            LOGGER.log(Level.INFO, "Uploaded {0} bytes to {1}:{2}", new Object[] {data.length, container, key});
-                            return;
-                        } default: {
-                            throw new IllegalStateException();
-                        }
-                    }
-                }).
-                setExceptionLogger(ExceptionLogger.STD_ERR).
-                create();
-            server.start();
-            baseURL = new URL("http://" + server.getInetAddress().getHostName() + ":" + server.getLocalPort() + "/");
-            LOGGER.log(Level.INFO, "Mock server running at {0}", baseURL);
-        }
 
         @Override
         public boolean containerExists(String container) {
