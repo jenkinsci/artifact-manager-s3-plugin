@@ -94,6 +94,7 @@ import org.jclouds.blobstore.options.PutOptions;
 import org.jclouds.blobstore.util.BlobUtils;
 import org.jclouds.domain.Location;
 import org.jclouds.io.Payload;
+import org.jclouds.io.Payloads;
 import org.kohsuke.MetaInfServices;
 
 /**
@@ -167,11 +168,9 @@ public final class MockApiMetadata extends BaseApiMetadata {
     public static final class MockStrategy implements LocalStorageStrategy {
 
         private final Map<String, Map<String, Blob>> blobsByContainer = new HashMap<>();
-        private final BlobUtils blobUtils;
 
         @Inject
         public MockStrategy(BlobUtils blobUtils) throws Exception {
-            this.blobUtils = blobUtils;
             HttpServer server = ServerBootstrap.bootstrap().
                 registerHandler("*", (HttpRequest request, HttpResponse response, HttpContext context) -> {
                     String method = request.getRequestLine().getMethod();
@@ -278,11 +277,21 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
         @Override
         public Blob getBlob(String containerName, String blobName) {
-            return blobsByContainer.get(containerName).get(blobName);
+            Blob blob = blobsByContainer.get(containerName).get(blobName);
+            assert containerName.equals(blob.getMetadata().getContainer()) : blob;
+            return blob;
         }
 
         @Override
         public String putBlob(String containerName, Blob blob) throws IOException {
+            {
+                // When called from LocalBlobStore.copyBlob, there is no container, and it uses an InputStreamPayload which cannot be reused.
+                // TransientStorageStrategy has an elaborate createUpdatedCopyOfBlobInContainer here, but these two fixups seem to suffice.
+                blob.getMetadata().setContainer(containerName);
+                byte[] data = IOUtils.toByteArray(blob.getPayload().openStream());
+                blob.getMetadata().setSize((long) data.length);
+                blob.setPayload(Payloads.newByteArrayPayload(data));
+            }
             blobsByContainer.get(containerName).put(blob.getMetadata().getName(), blob);
             return null;
         }
