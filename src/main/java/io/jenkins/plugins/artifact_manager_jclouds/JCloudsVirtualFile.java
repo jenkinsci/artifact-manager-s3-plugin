@@ -22,12 +22,12 @@
  * THE SOFTWARE.
  */
 
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.remoting.Callable;
-import io.jenkins.plugins.artifact_manager_s3.BlobStoreProvider.HttpMethod;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -63,7 +63,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 /**
  * <a href="https://jclouds.apache.org/start/blobstore/">JClouds BlobStore Guide</a>
  */
-class JCloudsVirtualFile extends VirtualFile {
+@Restricted(NoExternalUse.class)
+public class JCloudsVirtualFile extends VirtualFile {
 
     private static final long serialVersionUID = -5126878907895121335L;
 
@@ -80,7 +81,7 @@ class JCloudsVirtualFile extends VirtualFile {
     @CheckForNull
     private transient BlobStoreContext context;
 
-    JCloudsVirtualFile(@NonNull BlobStoreProvider provider, @NonNull String container, @NonNull String key) {
+    public JCloudsVirtualFile(@NonNull BlobStoreProvider provider, @NonNull String container, @NonNull String key) {
         this.provider = provider;
         this.container = container;
         this.key = key;

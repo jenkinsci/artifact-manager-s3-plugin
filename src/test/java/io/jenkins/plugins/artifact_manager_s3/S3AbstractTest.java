@@ -24,6 +24,9 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
@@ -44,7 +47,7 @@ import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.LoggerRule;
 
-public abstract class JCloudsAbstractTest {
+public abstract class S3AbstractTest {
 
     protected static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
 

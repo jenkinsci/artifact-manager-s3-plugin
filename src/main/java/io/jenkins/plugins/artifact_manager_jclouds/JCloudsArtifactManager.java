@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds;
 
 import java.io.File;
 import java.io.IOException;
@@ -60,15 +60,18 @@ import hudson.remoting.VirtualChannel;
 import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
-import io.jenkins.plugins.artifact_manager_s3.BlobStoreProvider.HttpMethod;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
  * Artifact manager that stores files in a JClouds BlobStore using any of JClouds supported backends
  */
-final class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
+@Restricted(NoExternalUse.class)
+public final class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
@@ -93,12 +96,12 @@ final class JCloudsArtifactManager extends ArtifactManager implements StashManag
         this.key = String.format("%s/%s", build.getParent().getFullName(), build.getNumber());
     }
 
-    private String getBlobPath(String s3path) {
-        return getBlobPath(key, s3path);
+    private String getBlobPath(String path) {
+        return getBlobPath(key, path);
     }
 
-    private String getBlobPath(String key, String s3path) {
-        return String.format("%s%s/%s", provider.getPrefix(), key, s3path);
+    private String getBlobPath(String key, String path) {
+        return String.format("%s%s/%s", provider.getPrefix(), key, path);
     }
 
     /*
@@ -113,8 +116,8 @@ final class JCloudsArtifactManager extends ArtifactManager implements StashManag
 
         // Map artifacts to urls for upload
         for (Map.Entry<String, String> entry : artifacts.entrySet()) {
-            String s3path = "artifacts/" + entry.getKey();
-            String blobPath = getBlobPath(s3path);
+            String path = "artifacts/" + entry.getKey();
+            String blobPath = getBlobPath(path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(provider.getContainer());
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
@@ -132,7 +135,7 @@ final class JCloudsArtifactManager extends ArtifactManager implements StashManag
     /**
      * Delete all blobs starting with prefix
      */
-    static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
+    public static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
         Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
         boolean found = false;
         while (it.hasNext()) {

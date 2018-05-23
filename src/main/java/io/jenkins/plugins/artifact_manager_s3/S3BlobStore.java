@@ -24,6 +24,8 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;

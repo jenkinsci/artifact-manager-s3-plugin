@@ -22,11 +22,14 @@
  * THE SOFTWARE.
  */
 
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds;
 
 import hudson.model.Descriptor;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.Beta;
 
 /**
  * Descriptor type for {@link BlobStoreProvider}.
  */
+@Restricted(Beta.class)
 public abstract class BlobStoreProviderDescriptor extends Descriptor<BlobStoreProvider> {}
