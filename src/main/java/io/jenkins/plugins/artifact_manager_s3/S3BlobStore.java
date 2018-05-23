@@ -32,23 +32,27 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 
+import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
+import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.osgi.ProviderRegistry;
 import org.jclouds.providers.ProviderMetadata;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
@@ -70,7 +74,7 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
 
     @Override
     public String id() {
-        return "aws-s3";
+        return JCloudsArtifactManager.PROVIDER;
     }
 
     @Override
@@ -82,7 +86,14 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
         LOGGER.log(Level.FINEST, "Building context for {0}", id());
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
+            Properties props = new Properties();
+
+            if(StringUtils.isNotBlank(JCloudsArtifactManager.AWS_REGION)) {
+                props.setProperty(LocationConstants.PROPERTY_REGIONS, JCloudsArtifactManager.AWS_REGION);
+            }
+
             return ContextBuilder.newBuilder(id()).credentialsSupplier(getCredentialsSupplier())
+                                 .overrides(props)
                     .buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
@@ -94,15 +105,20 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
         // get user credentials from env vars, profiles,...
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         // Assume we are using session credentials
-        AWSSessionCredentials awsCredentials = (AWSSessionCredentials) builder.getCredentials().getCredentials();
+        AWSCredentials awsCredentials = builder.getCredentials().getCredentials();
+
         if (awsCredentials == null) {
             throw new IOException("Unable to get credentials from environment");
+        }
+
+        if(!(awsCredentials instanceof AWSSessionCredentials)){
+            throw new IOException("No valid session credentials");
         }
 
         SessionCredentials sessionCredentials = SessionCredentials.builder()
                 .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
                 .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(awsCredentials.getSessionToken()) //
+                .sessionToken(((AWSSessionCredentials)awsCredentials).getSessionToken()) //
                 .build();
 
         return new Supplier<Credentials>() {
