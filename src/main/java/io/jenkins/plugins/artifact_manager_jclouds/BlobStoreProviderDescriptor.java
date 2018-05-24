@@ -22,37 +22,14 @@
  * THE SOFTWARE.
  */
 
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds;
 
-import hudson.Extension;
-import hudson.model.Run;
-import jenkins.model.ArtifactManager;
-import jenkins.model.ArtifactManagerFactory;
-import jenkins.model.ArtifactManagerFactoryDescriptor;
-import org.kohsuke.stapler.DataBoundConstructor;
+import hudson.model.Descriptor;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.Beta;
 
 /**
- * Factory for {@link ArtifactManager}
+ * Descriptor type for {@link BlobStoreProvider}.
  */
-public class JCloudsArtifactManagerFactory extends ArtifactManagerFactory {
-
-    @DataBoundConstructor
-    public JCloudsArtifactManagerFactory() {
-    }
-
-    @Override
-    public ArtifactManager managerFor(Run<?, ?> build) {
-        return new JCloudsArtifactManager(build);
-    }
-
-    @Extension
-    public static final class DescriptorImpl extends ArtifactManagerFactoryDescriptor {
-
-        @Override
-        public String getDisplayName() {
-            return "S3-based Artifact Storage";
-        }
-
-    }
-
-}
+@Restricted(Beta.class)
+public abstract class BlobStoreProviderDescriptor extends Descriptor<BlobStoreProvider> {}
