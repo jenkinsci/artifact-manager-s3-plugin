@@ -75,6 +75,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
+    private static boolean DELETE_BLOBS = Boolean.getBoolean(JCloudsArtifactManager.class.getName() + ".deleteBlobs");
+
     private final BlobStoreProvider provider;
 
     private transient String key; // e.g. myorg/myrepo/master/123
@@ -129,7 +131,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     @Override
     public boolean delete() throws IOException, InterruptedException {
-        return delete(provider, getContext().getBlobStore(), getBlobPath(""));
+        return DELETE_BLOBS ? delete(provider, getContext().getBlobStore(), getBlobPath("")) : false;
     }
 
     /**
