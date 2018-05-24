@@ -22,37 +22,26 @@
  * THE SOFTWARE.
  */
 
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds;
 
-import hudson.Extension;
-import hudson.model.Run;
-import jenkins.model.ArtifactManager;
-import jenkins.model.ArtifactManagerFactory;
-import jenkins.model.ArtifactManagerFactoryDescriptor;
-import org.kohsuke.stapler.DataBoundConstructor;
+import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.JenkinsRule;
 
-/**
- * Factory for {@link ArtifactManager}
- */
-public class JCloudsArtifactManagerFactory extends ArtifactManagerFactory {
+public class MockBlobStoreTest {
 
-    @DataBoundConstructor
-    public JCloudsArtifactManagerFactory() {
-    }
+    @ClassRule
+    public static BuildWatcher buildWatcher = new BuildWatcher();
 
-    @Override
-    public ArtifactManager managerFor(Run<?, ?> build) {
-        return new JCloudsArtifactManager(build);
-    }
+    @Rule
+    public JenkinsRule j = new JenkinsRule();
 
-    @Extension
-    public static final class DescriptorImpl extends ArtifactManagerFactoryDescriptor {
-
-        @Override
-        public String getDisplayName() {
-            return "S3-based Artifact Storage";
-        }
-
+    @Test
+    public void smokes() throws Exception {
+        ArtifactManagerTest.run(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false, null);
     }
 
 }
