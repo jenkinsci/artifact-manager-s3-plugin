@@ -27,7 +27,8 @@ package io.jenkins.plugins.artifact_manager_jclouds;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
-import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -45,7 +46,6 @@ import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
 import org.apache.http.message.BasicStatusLine;
 import org.apache.http.protocol.HttpContext;
-import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -74,15 +74,16 @@ public final class MockBlobStore extends BlobStoreProvider {
         return "container";
     }
     
-    private static final Set<String> fails = new ConcurrentHashSet<>();
+    private static final Map<String, Integer> fails = new ConcurrentHashMap<>();
 
     /**
-     * Requests that the <em>next</em> HTTP access to a particular presigned URL should fail with a 500 error.
+     * Requests that the <em>next</em> HTTP access to a particular presigned URL should fail with a 4xx/5xx error.
      * @param method upload or download
      * @param key the blob’s {@link StorageMetadata#getName}
+     * @param code the status code
      */
-    static void failIn(HttpMethod method, String key) {
-        fails.add(method + ":" + key);
+    static void failIn(HttpMethod method, String key, int code) {
+        fails.put(method + ":" + key, code);
     }
 
     @Override
@@ -98,9 +99,10 @@ public final class MockBlobStore extends BlobStoreProvider {
                     }
                     String container = m.group(1);
                     String key = m.group(2);
-                    if (fails.remove(method + ":" + key)) {
-                        response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, 500, "simulated failure"));
-                        response.setEntity(new StringEntity("Detailed explanation."));
+                    Integer failure = fails.remove(method + ":" + key);
+                    if (failure != null) {
+                        response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, failure, "simulated " + failure + " failure"));
+                        response.setEntity(new StringEntity("Detailed explanation of " + failure + "."));
                         return;
                     }
                     BlobStore blobStore = context.getBlobStore();
