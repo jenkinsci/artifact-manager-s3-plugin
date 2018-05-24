@@ -75,16 +75,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
-<<<<<<< HEAD:src/main/java/io/jenkins/plugins/artifact_manager_s3/JCloudsArtifactManager.java
-    private static String PROVIDER = System.getProperty("jclouds.provider", "aws-s3");
-
-    private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
-    private static String PREFIX = System.getenv("S3_DIR");
-    public static String AWS_REGION = System.getProperty(JCloudsArtifactManager.class.getName() + ".AWS_REGION");
-
-=======
     private final BlobStoreProvider provider;
->>>>>>> f7abd4e9fb554c631cb19a45355a1e9bfcac290e:src/main/java/io/jenkins/plugins/artifact_manager_jclouds/JCloudsArtifactManager.java
 
     private transient String key; // e.g. myorg/myrepo/master/123
 
