@@ -81,7 +81,7 @@ public class S3BlobStore extends BlobStoreProvider {
     @SuppressWarnings("FieldMayBeFinal")
     private static String PREFIX = System.getenv("S3_DIR");
     @SuppressWarnings("FieldMayBeFinal")
-    private static String REGION = System.getProperty(JCloudsArtifactManager.class.getName() + ".region");
+    private static String REGION = System.getProperty(S3BlobStore.class.getName() + ".region");
 
     @DataBoundConstructor
     public S3BlobStore() {}
