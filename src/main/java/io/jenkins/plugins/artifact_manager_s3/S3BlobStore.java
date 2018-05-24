@@ -101,6 +101,8 @@ public class S3BlobStore extends BlobStoreProvider {
         }
     }
 
+    static boolean BREAK_CREDS;
+
     private Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
@@ -114,10 +116,15 @@ public class S3BlobStore extends BlobStoreProvider {
             throw new IOException("No valid session credentials");
         }
 
+        String sessionToken = ((AWSSessionCredentials) awsCredentials).getSessionToken();
+        if (BREAK_CREDS) {
+            sessionToken = "<broken>";
+        }
+
         SessionCredentials sessionCredentials = SessionCredentials.builder()
                 .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
                 .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(((AWSSessionCredentials)awsCredentials).getSessionToken()) //
+                .sessionToken(sessionToken) //
                 .build();
 
         return () -> sessionCredentials;
