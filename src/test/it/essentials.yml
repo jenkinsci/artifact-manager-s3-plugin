@@ -15,7 +15,7 @@ packaging:
           dir: initScripts
 ath:
   # TODO: ATH test dependency issues
-  enabled: false
+  disabled: true
   useLocalSnapshots: false
   tests:
     - "core.ArtifactsTest"
