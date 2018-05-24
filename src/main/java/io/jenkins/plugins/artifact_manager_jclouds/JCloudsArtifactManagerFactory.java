@@ -44,7 +44,7 @@ public class JCloudsArtifactManagerFactory extends ArtifactManagerFactory {
     @DataBoundConstructor
     public JCloudsArtifactManagerFactory(BlobStoreProvider provider) {
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Missing provider field");
         }
         this.provider = provider;
     }
