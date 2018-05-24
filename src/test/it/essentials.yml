@@ -2,6 +2,7 @@
 packaging:
   bom: bom.yml
   environment: aws
+  archiveArtifacts: true
   config:
     bundle:
       vendor: "Jenkins project"
@@ -13,6 +14,8 @@ packaging:
         source:
           dir: initScripts
 ath:
+  # TODO: ATH test dependency issues
+  enabled: false
   useLocalSnapshots: false
   tests:
     - "core.ArtifactsTest"
