@@ -32,23 +32,29 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
+import javax.ws.rs.HEAD;
 
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager;
+import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
+import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.osgi.ProviderRegistry;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
@@ -74,6 +80,8 @@ public class S3BlobStore extends BlobStoreProvider {
     private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
     @SuppressWarnings("FieldMayBeFinal")
     private static String PREFIX = System.getenv("S3_DIR");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static String REGION = System.getProperty(S3BlobStore.class.getName() + ".region");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
     @SuppressWarnings("FieldMayBeFinal")
@@ -107,6 +115,12 @@ public class S3BlobStore extends BlobStoreProvider {
         LOGGER.log(Level.FINEST, "Building context");
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
+            Properties props = new Properties();
+
+            if(StringUtils.isNotBlank(REGION)) {
+                props.setProperty(LocationConstants.PROPERTY_REGIONS, REGION);
+            }
+
             return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
                     .buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
@@ -114,19 +128,30 @@ public class S3BlobStore extends BlobStoreProvider {
         }
     }
 
+    static boolean BREAK_CREDS;
+
     private Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
-        // Assume we are using session credentials
-        AWSSessionCredentials awsCredentials = (AWSSessionCredentials) builder.getCredentials().getCredentials();
+        AWSCredentials awsCredentials = builder.getCredentials().getCredentials();
         if (awsCredentials == null) {
             throw new IOException("Unable to get credentials from environment");
+        }
+
+        // Assume we are using session credentials
+        if(!(awsCredentials instanceof AWSSessionCredentials)){
+            throw new IOException("No valid session credentials");
+        }
+
+        String sessionToken = ((AWSSessionCredentials) awsCredentials).getSessionToken();
+        if (BREAK_CREDS) {
+            sessionToken = "<broken>";
         }
 
         SessionCredentials sessionCredentials = SessionCredentials.builder()
                 .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
                 .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(awsCredentials.getSessionToken()) //
+                .sessionToken(sessionToken) //
                 .build();
 
         return () -> sessionCredentials;
