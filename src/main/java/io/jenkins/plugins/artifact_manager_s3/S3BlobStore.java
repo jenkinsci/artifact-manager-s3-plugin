@@ -80,6 +80,8 @@ public class S3BlobStore extends BlobStoreProvider {
     private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
     @SuppressWarnings("FieldMayBeFinal")
     private static String PREFIX = System.getenv("S3_DIR");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static String REGION = System.getProperty(JCloudsArtifactManager.class.getName() + ".region");
 
     @DataBoundConstructor
     public S3BlobStore() {}
@@ -101,8 +103,8 @@ public class S3BlobStore extends BlobStoreProvider {
         try {
             Properties props = new Properties();
 
-            if(StringUtils.isNotBlank(JCloudsArtifactManager.AWS_REGION)) {
-                props.setProperty(LocationConstants.PROPERTY_REGIONS, JCloudsArtifactManager.AWS_REGION);
+            if(StringUtils.isNotBlank(REGION)) {
+                props.setProperty(LocationConstants.PROPERTY_REGIONS, REGION);
             }
 
             return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
