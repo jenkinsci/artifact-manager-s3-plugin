@@ -68,13 +68,23 @@ public class NetworkTest {
     }
 
     @Test
-    public void exceptionArchiving() throws Exception {
+    public void unrecoverableExceptionArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         r.createSlave("remote", null, null);
-        MockBlobStore.failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500);
+        MockBlobStore.failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 400);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
+        r.assertLogContains("/container/p/1/artifacts/f?…, response: 400 simulated 400 failure, body: Detailed explanation of 400.", b);
+    }
+
+    @Test
+    public void networkExceptionArchiving() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        MockBlobStore.failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 0);
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        // currently prints a ‘java.net.SocketException: Connection reset’ but not sure if we really care
     }
 
 }

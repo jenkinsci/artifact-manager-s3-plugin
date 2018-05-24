@@ -34,7 +34,6 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.ExceptionLogger;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpRequest;
@@ -80,7 +79,7 @@ public final class MockBlobStore extends BlobStoreProvider {
      * Requests that the <em>next</em> HTTP access to a particular presigned URL should fail with a 4xx/5xx error.
      * @param method upload or download
      * @param key the blob’s {@link StorageMetadata#getName}
-     * @param code the status code
+     * @param code the status code, or 0 to just make the request fail without sending a proper response
      */
     static void failIn(HttpMethod method, String key, int code) {
         fails.put(method + ":" + key, code);
@@ -101,6 +100,9 @@ public final class MockBlobStore extends BlobStoreProvider {
                     String key = m.group(2);
                     Integer failure = fails.remove(method + ":" + key);
                     if (failure != null) {
+                        if (failure == 0) {
+                            throw new IllegalStateException("Refusing to even send a status code for " + container + ":" + key);
+                        }
                         response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, failure, "simulated " + failure + " failure"));
                         response.setEntity(new StringEntity("Detailed explanation of " + failure + "."));
                         return;
@@ -134,7 +136,7 @@ public final class MockBlobStore extends BlobStoreProvider {
                         }
                     }
                 }).
-                setExceptionLogger(ExceptionLogger.STD_ERR).
+                setExceptionLogger(x -> LOGGER.log(Level.INFO, "error thrown in HTTP service", x)).
                 create();
             server.start();
             baseURL = new URL("http://" + server.getInetAddress().getHostName() + ":" + server.getLocalPort() + "/");
