@@ -24,6 +24,9 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
@@ -56,12 +59,12 @@ import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
-import hudson.model.Run;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
 import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
-import jenkins.model.ArtifactManager;
+import java.net.URI;
+import java.net.URL;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
@@ -70,15 +73,17 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.Issue;
+import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.domain.Blob;
 
-public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
+public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
 
     @BeforeClass
     public static void live() {
-        JCloudsAbstractTest.live();
+        S3AbstractTest.live();
     }
 
     private static DockerImage image;
@@ -94,24 +99,41 @@ public class JCloudsArtifactManagerTest extends JCloudsAbstractTest {
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
-    private static class ArtifactManagerFactoryForTesting extends JCloudsArtifactManagerFactory {
-        private String prefix;
-
-        public ArtifactManagerFactoryForTesting(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @Override
-        public ArtifactManager managerFor(Run<?, ?> build) {
-            // use a different dir for each test
-            JCloudsArtifactManager manager = (JCloudsArtifactManager) super.managerFor(build);
-            manager.setPrefix(prefix);
-            return manager;
-        }
+    protected ArtifactManagerFactory getArtifactManagerFactory() {
+        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix()));
     }
 
-    protected ArtifactManagerFactory getArtifactManagerFactory() {
-        return new ArtifactManagerFactoryForTesting(getPrefix());
+    private static final class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
+        private final BlobStoreProvider delegate;
+        private final String prefix;
+        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix) {
+            this.delegate = delegate;
+            this.prefix = prefix;
+        }
+        @Override
+        public String getPrefix() {
+            return prefix;
+        }
+        @Override
+        public String getContainer() {
+            return delegate.getContainer();
+        }
+        @Override
+        public BlobStoreContext getContext() throws IOException {
+            return delegate.getContext();
+        }
+        @Override
+        public URI toURI(String container, String key) {
+            return delegate.toURI(container, key);
+        }
+        @Override
+        public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
+            return delegate.toExternalURL(blob, httpMethod);
+        }
+        @Override
+        public BlobStoreProviderDescriptor getDescriptor() {
+            return delegate.getDescriptor();
+        }
     }
 
     @Test

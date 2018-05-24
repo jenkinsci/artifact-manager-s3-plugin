@@ -24,6 +24,7 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import static org.hamcrest.Matchers.*;
 import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
 import static org.junit.Assert.*;
@@ -56,11 +57,11 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import jenkins.util.VirtualFile;
 import shaded.com.google.common.collect.ImmutableSet;
 
-public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
+public class JCloudsVirtualFileTest extends S3AbstractTest {
 
     protected File tmpFile;
     protected String filePath, missingFilePath, weirdCharactersPath;
-    protected JCloudsBlobStore root, subdir, vf, missing, weirdCharacters, weirdCharactersMissing;
+    protected JCloudsVirtualFile root, subdir, vf, missing, weirdCharacters, weirdCharactersMissing;
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
@@ -91,8 +92,8 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
         blobStore.putBlob(getContainer(), blobStore.blobBuilder(weirdCharactersPath).payload(tmpFile).build());
     }
 
-    private JCloudsBlobStore newJCloudsBlobStore(String path) {
-        return new JCloudsBlobStore(new S3BlobStore(), getContainer(), path.replaceFirst("/$", ""));
+    private JCloudsVirtualFile newJCloudsBlobStore(String path) {
+        return new JCloudsVirtualFile(new S3BlobStore(), getContainer(), path.replaceFirst("/$", ""));
     }
 
     @Test
@@ -180,9 +181,9 @@ public class JCloudsBlobStoreTest extends JCloudsAbstractTest {
     public void list() throws Exception {
         VirtualFile[] rootList = root.list();
         assertTrue("Expected list to contain files: " + Arrays.toString(rootList), rootList.length > 0);
-        assertVirtualFileArrayEquals(new JCloudsBlobStore[] { vf, weirdCharacters }, subdir.list());
-        assertVirtualFileArrayEquals(new JCloudsBlobStore[0], vf.list());
-        assertVirtualFileArrayEquals(new JCloudsBlobStore[0], missing.list());
+        assertVirtualFileArrayEquals(new JCloudsVirtualFile[] { vf, weirdCharacters }, subdir.list());
+        assertVirtualFileArrayEquals(new JCloudsVirtualFile[0], vf.list());
+        assertVirtualFileArrayEquals(new JCloudsVirtualFile[0], missing.list());
     }
 
     @Test
