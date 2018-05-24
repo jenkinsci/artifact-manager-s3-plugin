@@ -64,6 +64,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
+import org.apache.commons.io.IOUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -321,10 +322,14 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             Files.copy(f, out);
         }
         int responseCode = connection.getResponseCode();
+        String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         if (responseCode < 200 || responseCode >= 300) {
-            throw new IOException(String.format("Failed to upload %s to %s, response: %d %s", f.toAbsolutePath(), url,
-                    responseCode, connection.getResponseMessage()));
+            String diag;
+            try (InputStream err = connection.getErrorStream()) {
+                diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
+            }
+            throw new IOException(String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
         }
-        LOGGER.log(Level.FINE, "Uploaded {0} to {1}: {2}", new Object[] { f.toAbsolutePath(), url, responseCode });
+        LOGGER.log(Level.FINE, "Uploaded {0} to {1}: {2}", new Object[] { f.toAbsolutePath(), urlSafe, responseCode });
     }
 }
