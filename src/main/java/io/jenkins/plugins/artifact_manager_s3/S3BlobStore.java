@@ -104,7 +104,7 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
             throw new IOException("No valid session credentials");
         }
 
-        SessionCredentials sessionCredentials = SessionCredentials.builder(
+        SessionCredentials sessionCredentials = SessionCredentials.builder()
                 .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
                 .secretAccessKey(awsCredentials.getAWSSecretKey()) //
                 .sessionToken(((AWSSessionCredentials)awsCredentials).getSessionToken()) //
