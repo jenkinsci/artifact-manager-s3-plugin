@@ -49,6 +49,7 @@ import org.jclouds.providers.ProviderMetadata;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
@@ -93,16 +94,20 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
     public Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
-        // Assume we are using session credentials
-        AWSSessionCredentials awsCredentials = (AWSSessionCredentials) builder.getCredentials().getCredentials();
+        AWSCredentials awsCredentials = builder.getCredentials().getCredentials();
         if (awsCredentials == null) {
             throw new IOException("Unable to get credentials from environment");
         }
 
-        SessionCredentials sessionCredentials = SessionCredentials.builder()
+        // Assume we are using session credentials
+        if(!(awsCredentials instanceof AWSSessionCredentials)){
+            throw new IOException("No valid session credentials");
+        }
+
+        SessionCredentials sessionCredentials = SessionCredentials.builder(
                 .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
                 .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(awsCredentials.getSessionToken()) //
+                .sessionToken(((AWSSessionCredentials)awsCredentials).getSessionToken()) //
                 .build();
 
         return new Supplier<Credentials>() {
