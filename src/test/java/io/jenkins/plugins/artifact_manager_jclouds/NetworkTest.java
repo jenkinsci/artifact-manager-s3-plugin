@@ -36,6 +36,21 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
+/**
+ * Explores responses to edge cases such as server errors and hangs.
+ * We do mocking at the jclouds level, rather than using (say) S3Mock, because:
+ * <ul>
+ * <li>We are interested here in the behavior of the generic Jenkins integration code in this package,
+ *     as well as its dependencies in Jenkins core and Pipeline, not that of a particular blob store.
+ * <li>S3-specific failure modes are of interest but are generally hard to simulate using those mock frameworks anyway.
+ *     For example, some S3 mock frameworks completely ignore authentication.
+ *     Conversely, some failure modes we want to test may not be supported by an S3 mock framework.
+ * <li>S3 mock frameworks are not written to expect the jclouds abstraction layer, and vice-versa.
+ *     The jclouds {@code AWSS3ProviderMetadata} cannot accept a custom {@link AmazonS3} which {@code S3MockRule} would supply;
+ *     it reimplements the S3 REST API from scratch, not using the AWS SDK.
+ *     It would be necessary to run Dockerized mocks with local HTTP ports.
+ * </ul>
+ */
 @Issue("JENKINS-50597")
 public class NetworkTest {
 
@@ -56,7 +71,7 @@ public class NetworkTest {
     public void exceptionArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         r.createSlave("remote", null, null);
-        MockBlobStore.failIn("PUT", "p/1/artifacts/f");
+        MockBlobStore.failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated failure, body: Detailed explanation.", b);

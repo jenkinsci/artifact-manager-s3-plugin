@@ -50,7 +50,13 @@ import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.blobstore.domain.StorageMetadata;
 
+/**
+ * A mock storage provider which keeps all blobs in memory.
+ * Presigned “external” URLs are supported.
+ * Allows tests to inject failures such as HTTP errors or hangs.
+ */
 public final class MockBlobStore extends BlobStoreProvider {
 
     private static final Logger LOGGER = Logger.getLogger(MockBlobStore.class.getName());
@@ -70,7 +76,12 @@ public final class MockBlobStore extends BlobStoreProvider {
     
     private static final Set<String> fails = new ConcurrentHashSet<>();
 
-    static void failIn(String method, String key) {
+    /**
+     * Requests that the <em>next</em> HTTP access to a particular presigned URL should fail with a 500 error.
+     * @param method upload or download
+     * @param key the blob’s {@link StorageMetadata#getName}
+     */
+    static void failIn(HttpMethod method, String key) {
         fails.add(method + ":" + key);
     }
 

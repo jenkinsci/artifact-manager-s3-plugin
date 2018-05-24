@@ -87,6 +87,8 @@ import org.kohsuke.MetaInfServices;
 /**
  * A mock provider allowing control of all operations.
  * Otherwise akin to a simplified version of {@link TransientApiMetadata}.
+ * Whereas the stock {@code transient} provider would merely implement the full SPI,
+ * we also want to allow particular metadata operations to fail or block at test-specified times.
  */
 @MetaInfServices(ApiMetadata.class)
 public final class MockApiMetadata extends BaseApiMetadata {
