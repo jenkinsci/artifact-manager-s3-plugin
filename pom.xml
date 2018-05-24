@@ -153,6 +153,12 @@
       <version>2.8-rc351.c6608322f479</version> <!-- TODO https://github.com/jenkinsci/workflow-basic-steps-plugin/pull/60 -->
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.kohsuke.metainf-services</groupId>
+      <artifactId>metainf-services</artifactId>
+      <version>1.7</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>
