@@ -50,7 +50,6 @@ spec:
   environments:
     - name: aws
       plugins:
-        #TODO: BOM does not support FileSystem REFs, so somebody needs to add BOM auto-update logic here
         - groupId: "io.jenkins.plugins"
           artifactId: "artifact-manager-s3"
-          version: 1.0-alpha-1-rc20.60688a35a736
+          dir: ../../..

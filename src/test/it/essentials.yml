@@ -3,6 +3,7 @@ packaging:
   bom: bom.yml
   environment: aws
   archiveArtifacts: true
+  cwpVersion: 0.1-alpha-6-20180524.212000-3
   config:
     bundle:
       vendor: "Jenkins project"
