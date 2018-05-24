@@ -3,7 +3,7 @@
 
 ARTIFACT_ID = jenkins-war
 VERSION = 2.121-artifact-manager-s3-SNAPSHOT
-CWP_VERSION = 0.1-alpha-6-20180524.212000-3
+CWP_VERSION = 0.1-alpha-6
 
 all: clean build
 
