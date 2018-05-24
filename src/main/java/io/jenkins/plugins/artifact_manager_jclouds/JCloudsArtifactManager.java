@@ -75,8 +75,6 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
-    private static boolean DELETE_BLOBS = Boolean.getBoolean(JCloudsArtifactManager.class.getName() + ".deleteBlobs");
-
     private final BlobStoreProvider provider;
 
     private transient String key; // e.g. myorg/myrepo/master/123
@@ -131,7 +129,12 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     @Override
     public boolean delete() throws IOException, InterruptedException {
-        return DELETE_BLOBS ? delete(provider, getContext().getBlobStore(), getBlobPath("")) : false;
+        String blobPath = getBlobPath("");
+        if (!provider.isDeleteBlobs()) {
+            LOGGER.log(Level.FINEST, "Ignoring blob deletion: {0}", blobPath);
+            return false;
+        }
+        return delete(provider, getContext().getBlobStore(), blobPath);
     }
 
     /**
@@ -248,6 +251,12 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     @Override
     public void clearAllStashes(TaskListener listener) throws IOException, InterruptedException {
         String stashPrefix = getBlobPath("stashes/");
+
+        if (!provider.isDeleteStashes()) {
+            LOGGER.log(Level.FINEST, "Ignoring stash deletion: {0}", stashPrefix);
+            return;
+        }
+
         BlobStore blobStore = getContext().getBlobStore();
         Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive());
         int count = 0;

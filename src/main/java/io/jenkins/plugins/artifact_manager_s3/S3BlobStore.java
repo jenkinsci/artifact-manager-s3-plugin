@@ -24,8 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -56,6 +54,8 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import shaded.com.google.common.base.Supplier;
 
 /**
@@ -74,6 +74,10 @@ public class S3BlobStore extends BlobStoreProvider {
     private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
     @SuppressWarnings("FieldMayBeFinal")
     private static String PREFIX = System.getenv("S3_DIR");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteStashes");
 
     @DataBoundConstructor
     public S3BlobStore() {}
@@ -86,6 +90,16 @@ public class S3BlobStore extends BlobStoreProvider {
     @Override
     public String getContainer() {
         return BLOB_CONTAINER;
+    }
+
+    @Override
+    public boolean isDeleteBlobs() {
+        return DELETE_BLOBS;
+    }
+
+    @Override
+    public boolean isDeleteStashes() {
+        return DELETE_STASHES;
     }
 
     @Override
