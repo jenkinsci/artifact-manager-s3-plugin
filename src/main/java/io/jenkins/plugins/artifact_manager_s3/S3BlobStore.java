@@ -34,18 +34,23 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
+import javax.ws.rs.HEAD;
 
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager;
+import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
+import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.osgi.ProviderRegistry;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -75,6 +80,8 @@ public class S3BlobStore extends BlobStoreProvider {
     private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
     @SuppressWarnings("FieldMayBeFinal")
     private static String PREFIX = System.getenv("S3_DIR");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static String REGION = System.getProperty(S3BlobStore.class.getName() + ".region");
 
     @DataBoundConstructor
     public S3BlobStore() {}
@@ -94,6 +101,12 @@ public class S3BlobStore extends BlobStoreProvider {
         LOGGER.log(Level.FINEST, "Building context");
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
+            Properties props = new Properties();
+
+            if(StringUtils.isNotBlank(REGION)) {
+                props.setProperty(LocationConstants.PROPERTY_REGIONS, REGION);
+            }
+
             return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
                     .buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
