@@ -105,20 +105,15 @@ public class S3BlobStore extends JCloudsApiExtensionPoint {
         // get user credentials from env vars, profiles,...
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         // Assume we are using session credentials
-        AWSCredentials awsCredentials = builder.getCredentials().getCredentials();
-
+        AWSSessionCredentials awsCredentials = (AWSSessionCredentials) builder.getCredentials().getCredentials();
         if (awsCredentials == null) {
             throw new IOException("Unable to get credentials from environment");
-        }
-
-        if(!(awsCredentials instanceof AWSSessionCredentials)){
-            throw new IOException("No valid session credentials");
         }
 
         SessionCredentials sessionCredentials = SessionCredentials.builder()
                 .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
                 .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(((AWSSessionCredentials)awsCredentials).getSessionToken()) //
+                .sessionToken(awsCredentials.getSessionToken()) //
                 .build();
 
         return new Supplier<Credentials>() {
