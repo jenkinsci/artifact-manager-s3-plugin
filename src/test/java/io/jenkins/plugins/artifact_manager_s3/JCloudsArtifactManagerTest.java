@@ -119,6 +119,14 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
             return delegate.getContainer();
         }
         @Override
+        public boolean isDeleteBlobs() {
+            return false;
+        }
+        @Override
+        public boolean isDeleteStashes() {
+            return false;
+        }
+        @Override
         public BlobStoreContext getContext() throws IOException {
             return delegate.getContext();
         }
