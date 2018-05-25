@@ -1,23 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
     <f:section title="${%Artifact Manager S3}">
-        <f:entry title="${%S3 Bucket Name}" field="container">
-            <f:textbox />
-        </f:entry>
-        <f:entry title="${%S3 Bucket Region}" field="region">
-            <f:select />
-        </f:entry>
-        <f:entry title="${%Base folder}" field="prefix">
-            <f:textbox />
-        </f:entry>
-        <f:entry title="${%Amazon Cerdentials}" field="credentialsId">
-            <c:select />
-        </f:entry>
-        <f:entry title="${%Environment Configuration}">
-            <p>${%S3 Bucket Name} : ${io.jenkins.plugins.artifact_manager_s3.S3BlobStore.CONTAINER_PROPERTY}</p>
-            <p>${%S3 Bucket Region} : ${instance.REGION_PROPERTY}</p>
-            <p>${%Base folder} : ${prefix}</p>
-            <p>${%Amazon Cerdentials} : ${instance.CREDENTIALS_ID_PROPERTY}</p>
-        </f:entry>
+        <j:if test="${!descriptor.isPropertyConfigured()}">
+            <f:entry title="${%S3 Bucket Name}" field="container">
+                <f:textbox/>
+            </f:entry>
+            <f:entry title="${%S3 Bucket Region}" field="region">
+                <f:select/>
+            </f:entry>
+            <f:entry title="${%Base folder}" field="prefix">
+                <f:textbox/>
+            </f:entry>
+        </j:if>
+        <j:if test="${descriptor.isPropertyConfigured()}">
+            <strong>Configured by properties - Read Only</strong>
+            <f:entry title="${%S3 Bucket Name}">
+                <f:readOnlyTextbox value="${descriptor.container}"/>
+            </f:entry>
+            <f:entry title="${%S3 Bucket Region}">
+                <f:readOnlyTextbox value="${descriptor.region}"/>
+            </f:entry>
+            <f:entry title="${%Base folder}">
+                <f:readOnlyTextbox value="${descriptor.prefix}"/>
+            </f:entry>
+        </j:if>
     </f:section>
 </j:jelly>
