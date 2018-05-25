@@ -49,6 +49,7 @@ import org.jclouds.domain.Credentials;
 import org.jclouds.osgi.ProviderRegistry;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.auth.AWSCredentials;
@@ -57,7 +58,14 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.model.Item;
+import hudson.util.ListBoxModel;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 import shaded.com.google.common.base.Supplier;
+import jenkins.model.Jenkins;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -70,23 +78,40 @@ public class S3BlobStore extends BlobStoreProvider {
 
     private static final long serialVersionUID = -8864075675579867370L;
 
-    // For now, these are taken from the environment, rather than being configured.
-    @SuppressWarnings("FieldMayBeFinal")
-    private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
-    @SuppressWarnings("FieldMayBeFinal")
-    private static String PREFIX = System.getenv("S3_DIR");
+    private String container = System.getProperty(S3BlobStore.class.getName() + ".container");
+    private String prefix = System.getProperty(S3BlobStore.class.getName() + ".prefix");
+    private String credentialsId = System.getProperty(S3BlobStore.class.getName() + ".credentialsId");
 
     @DataBoundConstructor
     public S3BlobStore() {}
 
     @Override
     public String getPrefix() {
-        return PREFIX;
+        return prefix;
     }
 
     @Override
     public String getContainer() {
-        return BLOB_CONTAINER;
+        return container;
+    }
+
+    public String getCredentialsId() {
+        return credentialsId;
+    }
+
+    @DataBoundSetter
+    public void setPrefix(String prefix) {
+        this.prefix = prefix;
+    }
+
+    @DataBoundSetter
+    public void setContainer(String container) {
+        this.container = container;
+    }
+
+    @DataBoundSetter
+    public void setCredentialsId(String credentialsId) {
+        this.credentialsId = credentialsId;
     }
 
     @Override
@@ -167,6 +192,14 @@ public class S3BlobStore extends BlobStoreProvider {
 
     @Extension
     public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
+
+        public ListBoxModel doFillCredentialsIdItems(
+                @AncestorInPath Item item,
+                @QueryParameter String credentialsId
+        ) {
+            return CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(), Jenkins
+                    .getAuthentication(), null, null);
+        }
 
         @Override
         public String getDisplayName() {
