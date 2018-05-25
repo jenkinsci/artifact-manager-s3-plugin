@@ -32,6 +32,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.Collections;
 import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.Properties;
@@ -61,13 +62,15 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.security.ACL;
+import hudson.security.SecurityRealm;
 import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundSetter;
 import shaded.com.google.common.base.Supplier;
 import jenkins.model.Jenkins;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -79,11 +82,15 @@ public class S3BlobStore extends BlobStoreProvider {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
 
     private static final long serialVersionUID = -8864075675579867370L;
+    public static final String PREFIX_PROPERTY = System.getProperty(S3BlobStore.class.getName() + ".prefix");
+    public static final String CONTAINER_PROPERTY = System.getProperty(S3BlobStore.class.getName() + ".container");
+    public static final String CREDENTIALS_ID_PROPERTY = System.getProperty(S3BlobStore.class.getName() + ".credentialsId");
+    public static final String REGION_PROPERTY = System.getProperty(S3BlobStore.class.getName() + ".region");
 
-    private String container = System.getProperty(S3BlobStore.class.getName() + ".container");
-    private String prefix = System.getProperty(S3BlobStore.class.getName() + ".prefix");
-    private String credentialsId = System.getProperty(S3BlobStore.class.getName() + ".credentialsId");
-    private String region = System.getProperty(S3BlobStore.class.getName() + ".region");
+    private String container = CONTAINER_PROPERTY;
+    private String prefix = PREFIX_PROPERTY;
+    private String credentialsId = CREDENTIALS_ID_PROPERTY;
+    private String region = REGION_PROPERTY;
 
     @DataBoundConstructor
     public S3BlobStore() {}
@@ -218,17 +225,43 @@ public class S3BlobStore extends BlobStoreProvider {
     @Extension
     public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
 
+        public DescriptorImpl() {
+            super();
+        }
+
         public ListBoxModel doFillCredentialsIdItems() {
-            return CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(), Jenkins
-                    .getAuthentication(), null, null);
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            ListBoxModel credentials = new ListBoxModel();
+            credentials.add("None", null);
+            credentials.addAll(CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(),
+                                                                   ACL.SYSTEM, Collections.emptyList() ,
+                                                                   CredentialsMatchers.always()));
+            return credentials;
         }
 
         public ListBoxModel doFillRegionItems() {
             ListBoxModel regions = new ListBoxModel();
+            regions.add("Auto",null);
             for (String s : Region.DEFAULT_S3) {
                 regions.add(s);
             }
             return regions;
+        }
+
+        public String getPrefix() {
+            return System.getProperty(S3BlobStore.class.getName() + ".prefix");
+        }
+
+        public String getContainer() {
+            return CONTAINER_PROPERTY;
+        }
+
+        public String getCredentialsId() {
+            return CREDENTIALS_ID_PROPERTY;
+        }
+
+        public String getRegion() {
+            return REGION_PROPERTY;
         }
 
         @Override

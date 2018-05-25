@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+    <f:section title="${%Artifact Manager S3}">
+        <f:entry title="${%S3 Bucket Name}" field="container">
+            <f:textbox />
+        </f:entry>
+        <f:entry title="${%S3 Bucket Region}" field="region">
+            <f:select />
+        </f:entry>
+        <f:entry title="${%Base folder}" field="prefix">
+            <f:textbox />
+        </f:entry>
+        <f:entry title="${%Amazon Cerdentials}" field="credentialsId">
+            <c:select />
+        </f:entry>
+        <f:entry title="${%Environment Configuration}">
+            <p>${%S3 Bucket Name} : ${io.jenkins.plugins.artifact_manager_s3.S3BlobStore.CONTAINER_PROPERTY}</p>
+            <p>${%S3 Bucket Region} : ${instance.REGION_PROPERTY}</p>
+            <p>${%Base folder} : ${prefix}</p>
+            <p>${%Amazon Cerdentials} : ${instance.CREDENTIALS_ID_PROPERTY}</p>
+        </f:entry>
+    </f:section>
+</j:jelly>
