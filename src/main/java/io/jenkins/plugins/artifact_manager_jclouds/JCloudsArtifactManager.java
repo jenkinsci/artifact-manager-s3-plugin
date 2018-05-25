@@ -64,6 +64,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
+import org.apache.commons.io.IOUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -136,17 +137,21 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
      * Delete all blobs starting with prefix
      */
     public static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
-        Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
-        boolean found = false;
-        while (it.hasNext()) {
-            StorageMetadata sm = it.next();
-            String path = sm.getName();
-            assert path.startsWith(prefix);
-            LOGGER.fine("deleting " + path);
-            blobStore.removeBlob(provider.getContainer(), path);
-            found = true;
+        try {
+            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
+            boolean found = false;
+            while (it.hasNext()) {
+                StorageMetadata sm = it.next();
+                String path = sm.getName();
+                assert path.startsWith(prefix);
+                LOGGER.fine("deleting " + path);
+                blobStore.removeBlob(provider.getContainer(), path);
+                found = true;
+            }
+            return found;
+        } catch (RuntimeException x) {
+            throw new IOException(x);
         }
-        return found;
     }
 
     @Override
@@ -247,15 +252,19 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     public void clearAllStashes(TaskListener listener) throws IOException, InterruptedException {
         String stashPrefix = getBlobPath("stashes/");
         BlobStore blobStore = getContext().getBlobStore();
-        Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive());
         int count = 0;
-        while (it.hasNext()) {
-            StorageMetadata sm = it.next();
-            String path = sm.getName();
-            assert path.startsWith(stashPrefix);
-            LOGGER.fine("deleting " + path);
-            blobStore.removeBlob(provider.getContainer(), path);
-            count++;
+        try {
+            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive());
+            while (it.hasNext()) {
+                StorageMetadata sm = it.next();
+                String path = sm.getName();
+                assert path.startsWith(stashPrefix);
+                LOGGER.fine("deleting " + path);
+                blobStore.removeBlob(provider.getContainer(), path);
+                count++;
+            }
+        } catch (RuntimeException x) {
+            throw new IOException(x);
         }
         listener.getLogger().printf("Deleted %d stash(es) from %s%n", count, provider.toURI(provider.getContainer(), stashPrefix));
     }
@@ -269,16 +278,20 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         JCloudsArtifactManager dest = (JCloudsArtifactManager) am;
         String allPrefix = getBlobPath("");
         BlobStore blobStore = getContext().getBlobStore();
-        Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive());
         int count = 0;
-        while (it.hasNext()) {
-            StorageMetadata sm = it.next();
-            String path = sm.getName();
-            assert path.startsWith(allPrefix);
-            String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
-            LOGGER.fine("copying " + path + " to " + destPath);
-            blobStore.copyBlob(provider.getContainer(), path, provider.getContainer(), destPath, CopyOptions.NONE);
-            count++;
+        try {
+            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive());
+            while (it.hasNext()) {
+                StorageMetadata sm = it.next();
+                String path = sm.getName();
+                assert path.startsWith(allPrefix);
+                String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
+                LOGGER.fine("copying " + path + " to " + destPath);
+                blobStore.copyBlob(provider.getContainer(), path, provider.getContainer(), destPath, CopyOptions.NONE);
+                count++;
+            }
+        } catch (RuntimeException x) {
+            throw new IOException(x);
         }
         listener.getLogger().printf("Copied %d artifact(s)/stash(es) from %s to %s%n", count, provider.toURI(provider.getContainer(), allPrefix), provider.toURI(provider.getContainer(), dest.getBlobPath("")));
     }
@@ -321,10 +334,14 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             Files.copy(f, out);
         }
         int responseCode = connection.getResponseCode();
+        String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         if (responseCode < 200 || responseCode >= 300) {
-            throw new IOException(String.format("Failed to upload %s to %s, response: %d %s", f.toAbsolutePath(), url,
-                    responseCode, connection.getResponseMessage()));
+            String diag;
+            try (InputStream err = connection.getErrorStream()) {
+                diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
+            }
+            throw new IOException(String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
         }
-        LOGGER.log(Level.FINE, "Uploaded {0} to {1}: {2}", new Object[] { f.toAbsolutePath(), url, responseCode });
+        LOGGER.log(Level.FINE, "Uploaded {0} to {1}: {2}", new Object[] { f.toAbsolutePath(), urlSafe, responseCode });
     }
 }

@@ -69,6 +69,10 @@ import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jvnet.hudson.test.Issue;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 
@@ -192,6 +196,22 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         int httpCount = httpLogging.getRecords().size();
         System.err.println("total count: " + httpCount);
         assertThat(httpCount, lessThanOrEqualTo(11));
+    }
+
+    @Issue({"JENKINS-51390", "JCLOUDS-1200"})
+    @Test
+    public void serializationProblem() throws Exception {
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory());
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f', text: 'content'; archiveArtifacts 'f'; dir('d') {try {unarchive mapping: ['f': 'f']} catch (x) {sleep 1; echo(/caught $x/)}}}", true));
+        S3BlobStore.BREAK_CREDS = true;
+        try {
+            WorkflowRun b = j.buildAndAssertSuccess(p);
+            j.assertLogContains("caught org.jclouds.aws.AWSResponseException", b);
+            j.assertLogNotContains("java.io.NotSerializableException", b);
+        } finally {
+            S3BlobStore.BREAK_CREDS = false;
+        }
     }
 
     //@Test

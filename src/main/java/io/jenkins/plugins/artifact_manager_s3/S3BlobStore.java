@@ -34,22 +34,25 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 
+import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
+import org.jclouds.aws.domain.Region;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
+import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.osgi.ProviderRegistry;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.auth.AWSCredentials;
@@ -58,14 +61,13 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
-import hudson.model.Item;
 import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
 import shaded.com.google.common.base.Supplier;
 import jenkins.model.Jenkins;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -81,6 +83,7 @@ public class S3BlobStore extends BlobStoreProvider {
     private String container = System.getProperty(S3BlobStore.class.getName() + ".container");
     private String prefix = System.getProperty(S3BlobStore.class.getName() + ".prefix");
     private String credentialsId = System.getProperty(S3BlobStore.class.getName() + ".credentialsId");
+    private String region = System.getProperty(S3BlobStore.class.getName() + ".region");
 
     @DataBoundConstructor
     public S3BlobStore() {}
@@ -99,6 +102,10 @@ public class S3BlobStore extends BlobStoreProvider {
         return credentialsId;
     }
 
+    public String getRegion() {
+        return region;
+    }
+
     @DataBoundSetter
     public void setPrefix(String prefix) {
         this.prefix = prefix;
@@ -114,17 +121,30 @@ public class S3BlobStore extends BlobStoreProvider {
         this.credentialsId = credentialsId;
     }
 
+    @DataBoundSetter
+    public void setRegion(String region) {
+        this.region = region;
+    }
+
     @Override
     public BlobStoreContext getContext() throws IOException {
         LOGGER.log(Level.FINEST, "Building context");
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
+            Properties props = new Properties();
+
+            if(StringUtils.isNotBlank(region)) {
+                props.setProperty(LocationConstants.PROPERTY_REGIONS, region);
+            }
+
             return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
                     .buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
         }
     }
+
+    static boolean BREAK_CREDS;
 
     private Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
@@ -139,10 +159,15 @@ public class S3BlobStore extends BlobStoreProvider {
             throw new IOException("No valid session credentials");
         }
 
+        String sessionToken = ((AWSSessionCredentials) awsCredentials).getSessionToken();
+        if (BREAK_CREDS) {
+            sessionToken = "<broken>";
+        }
+
         SessionCredentials sessionCredentials = SessionCredentials.builder()
                 .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
                 .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(((AWSSessionCredentials)awsCredentials).getSessionToken()) //
+                .sessionToken(sessionToken) //
                 .build();
 
         return () -> sessionCredentials;
@@ -193,12 +218,17 @@ public class S3BlobStore extends BlobStoreProvider {
     @Extension
     public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
 
-        public ListBoxModel doFillCredentialsIdItems(
-                @AncestorInPath Item item,
-                @QueryParameter String credentialsId
-        ) {
+        public ListBoxModel doFillCredentialsIdItems() {
             return CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(), Jenkins
                     .getAuthentication(), null, null);
+        }
+
+        public ListBoxModel doFillRegionItems() {
+            ListBoxModel regions = new ListBoxModel();
+            for (String s : Region.DEFAULT_S3) {
+                regions.add(s);
+            }
+            return regions;
         }
 
         @Override
