@@ -29,6 +29,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
+import static org.junit.Assume.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -120,11 +121,11 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
         @Override
         public boolean isDeleteBlobs() {
-            return false;
+            return delegate.isDeleteBlobs();
         }
         @Override
         public boolean isDeleteStashes() {
-            return false;
+            return delegate.isDeleteStashes();
         }
         @Override
         public BlobStoreContext getContext() throws IOException {
@@ -145,24 +146,49 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     }
 
     @Test
-    public void smokes() throws Exception {
-        if (image != null) {
-            System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
-            try (JavaContainer container = image.start(JavaContainer.class).start()) {
-                DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test", "test", "", ""));
-                Jenkins.get().addNode(agent);
-                j.waitOnline(agent);
-                try {
-                    agent.getChannel().call(new LoadS3Credentials());
-                    fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
-                } catch (SdkClientException x) {
-                    System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
-                }
+    public void agentPermissions() throws Exception {
+        assumeNotNull(image);
+        System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
+        try (JavaContainer container = image.start(JavaContainer.class).start()) {
+            DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test", "test", "", ""));
+            Jenkins.get().addNode(agent);
+            j.waitOnline(agent);
+            try {
+                agent.getChannel().call(new LoadS3Credentials());
+                fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
+            } catch (SdkClientException x) {
+                System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
             }
         }
-        // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.run(j, getArtifactManagerFactory(), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
     }
+
+    @Test
+    public void artifactArchive() throws Exception {
+        // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
+        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
+    }
+
+    @Test
+    public void artifactArchiveAndDelete() throws Exception {
+        if (provider instanceof S3BlobStore) {
+            ((S3BlobStore) provider).setDeleteBlobs(true);
+        }
+        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(), false, image);
+    }
+
+    @Test
+    public void artifactStash() throws Exception {
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(), false, image);
+    }
+
+    @Test
+    public void artifactStashAndDelete() throws Exception {
+        if (provider instanceof S3BlobStore) {
+            ((S3BlobStore) provider).setDeleteStashes(true);
+        }
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(), false, image);
+    }
+
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
         @Override
         public Void call() {
