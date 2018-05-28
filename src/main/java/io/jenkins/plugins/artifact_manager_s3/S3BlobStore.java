@@ -38,6 +38,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
@@ -61,8 +62,10 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 import shaded.com.google.common.base.Supplier;
 
 /**
@@ -208,6 +211,8 @@ public class S3BlobStore extends BlobStoreProvider {
 
     @Extension
     public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
+        private static final String BUCKET_REGEXP = "^([a-z]|(\\d(?!\\d{0,2}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})))([a-z\\d]|(\\.(?!(\\.|-)))|(-(?!\\.))){1,61}[a-z\\d\\.]$";
+        private static final Pattern bucketPattern = Pattern.compile(BUCKET_REGEXP);
 
         public DescriptorImpl() {
             super();
@@ -215,11 +220,39 @@ public class S3BlobStore extends BlobStoreProvider {
 
         public ListBoxModel doFillRegionItems() {
             ListBoxModel regions = new ListBoxModel();
-            regions.add("Auto",null);
+            regions.add("Auto","");
             for (String s : Region.DEFAULT_S3) {
                 regions.add(s);
             }
             return regions;
+        }
+
+        public FormValidation doCheckContainer(@QueryParameter String container){
+            FormValidation ret = FormValidation.ok();
+            if(StringUtils.isBlank(container)){
+                ret = FormValidation.error("The container name cannot be empty");
+            } else if(!bucketPattern.matcher(container).matches()){
+                ret = FormValidation.error("The container name does not match with S3 bucket rules");
+            }
+            return ret;
+        }
+
+        public FormValidation doCheckPrefix(@QueryParameter String prefix){
+            FormValidation ret = FormValidation.ok();
+            if(StringUtils.isBlank(prefix)){
+                ret = FormValidation.error("Prefix should have a value");
+            } else if(!prefix.endsWith("/")){
+                ret = FormValidation.warning("if Prefix point to a folder, it should end with '/' character");
+            }
+            return ret;
+        }
+
+        public FormValidation doCheckRegion(@QueryParameter String region){
+            FormValidation ret = FormValidation.ok();
+            if(StringUtils.isNotBlank(region) && !Region.DEFAULT_S3.contains(region)){
+                ret = FormValidation.error("Region is not valid");
+            }
+            return ret;
         }
 
         @Override
