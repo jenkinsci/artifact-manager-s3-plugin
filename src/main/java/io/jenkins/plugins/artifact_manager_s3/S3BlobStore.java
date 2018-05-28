@@ -126,7 +126,7 @@ public class S3BlobStore extends BlobStoreProvider {
         try {
             Properties props = new Properties();
 
-            if(StringUtils.isNotBlank(getRegion())) {
+            if (StringUtils.isNotBlank(getRegion())) {
                 props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
             }
 
@@ -149,7 +149,7 @@ public class S3BlobStore extends BlobStoreProvider {
         }
 
         // Assume we are using session credentials
-        if(!(awsCredentials instanceof AWSSessionCredentials)){
+        if (!(awsCredentials instanceof AWSSessionCredentials)){
             throw new IOException("No valid session credentials");
         }
 
@@ -229,9 +229,9 @@ public class S3BlobStore extends BlobStoreProvider {
 
         public FormValidation doCheckContainer(@QueryParameter String container){
             FormValidation ret = FormValidation.ok();
-            if(StringUtils.isBlank(container)){
+            if (StringUtils.isBlank(container)){
                 ret = FormValidation.error("The container name cannot be empty");
-            } else if(!bucketPattern.matcher(container).matches()){
+            } else if (!bucketPattern.matcher(container).matches()){
                 ret = FormValidation.error("The container name does not match with S3 bucket rules");
             }
             return ret;
@@ -239,9 +239,9 @@ public class S3BlobStore extends BlobStoreProvider {
 
         public FormValidation doCheckPrefix(@QueryParameter String prefix){
             FormValidation ret = FormValidation.ok();
-            if(StringUtils.isBlank(prefix)){
+            if (StringUtils.isBlank(prefix)){
                 ret = FormValidation.error("Prefix should have a value");
-            } else if(!prefix.endsWith("/")){
+            } else if (!prefix.endsWith("/")){
                 ret = FormValidation.warning("if Prefix point to a folder, it should end with '/' character");
             }
             return ret;
@@ -249,7 +249,7 @@ public class S3BlobStore extends BlobStoreProvider {
 
         public FormValidation doCheckRegion(@QueryParameter String region){
             FormValidation ret = FormValidation.ok();
-            if(StringUtils.isNotBlank(region) && !Region.DEFAULT_S3.contains(region)){
+            if (StringUtils.isNotBlank(region) && !Region.DEFAULT_S3.contains(region)){
                 ret = FormValidation.error("Region is not valid");
             }
             return ret;
