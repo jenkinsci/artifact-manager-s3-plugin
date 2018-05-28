@@ -215,7 +215,7 @@ public class S3BlobStore extends BlobStoreProvider {
 
         public ListBoxModel doFillRegionItems() {
             ListBoxModel regions = new ListBoxModel();
-            regions.add("Auto",null);
+            regions.add("Auto", "");
             for (String s : Region.DEFAULT_S3) {
                 regions.add(s);
             }
