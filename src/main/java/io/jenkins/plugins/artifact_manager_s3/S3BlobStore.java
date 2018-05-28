@@ -83,12 +83,12 @@ public class S3BlobStore extends BlobStoreProvider {
     @SuppressWarnings("FieldMayBeFinal")
     private static String REGION = System.getProperty(S3BlobStore.class.getName() + ".region");
     @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DEFAULT_DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".defaultDeleteBlobs");
+    private static boolean DEFAULT_DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
     @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DEFAULT_DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".defaultDeleteStashes");
+    private static boolean DEFAULT_DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteStashes");
 
-    private boolean deleteBlobs = DEFAULT_DELETE_BLOBS;
-    private boolean deleteStashes = DEFAULT_DELETE_STASHES;
+    private transient boolean deleteBlobs = DEFAULT_DELETE_BLOBS;
+    private transient boolean deleteStashes = DEFAULT_DELETE_STASHES;
 
     @DataBoundConstructor
     public S3BlobStore() {}

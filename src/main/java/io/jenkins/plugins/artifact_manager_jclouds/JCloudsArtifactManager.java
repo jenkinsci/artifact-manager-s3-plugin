@@ -131,7 +131,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     public boolean delete() throws IOException, InterruptedException {
         String blobPath = getBlobPath("");
         if (!provider.isDeleteBlobs()) {
-            LOGGER.log(Level.FINEST, "Ignoring blob deletion: {0}", blobPath);
+            LOGGER.log(Level.FINE, "Ignoring blob deletion: {0}", blobPath);
             return false;
         }
         return delete(provider, getContext().getBlobStore(), blobPath);
@@ -257,7 +257,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         String stashPrefix = getBlobPath("stashes/");
 
         if (!provider.isDeleteStashes()) {
-            LOGGER.log(Level.FINEST, "Ignoring stash deletion: {0}", stashPrefix);
+            LOGGER.log(Level.FINE, "Ignoring stash deletion: {0}", stashPrefix);
             return;
         }
 

@@ -170,9 +170,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void artifactArchiveAndDelete() throws Exception {
-        if (provider instanceof S3BlobStore) {
-            ((S3BlobStore) provider).setDeleteBlobs(true);
-        }
+        ((S3BlobStore) provider).setDeleteBlobs(true);
         ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(), false, image);
     }
 
@@ -183,9 +181,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void artifactStashAndDelete() throws Exception {
-        if (provider instanceof S3BlobStore) {
-            ((S3BlobStore) provider).setDeleteStashes(true);
-        }
+        ((S3BlobStore) provider).setDeleteStashes(true);
         ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(), false, image);
     }
 
