@@ -38,13 +38,13 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
-import javax.ws.rs.HEAD;
 
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
+import org.jclouds.aws.domain.Region;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -62,6 +62,10 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 import shaded.com.google.common.base.Supplier;
 
 /**
@@ -75,25 +79,49 @@ public class S3BlobStore extends BlobStoreProvider {
 
     private static final long serialVersionUID = -8864075675579867370L;
 
-    // For now, these are taken from the environment, rather than being configured.
-    @SuppressWarnings("FieldMayBeFinal")
-    private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
-    @SuppressWarnings("FieldMayBeFinal")
-    private static String PREFIX = System.getenv("S3_DIR");
-    @SuppressWarnings("FieldMayBeFinal")
-    private static String REGION = System.getProperty(S3BlobStore.class.getName() + ".region");
+    public static final String KEY_CONTAINER = S3BlobStore.class.getName() + ".container";
+    public static final String KEY_PREFIX = S3BlobStore.class.getName() + ".prefix";
+    public static final String KEY_REGION = S3BlobStore.class.getName() + ".region";
+
+    public final String PREFIX_PROPERTY = System.getProperty(KEY_PREFIX);
+    public final String CONTAINER_PROPERTY = System.getProperty(KEY_CONTAINER);
+    public final String REGION_PROPERTY = System.getProperty(KEY_REGION);
+
+    private String container;
+    private String prefix;
+    private String region;
 
     @DataBoundConstructor
-    public S3BlobStore() {}
+    public S3BlobStore() {
+    }
 
     @Override
     public String getPrefix() {
-        return PREFIX;
+        return StringUtils.defaultIfBlank(prefix, PREFIX_PROPERTY);
     }
 
     @Override
     public String getContainer() {
-        return BLOB_CONTAINER;
+        return StringUtils.defaultIfBlank(container, CONTAINER_PROPERTY);
+    }
+
+    public String getRegion() {
+        return StringUtils.defaultIfBlank(region, REGION_PROPERTY);
+    }
+
+    @DataBoundSetter
+    public void setPrefix(String prefix) {
+        this.prefix = prefix;
+    }
+
+    @DataBoundSetter
+    public void setContainer(String container) {
+        this.container = container;
+    }
+
+    @DataBoundSetter
+    public void setRegion(String region) {
+        this.region = region;
     }
 
     @Override
@@ -103,11 +131,12 @@ public class S3BlobStore extends BlobStoreProvider {
         try {
             Properties props = new Properties();
 
-            if(StringUtils.isNotBlank(REGION)) {
-                props.setProperty(LocationConstants.PROPERTY_REGIONS, REGION);
+            if (StringUtils.isNotBlank(getRegion())) {
+                props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
             }
 
             return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
+                    .overrides(props)
                     .buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
@@ -125,7 +154,7 @@ public class S3BlobStore extends BlobStoreProvider {
         }
 
         // Assume we are using session credentials
-        if(!(awsCredentials instanceof AWSSessionCredentials)){
+        if (!(awsCredentials instanceof AWSSessionCredentials)){
             throw new IOException("No valid session credentials");
         }
 
@@ -187,12 +216,80 @@ public class S3BlobStore extends BlobStoreProvider {
 
     @Extension
     public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
+        private static final String BUCKET_REGEXP = "^([a-z]|(\\d(?!\\d{0,2}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})))([a-z\\d]|(\\.(?!(\\.|-)))|(-(?!\\.))){1,61}[a-z\\d\\.]$";
+        private static final Pattern bucketPattern = Pattern.compile(BUCKET_REGEXP);
+
+        public DescriptorImpl() {
+            super();
+        }
+
+        public ListBoxModel doFillRegionItems() {
+            ListBoxModel regions = new ListBoxModel();
+            regions.add("Auto","");
+            for (String s : Region.DEFAULT_S3) {
+                regions.add(s);
+            }
+            return regions;
+        }
+
+        public FormValidation doCheckContainer(@QueryParameter String container){
+            FormValidation ret = FormValidation.ok();
+            if (StringUtils.isBlank(container)){
+                ret = FormValidation.error("The container name cannot be empty");
+            } else if (!bucketPattern.matcher(container).matches()){
+                ret = FormValidation.error("The container name does not match with S3 bucket rules");
+            }
+            return ret;
+        }
+
+        public FormValidation doCheckPrefix(@QueryParameter String prefix){
+            FormValidation ret = FormValidation.ok();
+            if (StringUtils.isBlank(prefix)){
+                ret = FormValidation.error("Prefix should have a value");
+            } else if (!prefix.endsWith("/")){
+                ret = FormValidation.warning("if Prefix point to a folder, it should end with '/' character");
+            }
+            return ret;
+        }
+
+        public FormValidation doCheckRegion(@QueryParameter String region){
+            FormValidation ret = FormValidation.ok();
+            if (StringUtils.isNotBlank(region) && !Region.DEFAULT_S3.contains(region)){
+                ret = FormValidation.error("Region is not valid");
+            }
+            return ret;
+        }
 
         @Override
         public String getDisplayName() {
             return "Amazon S3";
         }
 
+        public String getPrefix() {
+            return System.getProperty(KEY_PREFIX);
+        }
+
+        public String getContainer() {
+            return System.getProperty(KEY_CONTAINER);
+        }
+
+        public String getRegion() {
+            return System.getProperty(KEY_REGION);
+        }
+
+        public boolean isPropertyConfigured(){
+            return StringUtils.isNotBlank(getPrefix()) && StringUtils.isNotBlank(getContainer());
+        }
+
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("S3BlobStore{");
+        sb.append("container='").append(getContainer()).append('\'');
+        sb.append(", prefix='").append(getPrefix()).append('\'');
+        sb.append(", region='").append(getRegion()).append('\'');
+        sb.append('}');
+        return sb.toString();
+    }
 }

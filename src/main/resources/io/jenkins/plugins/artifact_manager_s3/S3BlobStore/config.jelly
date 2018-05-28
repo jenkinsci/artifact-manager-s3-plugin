@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:section title="${%Artifact Manager S3}">
+        <j:if test="${!descriptor.isPropertyConfigured()}">
+            <f:entry title="${%S3 Bucket Name}" field="container">
+                <f:textbox/>
+            </f:entry>
+            <f:entry title="${%S3 Bucket Region}" field="region">
+                <f:select/>
+            </f:entry>
+            <f:entry title="${%Base Prefix}" field="prefix">
+                <f:textbox/>
+            </f:entry>
+        </j:if>
+        <j:if test="${descriptor.isPropertyConfigured()}">
+            <strong>Configured by properties - Read Only</strong>
+            <f:entry title="${%S3 Bucket Name}">
+                <f:readOnlyTextbox value="${descriptor.container}"/>
+            </f:entry>
+            <f:entry title="${%S3 Bucket Region}">
+                <f:readOnlyTextbox value="${descriptor.region}"/>
+            </f:entry>
+            <f:entry title="${%Base Prefix}">
+                <f:readOnlyTextbox value="${descriptor.prefix}"/>
+            </f:entry>
+        </j:if>
+    </f:section>
+</j:jelly>
