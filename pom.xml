@@ -259,9 +259,37 @@
                           <environmentVariables>
                               <AWS_PROFILE>${AWS_PROFILE}</AWS_PROFILE>
                               <AWS_REGION>${AWS_REGION}</AWS_REGION>
-                              <S3_BUCKET>${S3_BUCKET}</S3_BUCKET>
-                              <S3_DIR>${S3_DIR}</S3_DIR>
                           </environmentVariables>
+                          <properties>
+                              <io.jenkins.plugins.artifact_manager_s3.S3BlobStore.container>${S3_BUCKET}</io.jenkins.plugins.artifact_manager_s3.S3BlobStore.container>
+                              <io.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix>${S3_DIR}</io.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix>
+                          </properties>
+                      </configuration>
+                  </plugin>
+              </plugins>
+          </build>
+      </profile>
+      <profile>
+          <id>S3-settings-properties</id>
+          <activation>
+              <property>
+                  <name>io.jenkins.plugins.artifact_manager_s3.S3BlobStore.container</name>
+              </property>
+          </activation>
+          <build>
+              <plugins>
+                  <plugin>
+                      <groupId>org.apache.maven.plugins</groupId>
+                      <artifactId>maven-surefire-plugin</artifactId>
+                      <configuration>
+                          <environmentVariables>
+                              <AWS_PROFILE>${AWS_PROFILE}</AWS_PROFILE>
+                              <AWS_REGION>${AWS_REGION}</AWS_REGION>
+                          </environmentVariables>
+                          <properties>
+                              <io.jenkins.plugins.artifact_manager_s3.S3BlobStore.container>${io.jenkins.plugins.artifact_manager_s3.S3BlobStore.container}</io.jenkins.plugins.artifact_manager_s3.S3BlobStore.container>
+                              <io.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix>${io.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix}</io.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix>
+                          </properties>
                       </configuration>
                   </plugin>
               </plugins>
