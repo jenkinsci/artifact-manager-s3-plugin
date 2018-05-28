@@ -24,6 +24,7 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
+import com.github.rholder.retry.Attempt;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,6 +38,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,6 +50,11 @@ import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.RetryListener;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -61,9 +68,12 @@ import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import java.util.concurrent.TimeUnit;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.client.HttpResponseException;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -123,7 +133,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
         }
 
-        workspace.act(new UploadToBlobStorage(artifactUrls));
+        workspace.act(new UploadToBlobStorage(artifactUrls, listener));
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
 
@@ -172,7 +182,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         Blob blob = blobStore.blobBuilder(path).build();
         blob.getMetadata().setContainer(provider.getContainer());
         URL url = provider.toExternalURL(blob, HttpMethod.PUT);
-        int count = workspace.act(new Stash(url, includes, excludes, useDefaultExcludes, WorkspaceList.tempDir(workspace).getRemote()));
+        int count = workspace.act(new Stash(url, includes, excludes, useDefaultExcludes, WorkspaceList.tempDir(workspace).getRemote(), listener));
         if (count == 0 && !allowEmpty) {
             throw new AbortException("No files included in stash");
         }
@@ -185,13 +195,15 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final String includes, excludes;
         private final boolean useDefaultExcludes;
         private final String tempDir;
+        private final TaskListener listener;
 
-        Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir) throws IOException {
+        Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
             this.url = url;
             this.includes = includes;
             this.excludes = excludes;
             this.useDefaultExcludes = useDefaultExcludes;
             this.tempDir = tempDir;
+            this.listener = listener;
         }
 
         @Override
@@ -209,7 +221,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     throw new IOException(e);
                 }
                 if (count > 0) {
-                    uploadFile(tmp, url);
+                    uploadFile(tmp, url, listener);
                 }
                 return count;
             } finally {
@@ -314,9 +326,11 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private static final long serialVersionUID = 1L;
 
         private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
+        private final TaskListener listener;
 
-        UploadToBlobStorage(Map<String, URL> artifactUrls) {
+        UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
             this.artifactUrls = artifactUrls;
+            this.listener = listener;
         }
 
         @Override
@@ -324,9 +338,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
                 Path local = f.toPath().resolve(entry.getKey());
                 URL url = entry.getValue();
-                LOGGER.log(Level.FINE, "Uploading {0} to {1}",
-                        new String[] { local.toAbsolutePath().toString(), url.toString() });
-                uploadFile(local, url);
+                uploadFile(local, url, listener);
             }
             return null;
         }
@@ -335,19 +347,53 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     /**
      * Upload a file to a URL
      */
-    private static void uploadFile(Path f, URL url) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setDoOutput(true);
-        connection.setRequestMethod("PUT");
-        connection.setFixedLengthStreamingMode(Files.size(f)); // prevent loading file in memory
-        try (OutputStream out = connection.getOutputStream()) {
-            Files.copy(f, out);
+    @SuppressWarnings("Convert2Lambda") // bogus use of generics (type variable should have been on class); cannot be made into a lambda
+    private static void uploadFile(Path f, URL url, final TaskListener listener) throws IOException {
+        String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
+        try {
+            RetryerBuilder.<Void>newBuilder().
+                    retryIfException(x -> x instanceof IOException && (!(x instanceof HttpResponseException) || ((HttpResponseException) x).getStatusCode() >= 500)).
+                    withRetryListener(new RetryListener() {
+                        @Override
+                        public <Void> void onRetry(Attempt<Void> attempt) {
+                            if (attempt.hasException()) {
+                                listener.getLogger().println("Retrying upload after: " + attempt.getExceptionCause());
+                            }
+                        }
+                    }).
+                    // TODO all scalars configurable via system property
+                    withStopStrategy(StopStrategies.stopAfterAttempt(10)).
+                    // Note that this is not a _randomized_ exponential backoff; and the base of the exponent is hard-coded to 2.
+                    withWaitStrategy(WaitStrategies.exponentialWait(100, 5, TimeUnit.MINUTES)).
+                    // TODO withAttemptTimeLimiter(…).
+                    build().call(() -> {
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setDoOutput(true);
+                connection.setRequestMethod("PUT");
+                connection.setFixedLengthStreamingMode(Files.size(f)); // prevent loading file in memory
+                try (OutputStream out = connection.getOutputStream()) {
+                    Files.copy(f, out);
+                }
+                int responseCode = connection.getResponseCode();
+                if (responseCode < 200 || responseCode >= 300) {
+                    String diag;
+                    try (InputStream err = connection.getErrorStream()) {
+                        diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
+                    }
+                    throw new HttpResponseException(responseCode, String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
+                }
+                return null;
+            });
+        } catch (ExecutionException | RetryException x) { // *sigh*, checked exceptions
+            Throwable x2 = x.getCause();
+            if (x2 instanceof IOException) {
+                throw (IOException) x2;
+            } else if (x2 instanceof RuntimeException) {
+                throw (RuntimeException) x2;
+            } else { // Error?
+                throw new RuntimeException(x);
+            }
         }
-        int responseCode = connection.getResponseCode();
-        if (responseCode < 200 || responseCode >= 300) {
-            throw new IOException(String.format("Failed to upload %s to %s, response: %d %s", f.toAbsolutePath(), url,
-                    responseCode, connection.getResponseMessage()));
-        }
-        LOGGER.log(Level.FINE, "Uploaded {0} to {1}: {2}", new Object[] { f.toAbsolutePath(), url, responseCode });
     }
+
 }
