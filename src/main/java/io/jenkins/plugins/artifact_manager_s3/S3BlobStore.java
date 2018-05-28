@@ -78,9 +78,14 @@ public class S3BlobStore extends BlobStoreProvider {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
 
     private static final long serialVersionUID = -8864075675579867370L;
-    public static final String PREFIX_PROPERTY = System.getProperty(S3BlobStore.class.getName() + ".prefix");
-    public static final String CONTAINER_PROPERTY = System.getProperty(S3BlobStore.class.getName() + ".container");
-    public static final String REGION_PROPERTY = System.getProperty(S3BlobStore.class.getName() + ".region");
+
+    public static final String KEY_CONTAINER = S3BlobStore.class.getName() + ".container";
+    public static final String KEY_PREFIX = S3BlobStore.class.getName() + ".prefix";
+    public static final String KEY_REGION = S3BlobStore.class.getName() + ".region";
+
+    public final String PREFIX_PROPERTY = System.getProperty(KEY_PREFIX);
+    public final String CONTAINER_PROPERTY = System.getProperty(KEY_CONTAINER);
+    public final String REGION_PROPERTY = System.getProperty(KEY_REGION);
 
     private String container;
     private String prefix;
@@ -261,19 +266,19 @@ public class S3BlobStore extends BlobStoreProvider {
         }
 
         public String getPrefix() {
-            return PREFIX_PROPERTY;
+            return System.getProperty(KEY_PREFIX);
         }
 
         public String getContainer() {
-            return CONTAINER_PROPERTY;
+            return System.getProperty(KEY_CONTAINER);
         }
 
         public String getRegion() {
-            return REGION_PROPERTY;
+            return System.getProperty(KEY_REGION);
         }
 
         public boolean isPropertyConfigured(){
-            return StringUtils.isNotBlank(PREFIX_PROPERTY) && StringUtils.isNotBlank(CONTAINER_PROPERTY);
+            return StringUtils.isNotBlank(getPrefix()) && StringUtils.isNotBlank(getContainer());
         }
 
     }
