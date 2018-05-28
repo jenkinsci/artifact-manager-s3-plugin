@@ -9,7 +9,7 @@
             <f:entry title="${%S3 Bucket Region}" field="region">
                 <f:select/>
             </f:entry>
-            <f:entry title="${%Base folder}" field="prefix">
+            <f:entry title="${%Base Prefix}" field="prefix">
                 <f:textbox/>
             </f:entry>
         </j:if>
@@ -21,7 +21,7 @@
             <f:entry title="${%S3 Bucket Region}">
                 <f:readOnlyTextbox value="${descriptor.region}"/>
             </f:entry>
-            <f:entry title="${%Base folder}">
+            <f:entry title="${%Base Prefix}">
                 <f:readOnlyTextbox value="${descriptor.prefix}"/>
             </f:entry>
         </j:if>
