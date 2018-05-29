@@ -24,8 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -62,6 +60,8 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import shaded.com.google.common.base.Supplier;
 
 /**
@@ -82,6 +82,13 @@ public class S3BlobStore extends BlobStoreProvider {
     private static String PREFIX = System.getenv("S3_DIR");
     @SuppressWarnings("FieldMayBeFinal")
     private static String REGION = System.getProperty(S3BlobStore.class.getName() + ".region");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static boolean DEFAULT_DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static boolean DEFAULT_DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteStashes");
+
+    private transient boolean deleteBlobs = DEFAULT_DELETE_BLOBS;
+    private transient boolean deleteStashes = DEFAULT_DELETE_STASHES;
 
     @DataBoundConstructor
     public S3BlobStore() {}
@@ -94,6 +101,26 @@ public class S3BlobStore extends BlobStoreProvider {
     @Override
     public String getContainer() {
         return BLOB_CONTAINER;
+    }
+
+    @Override
+    public boolean isDeleteBlobs() {
+        return deleteBlobs;
+    }
+
+    @Restricted(NoExternalUse.class) // test only
+    public void setDeleteBlobs(boolean deleteBlobs) {
+        this.deleteBlobs = deleteBlobs;
+    }
+
+    @Override
+    public boolean isDeleteStashes() {
+        return deleteStashes;
+    }
+
+    @Restricted(NoExternalUse.class) // test only
+    public void setDeleteStashes(boolean deleteStashes) {
+        this.deleteStashes = deleteStashes;
     }
 
     @Override

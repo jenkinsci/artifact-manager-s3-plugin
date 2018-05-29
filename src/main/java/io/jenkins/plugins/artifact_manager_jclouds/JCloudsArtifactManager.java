@@ -139,7 +139,12 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     @Override
     public boolean delete() throws IOException, InterruptedException {
-        return delete(provider, getContext().getBlobStore(), getBlobPath(""));
+        String blobPath = getBlobPath("");
+        if (!provider.isDeleteBlobs()) {
+            LOGGER.log(Level.FINE, "Ignoring blob deletion: {0}", blobPath);
+            return false;
+        }
+        return delete(provider, getContext().getBlobStore(), blobPath);
     }
 
     /**
@@ -262,6 +267,12 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     @Override
     public void clearAllStashes(TaskListener listener) throws IOException, InterruptedException {
         String stashPrefix = getBlobPath("stashes/");
+
+        if (!provider.isDeleteStashes()) {
+            LOGGER.log(Level.FINE, "Ignoring stash deletion: {0}", stashPrefix);
+            return;
+        }
+
         BlobStore blobStore = getContext().getBlobStore();
         int count = 0;
         try {
