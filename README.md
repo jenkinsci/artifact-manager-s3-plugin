@@ -128,3 +128,9 @@ docker run --rm -i --init -v <YOUR_HOME_DIR>/.aws:/home/jenkins/.aws -e AWS_REGI
 ```
 
 but note that the mount will not work if your `~/.aws/` is set to be readable only by the user.
+
+
+# Force the Region
+
+If you have problems detecting the region on your environment you can force the region setting by adding this property 
+`-Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.region=REGION_NAME` to the Jenkins JVM options.
