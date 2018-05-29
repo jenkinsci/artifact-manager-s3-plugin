@@ -41,11 +41,10 @@ This is an example policy
 }
 ```
 
-Then, run the Jenkins master with the environment variables. Note the `/` at the end of `S3_DIR`
+Then, run the Jenkins master with the Java properties. Note the `/` at the end of `io.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix`
 
 ```
-S3_BUCKET=my-bucket-name
-S3_DIR=some/path/
+-Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.container=my-bucket-name -Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix=some/path/
 ```
 
 # Testing
@@ -81,8 +80,7 @@ For interactive testing, you may instead add to `~/.mavenrc` (cf. comment in MNG
 ```sh
 export AWS_PROFILE=…
 export AWS_REGION=…
-export S3_BUCKET=…
-export S3_DIR=…/
+export MAVEN_OPTS="-Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.container=my-bucket-name -Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix=some/path/"
 ```
 
 then:
