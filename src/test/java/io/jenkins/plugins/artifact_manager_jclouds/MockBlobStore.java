@@ -155,4 +155,14 @@ public final class MockBlobStore extends BlobStoreProvider {
         return new URL(baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName() + "?method=" + httpMethod);
     }
 
+    @Override
+    public boolean isDeleteBlobs() {
+        return true;
+    }
+
+    @Override
+    public boolean isDeleteStashes() {
+        return true;
+    }
+
 }

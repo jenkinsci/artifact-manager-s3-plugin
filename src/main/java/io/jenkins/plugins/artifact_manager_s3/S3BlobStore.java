@@ -83,12 +83,9 @@ public class S3BlobStore extends BlobStoreProvider {
     @SuppressWarnings("FieldMayBeFinal")
     private static String REGION = System.getProperty(S3BlobStore.class.getName() + ".region");
     @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DEFAULT_DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
+    private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
     @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DEFAULT_DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteStashes");
-
-    private transient boolean deleteBlobs = DEFAULT_DELETE_BLOBS;
-    private transient boolean deleteStashes = DEFAULT_DELETE_STASHES;
+    private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteStashes");
 
     @DataBoundConstructor
     public S3BlobStore() {}
@@ -105,22 +102,12 @@ public class S3BlobStore extends BlobStoreProvider {
 
     @Override
     public boolean isDeleteBlobs() {
-        return deleteBlobs;
-    }
-
-    @Restricted(NoExternalUse.class) // test only
-    public void setDeleteBlobs(boolean deleteBlobs) {
-        this.deleteBlobs = deleteBlobs;
+        return DELETE_BLOBS;
     }
 
     @Override
     public boolean isDeleteStashes() {
-        return deleteStashes;
-    }
-
-    @Restricted(NoExternalUse.class) // test only
-    public void setDeleteStashes(boolean deleteStashes) {
-        this.deleteStashes = deleteStashes;
+        return DELETE_STASHES;
     }
 
     @Override

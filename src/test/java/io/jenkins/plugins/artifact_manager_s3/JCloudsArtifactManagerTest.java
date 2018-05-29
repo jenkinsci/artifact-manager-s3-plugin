@@ -100,16 +100,19 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
-    protected ArtifactManagerFactory getArtifactManagerFactory() {
-        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix()));
+    protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteBlobs, Boolean deleteStashes) {
+        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteBlobs, deleteStashes));
     }
 
     private static final class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
         private final BlobStoreProvider delegate;
         private final String prefix;
-        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix) {
+        private final Boolean deleteBlobs, deleteStashes;
+        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteBlobs, Boolean deleteStashes) {
             this.delegate = delegate;
             this.prefix = prefix;
+            this.deleteBlobs = deleteBlobs;
+            this.deleteStashes = deleteStashes;
         }
         @Override
         public String getPrefix() {
@@ -121,11 +124,11 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
         @Override
         public boolean isDeleteBlobs() {
-            return delegate.isDeleteBlobs();
+            return deleteBlobs != null ? deleteBlobs : delegate.isDeleteBlobs();
         }
         @Override
         public boolean isDeleteStashes() {
-            return delegate.isDeleteStashes();
+            return deleteStashes != null ? deleteStashes : delegate.isDeleteStashes();
         }
         @Override
         public BlobStoreContext getContext() throws IOException {
@@ -165,24 +168,22 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Test
     public void artifactArchive() throws Exception {
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
+        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
     }
 
     @Test
     public void artifactArchiveAndDelete() throws Exception {
-        ((S3BlobStore) provider).setDeleteBlobs(true);
-        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(), false, image);
+        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), false, image);
     }
 
     @Test
     public void artifactStash() throws Exception {
-        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(), false, image);
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), false, image);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
-        ((S3BlobStore) provider).setDeleteStashes(true);
-        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(), false, image);
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), false, image);
     }
 
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
@@ -195,7 +196,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void artifactBrowsingPerformance() throws Exception {
-        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory());
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         FreeStyleProject p = j.createFreeStyleProject();
         p.getBuildersList().add(new TestBuilder() {
             @Override
@@ -231,7 +232,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Issue({"JENKINS-51390", "JCLOUDS-1200"})
     @Test
     public void serializationProblem() throws Exception {
-        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory());
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f', text: 'content'; archiveArtifacts 'f'; dir('d') {try {unarchive mapping: ['f': 'f']} catch (x) {sleep 1; echo(/caught $x/)}}}", true));
         S3BlobStore.BREAK_CREDS = true;
@@ -246,7 +247,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     //@Test
     public void archiveSingleLargeFile() throws Exception {
-        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory());
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         FreeStyleProject p = j.createFreeStyleProject();
         p.getBuildersList().add(new TestBuilder() {
             @Override
