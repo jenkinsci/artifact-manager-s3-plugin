@@ -55,6 +55,7 @@ import com.github.rholder.retry.RetryListener;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
+import com.google.common.base.Predicate;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -351,13 +352,17 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     private static void uploadFile(Path f, URL url, final TaskListener listener) throws IOException {
         String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         try {
+            Predicate<Throwable> nonfatal = x -> x instanceof IOException && (!(x instanceof HttpResponseException) || ((HttpResponseException) x).getStatusCode() >= 500);
             RetryerBuilder.<Void>newBuilder().
-                    retryIfException(x -> x instanceof IOException && (!(x instanceof HttpResponseException) || ((HttpResponseException) x).getStatusCode() >= 500)).
+                    retryIfException(nonfatal).
                     withRetryListener(new RetryListener() {
                         @Override
                         public <Void> void onRetry(Attempt<Void> attempt) {
                             if (attempt.hasException()) {
-                                listener.getLogger().println("Retrying upload after: " + attempt.getExceptionCause());
+                                Throwable t = attempt.getExceptionCause();
+                                if (nonfatal.apply(t)) {
+                                    listener.getLogger().println("Retrying upload after: " + t);
+                                }
                             }
                         }
                     }).
