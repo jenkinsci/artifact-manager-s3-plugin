@@ -41,7 +41,8 @@ public class MockBlobStoreTest {
 
     @Test
     public void smokes() throws Exception {
-        ArtifactManagerTest.run(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false, null);
+        ArtifactManagerTest.artifactArchiveAndDelete(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false, null);
+        ArtifactManagerTest.artifactStashAndDelete(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false, null);
     }
 
 }
