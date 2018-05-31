@@ -127,6 +127,23 @@ public class NetworkTest {
         }
     }
 
+    @Test
+    public void hangArchiving() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        long origTimeout = JCloudsArtifactManager.UPLOAD_TIMEOUT;
+        JCloudsArtifactManager.UPLOAD_TIMEOUT = 5;
+        try {
+            hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
+            p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+            r.assertLogContains("Retrying upload", b);
+            r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+        } finally {
+            JCloudsArtifactManager.UPLOAD_TIMEOUT = origTimeout;
+        }
+    }
+
     private static void failIn(BlobStoreProvider.HttpMethod method, String key, int code, int repeats) {
         MockBlobStore.speciallyHandle(method, key, (request, response, context) -> {
             if (repeats > 0) {
@@ -137,6 +154,16 @@ public class NetworkTest {
             }
             response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, code, "simulated " + code + " failure"));
             response.setEntity(new StringEntity("Detailed explanation of " + code + "."));
+        });
+    }
+
+    private static void hangIn(BlobStoreProvider.HttpMethod method, String key) {
+        MockBlobStore.speciallyHandle(method, key, (request, response, context) -> {
+            try {
+                Thread.sleep(Long.MAX_VALUE);
+            } catch (InterruptedException x) {
+                assert false : x; // on the server side, should not happen
+            }
         });
     }
 
