@@ -55,7 +55,6 @@ import com.github.rholder.retry.RetryListener;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
-import com.google.common.base.Predicate;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -70,6 +69,7 @@ import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
@@ -359,17 +359,14 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     private static void uploadFile(Path f, URL url, final TaskListener listener) throws IOException {
         String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         try {
-            Predicate<Throwable> nonfatal = x -> x instanceof IOException && (!(x instanceof HTTPAbortException) || ((HTTPAbortException) x).code >= 500);
+            AtomicReference<Throwable> lastError = new AtomicReference<>();
             RetryerBuilder.<Void>newBuilder().
-                    retryIfException(nonfatal).
+                    retryIfException(x -> x instanceof IOException && (!(x instanceof HTTPAbortException) || ((HTTPAbortException) x).code >= 500)).
                     withRetryListener(new RetryListener() {
                         @Override
                         public <Void> void onRetry(Attempt<Void> attempt) {
                             if (attempt.hasException()) {
-                                Throwable t = attempt.getExceptionCause();
-                                if (nonfatal.apply(t)) {
-                                    listener.getLogger().println("Retrying upload after: " + t);
-                                }
+                                lastError.set(attempt.getExceptionCause());
                             }
                         }
                     }).
@@ -379,6 +376,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     withWaitStrategy(WaitStrategies.exponentialWait(100, 5, TimeUnit.MINUTES)).
                     // TODO withAttemptTimeLimiter(…).
                     build().call(() -> {
+                Throwable t = lastError.get();
+                if (t != null) {
+                    listener.getLogger().println("Retrying upload after: " + (t instanceof AbortException ? t.getMessage() : t.toString()));
+                }
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setDoOutput(true);
                 connection.setRequestMethod("PUT");
