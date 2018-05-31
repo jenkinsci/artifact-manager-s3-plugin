@@ -34,6 +34,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.io.IOUtils;
+import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpRequest;
@@ -101,7 +102,7 @@ public final class MockBlobStore extends BlobStoreProvider {
                     Integer failure = fails.remove(method + ":" + key);
                     if (failure != null) {
                         if (failure == 0) {
-                            throw new IllegalStateException("Refusing to even send a status code for " + container + ":" + key);
+                            throw new ConnectionClosedException("Refusing to even send a status code for " + container + ":" + key);
                         }
                         response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, failure, "simulated " + failure + " failure"));
                         response.setEntity(new StringEntity("Detailed explanation of " + failure + "."));
@@ -136,7 +137,13 @@ public final class MockBlobStore extends BlobStoreProvider {
                         }
                     }
                 }).
-                setExceptionLogger(x -> LOGGER.log(Level.INFO, "error thrown in HTTP service", x)).
+                setExceptionLogger(x -> {
+                    if (x instanceof ConnectionClosedException) {
+                        LOGGER.info(x.toString());
+                    } else {
+                        LOGGER.log(Level.INFO, "error thrown in HTTP service", x);
+                    }
+                }).
                 create();
             server.start();
             baseURL = new URL("http://" + server.getInetAddress().getHostName() + ":" + server.getLocalPort() + "/");
