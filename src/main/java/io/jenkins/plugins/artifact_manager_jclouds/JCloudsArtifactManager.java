@@ -393,7 +393,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
      * Upload a file to a URL
      */
     @SuppressWarnings("Convert2Lambda") // bogus use of generics (type variable should have been on class); cannot be made into a lambda
-    private static void uploadFile(Path f, URL url, final TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException {
+    private static void uploadFile(Path f, URL url, final TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
         String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         try {
             AtomicReference<Throwable> lastError = new AtomicReference<>();
@@ -438,6 +438,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 throw (IOException) x2;
             } else if (x2 instanceof RuntimeException) {
                 throw (RuntimeException) x2;
+            } else if (x2 instanceof InterruptedException) {
+                throw (InterruptedException) x2;
             } else { // Error?
                 throw new RuntimeException(x);
             }

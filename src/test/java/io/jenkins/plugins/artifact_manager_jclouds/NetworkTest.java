@@ -32,6 +32,7 @@ import org.apache.http.message.BasicStatusLine;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.Before;
@@ -148,6 +149,24 @@ public class NetworkTest {
         } finally {
             JCloudsArtifactManager.UPLOAD_TIMEOUT = origTimeout;
         }
+    }
+
+    @Test
+    public void interruptedArchiving() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+        WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+        r.waitForMessage("Archiving artifacts", b);
+        Thread.sleep(2000); // wait for hangIn to sleep; OK if occasionally it has not gotten there yet, we still expect the same result
+        b.getExecutor().interrupt();
+        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(b));
+        // Currently prints a stack trace of java.lang.InterruptedException; good enough.
+        // Check the same from a timeout within the build, rather than a user abort, and also from master just for fun:
+        hangIn(BlobStoreProvider.HttpMethod.PUT, "p/2/artifacts/f");
+        p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; timeout(time: 3, unit: 'SECONDS') {archiveArtifacts 'f'}}", true));
+        r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
     private static void failIn(BlobStoreProvider.HttpMethod method, String key, int code, int repeats) {
