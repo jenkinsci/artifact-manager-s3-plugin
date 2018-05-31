@@ -139,6 +139,12 @@ public class NetworkTest {
             WorkflowRun b = r.buildAndAssertSuccess(p);
             r.assertLogContains("Retrying upload", b);
             r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+            // Also from master:
+            hangIn(BlobStoreProvider.HttpMethod.PUT, "p/2/artifacts/f");
+            p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+            b = r.buildAndAssertSuccess(p);
+            r.assertLogContains("Retrying upload", b);
+            r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
         } finally {
             JCloudsArtifactManager.UPLOAD_TIMEOUT = origTimeout;
         }
