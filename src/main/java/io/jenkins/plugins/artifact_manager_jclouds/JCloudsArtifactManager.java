@@ -137,6 +137,32 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
 
+    private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
+        private static final long serialVersionUID = 1L;
+
+        private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
+        private final TaskListener listener;
+        // Bind when constructed on the master side; on the agent side, deserialize those values.
+        private final int stopAfterAttemptNumber = UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = UPLOAD_WAIT_MULTIPLIER;
+        private final long waitMaximum = UPLOAD_WAIT_MAXIMUM;
+
+        UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
+            this.artifactUrls = artifactUrls;
+            this.listener = listener;
+        }
+
+        @Override
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+            for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
+                Path local = f.toPath().resolve(entry.getKey());
+                URL url = entry.getValue();
+                uploadFile(local, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum);
+            }
+            return null;
+        }
+    }
+
     @Override
     public boolean delete() throws IOException, InterruptedException {
         String blobPath = getBlobPath("");
@@ -196,6 +222,9 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final boolean useDefaultExcludes;
         private final String tempDir;
         private final TaskListener listener;
+        private final int stopAfterAttemptNumber = UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = UPLOAD_WAIT_MULTIPLIER;
+        private final long waitMaximum = UPLOAD_WAIT_MAXIMUM;
 
         Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
             this.url = url;
@@ -221,7 +250,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     throw new IOException(e);
                 }
                 if (count > 0) {
-                    uploadFile(tmp, url, listener);
+                    uploadFile(tmp, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum);
                 }
                 return count;
             } finally {
@@ -322,28 +351,6 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         return provider.getContext();
     }
 
-    private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
-        private static final long serialVersionUID = 1L;
-
-        private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
-        private final TaskListener listener;
-
-        UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
-            this.artifactUrls = artifactUrls;
-            this.listener = listener;
-        }
-
-        @Override
-        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
-                Path local = f.toPath().resolve(entry.getKey());
-                URL url = entry.getValue();
-                uploadFile(local, url, listener);
-            }
-            return null;
-        }
-    }
-
     private static final class HTTPAbortException extends AbortException {
         final int code;
         HTTPAbortException(int code, String message) {
@@ -353,10 +360,26 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     }
 
     /**
+     * Number of upload attempts of nonfatal errors before giving up.
+     */
+    static int UPLOAD_STOP_AFTER_ATTEMPT_NUMBER = Integer.getInteger(JCloudsArtifactManager.class.getName() + ".UPLOAD_STOP_AFTER_ATTEMPT_NUMBER", 10);
+    /**
+     * Initial number of milliseconds between first and second upload attempts.
+     * Subsequent ones increase exponentially.
+     * Note that this is not a <em>randomized</em> exponential backoff;
+     * and the base of the exponent is hard-coded to 2.
+     */
+    static long UPLOAD_WAIT_MULTIPLIER = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_WAIT_MULTIPLIER", 100);
+    /**
+     * Maximum number of seconds between upload attempts.
+     */
+    static long UPLOAD_WAIT_MAXIMUM = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_WAIT_MAXIMUM", 300);
+
+    /**
      * Upload a file to a URL
      */
     @SuppressWarnings("Convert2Lambda") // bogus use of generics (type variable should have been on class); cannot be made into a lambda
-    private static void uploadFile(Path f, URL url, final TaskListener listener) throws IOException {
+    private static void uploadFile(Path f, URL url, final TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum) throws IOException {
         String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         try {
             AtomicReference<Throwable> lastError = new AtomicReference<>();
@@ -370,10 +393,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                             }
                         }
                     }).
-                    // TODO all scalars configurable via system property
-                    withStopStrategy(StopStrategies.stopAfterAttempt(10)).
-                    // Note that this is not a _randomized_ exponential backoff; and the base of the exponent is hard-coded to 2.
-                    withWaitStrategy(WaitStrategies.exponentialWait(100, 5, TimeUnit.MINUTES)).
+                    withStopStrategy(StopStrategies.stopAfterAttempt(stopAfterAttemptNumber)).
+                    withWaitStrategy(WaitStrategies.exponentialWait(waitMultiplier, waitMaximum, TimeUnit.SECONDS)).
                     // TODO withAttemptTimeLimiter(…).
                     build().call(() -> {
                 Throwable t = lastError.get();
