@@ -39,13 +39,11 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
-import org.apache.http.HttpVersion;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
-import org.apache.http.message.BasicStatusLine;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpRequestHandler;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -73,17 +71,17 @@ public final class MockBlobStore extends BlobStoreProvider {
     public String getContainer() {
         return "container";
     }
-    
-    private static final Map<String, Integer> fails = new ConcurrentHashMap<>();
+
+    private static final Map<String, HttpRequestHandler> specialHandlers = new ConcurrentHashMap<>();
 
     /**
-     * Requests that the <em>next</em> HTTP access to a particular presigned URL should fail with a 4xx/5xx error.
+     * Requests that the <em>next</em> HTTP access to a particular presigned URL should behave specially.
      * @param method upload or download
      * @param key the blob’s {@link StorageMetadata#getName}
-     * @param code the status code, or 0 to just make the request fail without sending a proper response
+     * @param handler what to do instead
      */
-    static void failIn(HttpMethod method, String key, int code) {
-        fails.put(method + ":" + key, code);
+    static void speciallyHandle(HttpMethod method, String key, HttpRequestHandler handler) {
+        specialHandlers.put(method + ":" + key, handler);
     }
 
     @Override
@@ -99,13 +97,9 @@ public final class MockBlobStore extends BlobStoreProvider {
                     }
                     String container = m.group(1);
                     String key = m.group(2);
-                    Integer failure = fails.remove(method + ":" + key);
-                    if (failure != null) {
-                        if (failure == 0) {
-                            throw new ConnectionClosedException("Refusing to even send a status code for " + container + ":" + key);
-                        }
-                        response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, failure, "simulated " + failure + " failure"));
-                        response.setEntity(new StringEntity("Detailed explanation of " + failure + "."));
+                    HttpRequestHandler specialHandler = specialHandlers.remove(method + ":" + key);
+                    if (specialHandler != null) {
+                        specialHandler.handle(request, response, _context);
                         return;
                     }
                     BlobStore blobStore = context.getBlobStore();
