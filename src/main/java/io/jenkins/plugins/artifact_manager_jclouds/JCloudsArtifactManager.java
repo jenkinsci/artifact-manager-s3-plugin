@@ -74,7 +74,6 @@ import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.client.HttpResponseException;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -345,6 +344,14 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         }
     }
 
+    private static final class HTTPAbortException extends AbortException {
+        final int code;
+        HTTPAbortException(int code, String message) {
+            super(message);
+            this.code = code;
+        }
+    }
+
     /**
      * Upload a file to a URL
      */
@@ -352,7 +359,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     private static void uploadFile(Path f, URL url, final TaskListener listener) throws IOException {
         String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         try {
-            Predicate<Throwable> nonfatal = x -> x instanceof IOException && (!(x instanceof HttpResponseException) || ((HttpResponseException) x).getStatusCode() >= 500);
+            Predicate<Throwable> nonfatal = x -> x instanceof IOException && (!(x instanceof HTTPAbortException) || ((HTTPAbortException) x).code >= 500);
             RetryerBuilder.<Void>newBuilder().
                     retryIfException(nonfatal).
                     withRetryListener(new RetryListener() {
@@ -385,7 +392,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     try (InputStream err = connection.getErrorStream()) {
                         diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
                     }
-                    throw new HttpResponseException(responseCode, String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
+                    throw new HTTPAbortException(responseCode, String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
                 }
                 return null;
             });

@@ -76,6 +76,7 @@ public class NetworkTest {
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("/container/p/1/artifacts/f?…, response: 403 simulated 403 failure, body: Detailed explanation of 403.", b);
         r.assertLogNotContains("Retrying upload", b);
+        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
     }
 
     @Test
@@ -87,6 +88,7 @@ public class NetworkTest {
         WorkflowRun b = r.buildAndAssertSuccess(p);
         r.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
         r.assertLogContains("Retrying upload", b);
+        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
     }
 
     @Test
@@ -98,6 +100,7 @@ public class NetworkTest {
         WorkflowRun b = r.buildAndAssertSuccess(p);
         // currently prints a ‘java.net.SocketException: Connection reset’ but not sure if we really care
         r.assertLogContains("Retrying upload", b);
+        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
     }
 
 }
