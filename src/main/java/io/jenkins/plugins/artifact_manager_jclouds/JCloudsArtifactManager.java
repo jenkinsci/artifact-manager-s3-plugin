@@ -454,6 +454,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 afterResponse.handle(connection);
                 return null;
             });
+            listener.getLogger().flush(); // seems we can get interleaved output with master otherwise
         } catch (ExecutionException | RetryException x) { // *sigh*, checked exceptions
             Throwable x2 = x.getCause();
             if (x2 instanceof IOException) {
