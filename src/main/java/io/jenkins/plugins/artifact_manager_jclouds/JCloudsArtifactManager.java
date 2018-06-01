@@ -75,6 +75,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.JenkinsJVM;
@@ -149,10 +150,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
         private final TaskListener listener;
         // Bind when constructed on the master side; on the agent side, deserialize those values.
-        private final int stopAfterAttemptNumber = UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = UPLOAD_WAIT_MULTIPLIER;
-        private final long waitMaximum = UPLOAD_WAIT_MAXIMUM;
-        private final long timeout = UPLOAD_TIMEOUT;
+        private final int stopAfterAttemptNumber = STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = WAIT_MULTIPLIER;
+        private final long waitMaximum = WAIT_MAXIMUM;
+        private final long timeout = TIMEOUT;
 
         UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
             this.artifactUrls = artifactUrls;
@@ -229,10 +230,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final boolean useDefaultExcludes;
         private final String tempDir;
         private final TaskListener listener;
-        private final int stopAfterAttemptNumber = UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = UPLOAD_WAIT_MULTIPLIER;
-        private final long waitMaximum = UPLOAD_WAIT_MAXIMUM;
-        private final long timeout = UPLOAD_TIMEOUT;
+        private final int stopAfterAttemptNumber = STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = WAIT_MULTIPLIER;
+        private final long waitMaximum = WAIT_MAXIMUM;
+        private final long timeout = TIMEOUT;
 
         Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
             this.url = url;
@@ -279,24 +280,32 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
         }
         URL url = provider.toExternalURL(blob, HttpMethod.GET);
-        workspace.act(new Unstash(url));
+        workspace.act(new Unstash(url, listener));
         listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
     }
 
     private static final class Unstash extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
         private final URL url;
+        private final TaskListener listener;
+        private final int stopAfterAttemptNumber = STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = WAIT_MULTIPLIER;
+        private final long waitMaximum = WAIT_MAXIMUM;
+        private final long timeout = TIMEOUT;
 
-        Unstash(URL url) throws IOException {
+        Unstash(URL url, TaskListener listener) throws IOException {
             this.url = url;
+            this.listener = listener;
         }
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            try (InputStream is = url.openStream()) {
-                new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
-                // Note that this API currently offers no count of files in the tarball we could report.
-            }
+            connect(url, "download", urlSafe -> "download " + urlSafe + " into " + f, connection -> {}, connection -> {
+                try (InputStream is = connection.getInputStream()) {
+                    new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
+                    // Note that this API currently offers no count of files in the tarball we could report.
+                }
+            }, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
             return null;
         }
     }
@@ -368,32 +377,49 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     }
 
     /**
-     * Number of upload attempts of nonfatal errors before giving up.
+     * Number of upload/download attempts of nonfatal errors before giving up.
      */
-    static int UPLOAD_STOP_AFTER_ATTEMPT_NUMBER = Integer.getInteger(JCloudsArtifactManager.class.getName() + ".UPLOAD_STOP_AFTER_ATTEMPT_NUMBER", 10);
+    static int STOP_AFTER_ATTEMPT_NUMBER = Integer.getInteger(JCloudsArtifactManager.class.getName() + ".STOP_AFTER_ATTEMPT_NUMBER", 10);
     /**
-     * Initial number of milliseconds between first and second upload attempts.
+     * Initial number of milliseconds between first and second upload/download attempts.
      * Subsequent ones increase exponentially.
      * Note that this is not a <em>randomized</em> exponential backoff;
      * and the base of the exponent is hard-coded to 2.
      */
-    static long UPLOAD_WAIT_MULTIPLIER = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_WAIT_MULTIPLIER", 100);
+    private static long WAIT_MULTIPLIER = Long.getLong(JCloudsArtifactManager.class.getName() + ".WAIT_MULTIPLIER", 100);
     /**
-     * Maximum number of seconds between upload attempts.
+     * Maximum number of seconds between upload/download attempts.
      */
-    static long UPLOAD_WAIT_MAXIMUM = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_WAIT_MAXIMUM", 300);
+    private static long WAIT_MAXIMUM = Long.getLong(JCloudsArtifactManager.class.getName() + ".WAIT_MAXIMUM", 300);
     /**
-     * Number of seconds to permit a single upload attempt to take.
+     * Number of seconds to permit a single upload/download attempt to take.
      */
-    static long UPLOAD_TIMEOUT = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_TIMEOUT", /* 15m */15 * 60);
+    static long TIMEOUT = Long.getLong(JCloudsArtifactManager.class.getName() + ".TIMEOUT", /* 15m */15 * 60);
 
     private static final ExecutorService executors = JenkinsJVM.isJenkinsJVM() ? Computer.threadPoolForRemoting : Executors.newCachedThreadPool();
+    
+    @FunctionalInterface
+    private interface ConnectionProcessor {
+        void handle(HttpURLConnection connection) throws IOException, InterruptedException;
+    }
 
     /**
-     * Upload a file to a URL
+     * Perform an HTTP network operation with appropriate timeouts and retries.
+     * @param url a URL to connect to (any query string is considered secret and will be masked from logs)
+     * @param whatConcise a short description of the operation, like {@code upload}
+     * @param whatVerbose a longer description of the operation taking a sanitized URL, like {@code uploading … to …}
+     * @param afterConnect what to do, if anything, after a connection has been established but before getting the server’s response
+     * @param afterResponse what to do, if anything, after a successful (2xx) server response
+     * @param listener a place to print messages
+     * @param stopAfterAttemptNumber see {@link #STOP_AFTER_ATTEMPT_NUMBER}
+     * @param waitMultiplier see {@link #WAIT_MULTIPLIER}
+     * @param waitMaximum see {@link #WAIT_MAXIMUM}
+     * @param timeout see {@link #TIMEOUT}
+     * @throws IOException if there is an unrecoverable error; {@link AbortException} will be used where appropriate
+     * @throws InterruptedException if the transfer is interrupted
      */
-    @SuppressWarnings("Convert2Lambda") // bogus use of generics (type variable should have been on class); cannot be made into a lambda
-    private static void uploadFile(Path f, URL url, final TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
+    @SuppressWarnings("Convert2Lambda") // bogus use of generics in RetryListener (type variable should have been on class); cannot be made into a lambda
+    private static void connect(URL url, String whatConcise, Function<String, String> whatVerbose, ConnectionProcessor afterConnect, ConnectionProcessor afterResponse, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
         String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         try {
             AtomicReference<Throwable> lastError = new AtomicReference<>();
@@ -413,23 +439,19 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     build().call(() -> {
                 Throwable t = lastError.get();
                 if (t != null) {
-                    listener.getLogger().println("Retrying upload after: " + (t instanceof AbortException ? t.getMessage() : t.toString()));
+                    listener.getLogger().printf("Retrying %s after: %s%n", whatConcise, t instanceof AbortException ? t.getMessage() : t.toString());
                 }
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setDoOutput(true);
-                connection.setRequestMethod("PUT");
-                connection.setFixedLengthStreamingMode(Files.size(f)); // prevent loading file in memory
-                try (OutputStream out = connection.getOutputStream()) {
-                    Files.copy(f, out);
-                }
+                afterConnect.handle(connection);
                 int responseCode = connection.getResponseCode();
                 if (responseCode < 200 || responseCode >= 300) {
                     String diag;
                     try (InputStream err = connection.getErrorStream()) {
                         diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
                     }
-                    throw new HTTPAbortException(responseCode, String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
+                    throw new HTTPAbortException(responseCode, String.format("Failed to %s, response: %d %s, body: %s", whatVerbose.apply(urlSafe), responseCode, connection.getResponseMessage(), diag));
                 }
+                afterResponse.handle(connection);
                 return null;
             });
         } catch (ExecutionException | RetryException x) { // *sigh*, checked exceptions
@@ -444,6 +466,20 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 throw new RuntimeException(x);
             }
         }
+    }
+
+    /**
+     * Upload a file to a URL
+     */
+    private static void uploadFile(Path f, URL url, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
+        connect(url, "upload", urlSafe -> "upload " + f + " to " + urlSafe, connection -> {
+            connection.setDoOutput(true);
+            connection.setRequestMethod("PUT");
+            connection.setFixedLengthStreamingMode(Files.size(f)); // prevent loading file in memory
+            try (OutputStream out = connection.getOutputStream()) {
+                Files.copy(f, out);
+            }
+        }, connection -> {}, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
     }
 
 }
