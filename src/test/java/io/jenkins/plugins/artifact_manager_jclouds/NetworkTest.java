@@ -36,7 +36,6 @@ import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
@@ -197,15 +196,16 @@ public class NetworkTest {
         r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
     }
 
-    @Ignore("TODO failing to simulate an error using failIn(…, 0, …); maybe need to set a custom Entity that throws an exception later?")
     @Test
     public void networkExceptionUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         r.createSlave("remote", null, null);
-        failIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", 0, 0);
+        // failIn does not work: URL connection gets a 200 status despite a ConnectionClosedException being thrown; a new connection is made.
+        MockBlobStore.speciallyHandle(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", (request, response, context) -> {});
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
         r.assertLogContains("Retrying download", b);
+        // Currently catches: java.io.IOException: Failed to extract input stream
         r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
     }
 
