@@ -24,8 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -63,6 +61,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundSetter;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import shaded.com.google.common.base.Supplier;
 
 /**
@@ -76,17 +76,10 @@ public class S3BlobStore extends BlobStoreProvider {
 
     private static final long serialVersionUID = -8864075675579867370L;
 
-    public static final String KEY_CONTAINER = S3BlobStore.class.getName() + ".container";
-    public static final String KEY_PREFIX = S3BlobStore.class.getName() + ".prefix";
-    public static final String KEY_REGION = S3BlobStore.class.getName() + ".region";
-
-    public final String PREFIX_PROPERTY = System.getProperty(KEY_PREFIX);
-    public final String CONTAINER_PROPERTY = System.getProperty(KEY_CONTAINER);
-    public final String REGION_PROPERTY = System.getProperty(KEY_REGION);
-
-    private String container;
-    private String prefix;
-    private String region;
+    @SuppressWarnings("FieldMayBeFinal")
+    private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteStashes");
 
     @DataBoundConstructor
     public S3BlobStore() {
@@ -94,31 +87,45 @@ public class S3BlobStore extends BlobStoreProvider {
 
     @Override
     public String getPrefix() {
-        return StringUtils.defaultIfBlank(prefix, PREFIX_PROPERTY);
+        return getConfiguration().getPrefix();
     }
 
     @Override
     public String getContainer() {
-        return StringUtils.defaultIfBlank(container, CONTAINER_PROPERTY);
+        return getConfiguration().getContainer();
     }
 
     public String getRegion() {
-        return StringUtils.defaultIfBlank(region, REGION_PROPERTY);
+        return getConfiguration().getRegion();
     }
 
     @DataBoundSetter
-    public void setPrefix(String prefix) {
-        this.prefix = prefix;
+    public void setPrefix(String value) {
+        getConfiguration().setPrefix(value);
     }
 
     @DataBoundSetter
-    public void setContainer(String container) {
-        this.container = container;
+    public void setContainer(String value) {
+        getConfiguration().setContainer(value);
     }
 
     @DataBoundSetter
-    public void setRegion(String region) {
-        this.region = region;
+    public void setRegion(String value) {
+        getConfiguration().setRegion(value);
+    }
+
+    public S3BlobStoreConfig getConfiguration(){
+        return ((S3BlodStoreDescriptor)getDescriptor()).getConfiguration();
+    }
+
+    @Override
+    public boolean isDeleteBlobs() {
+        return DELETE_BLOBS;
+    }
+
+    @Override
+    public boolean isDeleteStashes() {
+        return DELETE_STASHES;
     }
 
     @Override
@@ -212,10 +219,15 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     @Extension
-    public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
+    public static final class S3BlodStoreDescriptor extends BlobStoreProviderDescriptor {
 
-        public DescriptorImpl() {
-            super();
+        /**
+         * @see S3BlobStoreConfig
+         */
+        private transient final S3BlobStoreConfig configuration;
+
+        public S3BlodStoreDescriptor() {
+            this.configuration = new S3BlobStoreConfig();
         }
 
         public ListBoxModel doFillRegionItems() {
@@ -232,22 +244,10 @@ public class S3BlobStore extends BlobStoreProvider {
             return "Amazon S3";
         }
 
-        public String getPrefix() {
-            return System.getProperty(KEY_PREFIX);
+        @NonNull
+        public S3BlobStoreConfig getConfiguration() {
+            return configuration;
         }
-
-        public String getContainer() {
-            return System.getProperty(KEY_CONTAINER);
-        }
-
-        public String getRegion() {
-            return System.getProperty(KEY_REGION);
-        }
-
-        public boolean isPropertyConfigured(){
-            return StringUtils.isNotBlank(getPrefix()) && StringUtils.isNotBlank(getContainer());
-        }
-
     }
 
     @Override
@@ -256,6 +256,8 @@ public class S3BlobStore extends BlobStoreProvider {
         sb.append("container='").append(getContainer()).append('\'');
         sb.append(", prefix='").append(getPrefix()).append('\'');
         sb.append(", region='").append(getRegion()).append('\'');
+        sb.append(", isDeleteBlobs='").append(isDeleteBlobs()).append('\'');
+        sb.append(", isDeleteStashes='").append(isDeleteStashes()).append('\'');
         sb.append('}');
         return sb.toString();
     }
