@@ -25,6 +25,7 @@
 package io.jenkins.plugins.artifact_manager_jclouds;
 
 import com.github.rholder.retry.Attempt;
+import com.github.rholder.retry.AttemptTimeLimiters;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,13 +56,14 @@ import com.github.rholder.retry.RetryListener;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
-import com.google.common.base.Predicate;
+import com.google.common.util.concurrent.UncheckedTimeoutException;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
 import hudson.model.BuildListener;
+import hudson.model.Computer;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.remoting.VirtualChannel;
@@ -69,12 +71,15 @@ import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
+import jenkins.util.JenkinsJVM;
 import jenkins.util.VirtualFile;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.client.HttpResponseException;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -138,6 +143,33 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
 
+    private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
+        private static final long serialVersionUID = 1L;
+
+        private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
+        private final TaskListener listener;
+        // Bind when constructed on the master side; on the agent side, deserialize those values.
+        private final int stopAfterAttemptNumber = UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = UPLOAD_WAIT_MULTIPLIER;
+        private final long waitMaximum = UPLOAD_WAIT_MAXIMUM;
+        private final long timeout = UPLOAD_TIMEOUT;
+
+        UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
+            this.artifactUrls = artifactUrls;
+            this.listener = listener;
+        }
+
+        @Override
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+            for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
+                Path local = f.toPath().resolve(entry.getKey());
+                URL url = entry.getValue();
+                uploadFile(local, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+            }
+            return null;
+        }
+    }
+
     @Override
     public boolean delete() throws IOException, InterruptedException {
         String blobPath = getBlobPath("");
@@ -197,6 +229,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final boolean useDefaultExcludes;
         private final String tempDir;
         private final TaskListener listener;
+        private final int stopAfterAttemptNumber = UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = UPLOAD_WAIT_MULTIPLIER;
+        private final long waitMaximum = UPLOAD_WAIT_MAXIMUM;
+        private final long timeout = UPLOAD_TIMEOUT;
 
         Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
             this.url = url;
@@ -222,7 +258,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     throw new IOException(e);
                 }
                 if (count > 0) {
-                    uploadFile(tmp, url, listener);
+                    uploadFile(tmp, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
                 }
                 return count;
             } finally {
@@ -323,55 +359,62 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         return provider.getContext();
     }
 
-    private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
-        private static final long serialVersionUID = 1L;
-
-        private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
-        private final TaskListener listener;
-
-        UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
-            this.artifactUrls = artifactUrls;
-            this.listener = listener;
-        }
-
-        @Override
-        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
-                Path local = f.toPath().resolve(entry.getKey());
-                URL url = entry.getValue();
-                uploadFile(local, url, listener);
-            }
-            return null;
+    private static final class HTTPAbortException extends AbortException {
+        final int code;
+        HTTPAbortException(int code, String message) {
+            super(message);
+            this.code = code;
         }
     }
+
+    /**
+     * Number of upload attempts of nonfatal errors before giving up.
+     */
+    static int UPLOAD_STOP_AFTER_ATTEMPT_NUMBER = Integer.getInteger(JCloudsArtifactManager.class.getName() + ".UPLOAD_STOP_AFTER_ATTEMPT_NUMBER", 10);
+    /**
+     * Initial number of milliseconds between first and second upload attempts.
+     * Subsequent ones increase exponentially.
+     * Note that this is not a <em>randomized</em> exponential backoff;
+     * and the base of the exponent is hard-coded to 2.
+     */
+    static long UPLOAD_WAIT_MULTIPLIER = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_WAIT_MULTIPLIER", 100);
+    /**
+     * Maximum number of seconds between upload attempts.
+     */
+    static long UPLOAD_WAIT_MAXIMUM = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_WAIT_MAXIMUM", 300);
+    /**
+     * Number of seconds to permit a single upload attempt to take.
+     */
+    static long UPLOAD_TIMEOUT = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_TIMEOUT", /* 15m */15 * 60);
+
+    private static final ExecutorService executors = JenkinsJVM.isJenkinsJVM() ? Computer.threadPoolForRemoting : Executors.newCachedThreadPool();
 
     /**
      * Upload a file to a URL
      */
     @SuppressWarnings("Convert2Lambda") // bogus use of generics (type variable should have been on class); cannot be made into a lambda
-    private static void uploadFile(Path f, URL url, final TaskListener listener) throws IOException {
+    private static void uploadFile(Path f, URL url, final TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
         String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
         try {
-            Predicate<Throwable> nonfatal = x -> x instanceof IOException && (!(x instanceof HttpResponseException) || ((HttpResponseException) x).getStatusCode() >= 500);
+            AtomicReference<Throwable> lastError = new AtomicReference<>();
             RetryerBuilder.<Void>newBuilder().
-                    retryIfException(nonfatal).
+                    retryIfException(x -> x instanceof IOException && (!(x instanceof HTTPAbortException) || ((HTTPAbortException) x).code >= 500) || x instanceof UncheckedTimeoutException).
                     withRetryListener(new RetryListener() {
                         @Override
                         public <Void> void onRetry(Attempt<Void> attempt) {
                             if (attempt.hasException()) {
-                                Throwable t = attempt.getExceptionCause();
-                                if (nonfatal.apply(t)) {
-                                    listener.getLogger().println("Retrying upload after: " + t);
-                                }
+                                lastError.set(attempt.getExceptionCause());
                             }
                         }
                     }).
-                    // TODO all scalars configurable via system property
-                    withStopStrategy(StopStrategies.stopAfterAttempt(10)).
-                    // Note that this is not a _randomized_ exponential backoff; and the base of the exponent is hard-coded to 2.
-                    withWaitStrategy(WaitStrategies.exponentialWait(100, 5, TimeUnit.MINUTES)).
-                    // TODO withAttemptTimeLimiter(…).
+                    withStopStrategy(StopStrategies.stopAfterAttempt(stopAfterAttemptNumber)).
+                    withWaitStrategy(WaitStrategies.exponentialWait(waitMultiplier, waitMaximum, TimeUnit.SECONDS)).
+                    withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(timeout, TimeUnit.SECONDS, executors)).
                     build().call(() -> {
+                Throwable t = lastError.get();
+                if (t != null) {
+                    listener.getLogger().println("Retrying upload after: " + (t instanceof AbortException ? t.getMessage() : t.toString()));
+                }
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setDoOutput(true);
                 connection.setRequestMethod("PUT");
@@ -385,7 +428,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     try (InputStream err = connection.getErrorStream()) {
                         diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
                     }
-                    throw new HttpResponseException(responseCode, String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
+                    throw new HTTPAbortException(responseCode, String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
                 }
                 return null;
             });
@@ -395,6 +438,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 throw (IOException) x2;
             } else if (x2 instanceof RuntimeException) {
                 throw (RuntimeException) x2;
+            } else if (x2 instanceof InterruptedException) {
+                throw (InterruptedException) x2;
             } else { // Error?
                 throw new RuntimeException(x);
             }

@@ -25,9 +25,14 @@ package io.jenkins.plugins.artifact_manager_jclouds;
 
 import hudson.model.Result;
 import jenkins.model.ArtifactManagerConfiguration;
+import org.apache.http.ConnectionClosedException;
+import org.apache.http.HttpVersion;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.message.BasicStatusLine;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.Before;
@@ -71,33 +76,120 @@ public class NetworkTest {
     public void unrecoverableExceptionArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         r.createSlave("remote", null, null);
-        MockBlobStore.failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 403);
+        failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 403, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("ERROR: Failed to upload", b);
         r.assertLogContains("/container/p/1/artifacts/f?…, response: 403 simulated 403 failure, body: Detailed explanation of 403.", b);
         r.assertLogNotContains("Retrying upload", b);
+        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
     }
 
     @Test
     public void recoverableExceptionArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         r.createSlave("remote", null, null);
-        MockBlobStore.failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500);
+        failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
         r.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
         r.assertLogContains("Retrying upload", b);
+        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
     }
 
     @Test
     public void networkExceptionArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         r.createSlave("remote", null, null);
-        MockBlobStore.failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 0);
+        failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 0, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
         // currently prints a ‘java.net.SocketException: Connection reset’ but not sure if we really care
         r.assertLogContains("Retrying upload", b);
+        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+    }
+
+    @Test
+    public void repeatedRecoverableExceptionArchiving() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        int origStopAfterAttemptNumber = JCloudsArtifactManager.UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
+        JCloudsArtifactManager.UPLOAD_STOP_AFTER_ATTEMPT_NUMBER = 3;
+        try {
+            failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500, JCloudsArtifactManager.UPLOAD_STOP_AFTER_ATTEMPT_NUMBER);
+            p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+            WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+            r.assertLogContains("ERROR: Failed to upload", b);
+            r.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
+            r.assertLogContains("Retrying upload", b);
+            r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+        } finally {
+            JCloudsArtifactManager.UPLOAD_STOP_AFTER_ATTEMPT_NUMBER = origStopAfterAttemptNumber;
+        }
+    }
+
+    @Test
+    public void hangArchiving() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        long origTimeout = JCloudsArtifactManager.UPLOAD_TIMEOUT;
+        JCloudsArtifactManager.UPLOAD_TIMEOUT = 5;
+        try {
+            hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
+            p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+            r.assertLogContains("Retrying upload", b);
+            r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+            // Also from master:
+            hangIn(BlobStoreProvider.HttpMethod.PUT, "p/2/artifacts/f");
+            p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+            b = r.buildAndAssertSuccess(p);
+            r.assertLogContains("Retrying upload", b);
+            r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+        } finally {
+            JCloudsArtifactManager.UPLOAD_TIMEOUT = origTimeout;
+        }
+    }
+
+    @Test
+    public void interruptedArchiving() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+        WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+        r.waitForMessage("Archiving artifacts", b);
+        Thread.sleep(2000); // wait for hangIn to sleep; OK if occasionally it has not gotten there yet, we still expect the same result
+        b.getExecutor().interrupt();
+        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(b));
+        // Currently prints a stack trace of java.lang.InterruptedException; good enough.
+        // Check the same from a timeout within the build, rather than a user abort, and also from master just for fun:
+        hangIn(BlobStoreProvider.HttpMethod.PUT, "p/2/artifacts/f");
+        p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; timeout(time: 3, unit: 'SECONDS') {archiveArtifacts 'f'}}", true));
+        r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
+    }
+
+    private static void failIn(BlobStoreProvider.HttpMethod method, String key, int code, int repeats) {
+        MockBlobStore.speciallyHandle(method, key, (request, response, context) -> {
+            if (repeats > 0) {
+                failIn(method, key, code, repeats - 1);
+            }
+            if (code == 0) {
+                throw new ConnectionClosedException("Refusing to even send a status code for " + key);
+            }
+            response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, code, "simulated " + code + " failure"));
+            response.setEntity(new StringEntity("Detailed explanation of " + code + "."));
+        });
+    }
+
+    private static void hangIn(BlobStoreProvider.HttpMethod method, String key) {
+        MockBlobStore.speciallyHandle(method, key, (request, response, context) -> {
+            try {
+                Thread.sleep(Long.MAX_VALUE);
+            } catch (InterruptedException x) {
+                assert false : x; // on the server side, should not happen
+            }
+        });
     }
 
 }
