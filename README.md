@@ -41,12 +41,6 @@ This is an example policy
 }
 ```
 
-Then, run the Jenkins master with the Java properties. Note the `/` at the end of `io.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix`
-
-```
--Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.container=my-bucket-name -Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix=some/path/
-```
-
 # Testing
 
 Pick an AWS profile and region, then create a scratch bucket and choose a subdirectory within it for testing.
@@ -80,7 +74,6 @@ For interactive testing, you may instead add to `~/.mavenrc` (cf. comment in MNG
 ```sh
 export AWS_PROFILE=…
 export AWS_REGION=…
-export MAVEN_OPTS="-Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.container=my-bucket-name -Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.prefix=some/path/"
 ```
 
 then:
@@ -127,8 +120,3 @@ docker run --rm -i --init -v <YOUR_HOME_DIR>/.aws:/home/jenkins/.aws -e AWS_REGI
 
 but note that the mount will not work if your `~/.aws/` is set to be readable only by the user.
 
-
-# Force the Region
-
-If you have problems detecting the region on your environment you can force the region setting by adding this property 
-`-Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.region=REGION_NAME` to the Jenkins JVM options.

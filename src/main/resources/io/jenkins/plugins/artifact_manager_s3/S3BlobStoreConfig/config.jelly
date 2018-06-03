@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:section title="${%Amazon S3 Bucket Access settings}">
+        <f:entry title="${%S3 Bucket Name}" field="container">
+            <f:textbox/>
+        </f:entry>
+        <f:entry title="${%S3 Bucket Region}" field="region">
+            <f:select/>
+        </f:entry>
+        <f:entry title="${%Base folder}" field="prefix">
+            <f:textbox/>
+        </f:entry>
+        <f:entry title="${%Delete Blods}" help="help-deleteblods.html">
+            <strong>${instance.isDeleteBlobs()}</strong>
+        </f:entry>
+        <f:entry title="${%Delete Stashes}" help="help-deletestashes.html">
+            <strong>${instance.isDeleteStashes()}</strong>
+        </f:entry>
+    </f:section>
+</j:jelly>

@@ -1,21 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
-    <f:section title="${%Artifact Manager S3}">
-        <f:entry title="${%S3 Bucket Name}" field="container">
-            <f:textbox/>
-        </f:entry>
-        <f:entry title="${%S3 Bucket Region}" field="region">
-            <f:select/>
-        </f:entry>
-        <f:entry title="${%Base folder}" field="prefix">
-            <f:textbox/>
-        </f:entry>
-        <f:entry title="${%Delete Blods}">
-            <strong>${instance.isDeleteBlobs()}</strong>
-        </f:entry>
-        <f:entry title="${%Delete Stashes}">
-            <strong>${instance.isDeleteStashes()}</strong>
-        </f:entry>
-    </f:section>
+    <j:if test="${!instance.isConfigured()}">
+        <div class="alert alert-warning">
+            <strong>${%configure_first}</strong>
+        </div>
+    </j:if>
 </j:jelly>

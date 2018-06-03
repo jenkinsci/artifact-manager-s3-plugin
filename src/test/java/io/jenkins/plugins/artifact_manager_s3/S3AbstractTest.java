@@ -37,7 +37,6 @@ import java.util.logging.Logger;
 import static org.hamcrest.Matchers.*;
 
 import org.apache.commons.lang.RandomStringUtils;
-import org.apache.commons.lang.StringUtils;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.junit.After;
@@ -52,10 +51,8 @@ public abstract class S3AbstractTest {
 
     protected static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
 
-    private static final String S3_BUCKET = StringUtils.defaultIfBlank(System.getenv("S3_BUCKET"),
-                                                                       System.getProperty(S3BlobStore.class.getName() + ".container"));
-    protected static final String S3_DIR = StringUtils.defaultIfBlank(System.getenv("S3_DIR"),
-                                                                      System.getProperty(S3BlobStore.class.getName() + ".prefix"));
+    private static final String S3_BUCKET = System.getenv("S3_BUCKET");
+    protected static final String S3_DIR = System.getenv("S3_DIR");
     protected BlobStoreProvider provider;
 
     @BeforeClass

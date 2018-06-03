@@ -41,7 +41,6 @@ import javax.annotation.Nonnull;
 
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
-import org.jclouds.aws.domain.Region;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -59,7 +58,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
-import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundSetter;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
@@ -75,11 +73,6 @@ public class S3BlobStore extends BlobStoreProvider {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
 
     private static final long serialVersionUID = -8864075675579867370L;
-
-    @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
-    @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteStashes");
 
     @DataBoundConstructor
     public S3BlobStore() {
@@ -115,17 +108,17 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     public S3BlobStoreConfig getConfiguration(){
-        return ((S3BlodStoreDescriptor)getDescriptor()).getConfiguration();
+        return S3BlobStoreConfig.get();
     }
 
     @Override
     public boolean isDeleteBlobs() {
-        return DELETE_BLOBS;
+        return getConfiguration().isDeleteBlobs();
     }
 
     @Override
     public boolean isDeleteStashes() {
-        return DELETE_STASHES;
+        return getConfiguration().isDeleteStashes();
     }
 
     @Override
@@ -218,35 +211,16 @@ public class S3BlobStore extends BlobStoreProvider {
         return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
     }
 
+    public boolean isConfigured(){
+        return StringUtils.isNotBlank(getContainer()) && StringUtils.isNotBlank(getPrefix());
+    }
+
     @Extension
     public static final class S3BlodStoreDescriptor extends BlobStoreProviderDescriptor {
-
-        /**
-         * @see S3BlobStoreConfig
-         */
-        private transient final S3BlobStoreConfig configuration;
-
-        public S3BlodStoreDescriptor() {
-            this.configuration = new S3BlobStoreConfig();
-        }
-
-        public ListBoxModel doFillRegionItems() {
-            ListBoxModel regions = new ListBoxModel();
-            regions.add("Auto", "");
-            for (String s : Region.DEFAULT_S3) {
-                regions.add(s);
-            }
-            return regions;
-        }
 
         @Override
         public String getDisplayName() {
             return "Amazon S3";
-        }
-
-        @NonNull
-        public S3BlobStoreConfig getConfiguration() {
-            return configuration;
         }
     }
 

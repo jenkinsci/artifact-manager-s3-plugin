@@ -24,28 +24,28 @@
 
 package io.jenkins.plugins.artifact_manager_s3;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
+import javax.annotation.Nonnull;
+import net.sf.json.JSONObject;
+import org.jclouds.aws.domain.Region;
+import org.kohsuke.stapler.StaplerRequest;
 import hudson.Extension;
-import hudson.XmlFile;
-import hudson.model.Saveable;
-import hudson.model.listeners.SaveableListener;
-import jenkins.model.ArtifactManagerConfiguration;
-import jenkins.model.ArtifactManagerFactory;
-import jenkins.model.Jenkins;
+import hudson.util.ListBoxModel;
+import jenkins.model.GlobalConfiguration;
 
 /**
- * Store the S3BlodStore configuration in a transient object to save it on a separate file. This make that
+ * Store the S3BlodStore configuration to save it on a separate file. This make that
  * the change of container does not affected to the Artifactory functionality, you could change the container
  * and it would still work if both container contains the same data.
  */
-class S3BlobStoreConfig {
+@Extension
+public class S3BlobStoreConfig extends GlobalConfiguration {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
+
+    @SuppressWarnings("FieldMayBeFinal")
+    private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteBlobs");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
 
     /**
      * Name of the S3 Bucket.
@@ -88,66 +88,40 @@ class S3BlobStoreConfig {
         this.region = region;
     }
 
-    /**
-     * load the S3BlodStore configuration from disk.
-     */
-    public synchronized void load() {
-        XmlFile file = getConfigFile();
-        if (!file.exists())
-            return;
-
-        try {
-            file.unmarshal(this);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to load " + file, e);
-        }
+    public boolean isDeleteBlobs() {
+        return DELETE_BLOBS;
     }
 
-    /**
-     * save the S3BlodStore configuration to disk.
-     */
-    public synchronized void save() {
-        try {
-            getConfigFile().write(this);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to save " + getConfigFile(), e);
-        }
+    public boolean isDeleteStashes() {
+        return DELETE_STASHES;
     }
 
-    /**
-     *
-     * @return the name of the file to save JENKINS_HOME/io.jenkins.plugins.artifact_manager_s3.S3BlobStoreConfig.xml
-     */
-    @NonNull
-    private XmlFile getConfigFile() {
-        return new XmlFile(new File(Jenkins.get().getRootDir(), S3BlobStoreConfig.class.getName() + ".xml"));
+    @Nonnull
+    @Override
+    public String getDisplayName() {
+        return "Amazon S3 Bucket Access settings";
     }
 
-    /**
-     * SaveListener for the "Artifact Management for Builds" configuration, If S3BlodStore is configured it save the
-     * configuration on a XML file.
-     */
-    @Extension
-    public static final class SaveListenerS3Config extends SaveableListener {
-
-        @Override
-        public void onChange(Saveable o, XmlFile file) {
-            if (o instanceof ArtifactManagerConfiguration) {
-                ArtifactManagerConfiguration artifactManagerConfig = (ArtifactManagerConfiguration) o;
-                for (ArtifactManagerFactory item : artifactManagerConfig.getArtifactManagerFactories()) {
-                    if (isS3BlodStoreConfigured(item)) {
-                        BlobStoreProvider provider = ((JCloudsArtifactManagerFactory) item).getProvider();
-                        S3BlobStore.S3BlodStoreDescriptor descriptor = (S3BlobStore.S3BlodStoreDescriptor) provider
-                                .getDescriptor();
-                        descriptor.getConfiguration().save();
-                    }
-                }
-            }
+    @Override
+    public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
+        boolean ret = super.configure(req, json);
+        if (ret){
+            save();
         }
+        return ret;
+    }
 
-        private boolean isS3BlodStoreConfigured(ArtifactManagerFactory item) {
-            return item instanceof JCloudsArtifactManagerFactory && ((JCloudsArtifactManagerFactory) item)
-                    .getProvider() instanceof S3BlobStore;
+    @Nonnull
+    public static S3BlobStoreConfig get() {
+        return GlobalConfiguration.all().getInstance(S3BlobStoreConfig.class);
+    }
+
+    public ListBoxModel doFillRegionItems() {
+        ListBoxModel regions = new ListBoxModel();
+        regions.add("Auto", "");
+        for (String s : Region.DEFAULT_S3) {
+            regions.add(s);
         }
+        return regions;
     }
 }
