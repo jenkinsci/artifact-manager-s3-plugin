@@ -29,6 +29,7 @@ import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpVersion;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicStatusLine;
+import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -264,6 +265,43 @@ public class NetworkTest {
         r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(b));
         hangIn(BlobStoreProvider.HttpMethod.GET, "p/2/stashes/f.tgz");
         p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; stash 'f'; timeout(time: 3, unit: 'SECONDS') {unstash 'f'}}", true));
+        r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
+    }
+
+    // TBD if jclouds, or its S3 provider, is capable of differentiating recoverable from nonrecoverable errors. The error simulated here:
+    // org.jclouds.blobstore.ContainerNotFoundException: nonexistent.s3.amazonaws.com not found: The specified bucket does not exist
+    //     at org.jclouds.s3.handlers.ParseS3ErrorFromXmlContent.refineException(ParseS3ErrorFromXmlContent.java:81)
+    //     at org.jclouds.aws.handlers.ParseAWSErrorFromXmlContent.handleError(ParseAWSErrorFromXmlContent.java:89)
+    //     at …
+    // Disconnecting network in the middle of some operations produces a bunch of warnings from BackoffLimitedRetryHandler.ifReplayableBackoffAndReturnTrue
+    // followed by a org.jclouds.http.HttpResponseException: Network is unreachable (connect failed) connecting to GET …
+    // Also not testing hangs here since org.jclouds.Constants.PROPERTY_SO_TIMEOUT/PROPERTY_CONNECTION_TIMEOUT probably handle this.
+    @Test
+    public void errorListing() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "sorry");});
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; unarchive mapping: ['f': 'f']}", true));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains(ContainerNotFoundException.class.getName(), b);
+        // Currently prints a stack trace, OK.
+    }
+
+    // Interrupts during a network operation seem to have no effect; when retrying during network disconnection,
+    // BackoffLimitedRetryHandler.imposeBackoffExponentialDelay throws InterruptedException wrapped in RuntimeException.
+    @Test
+    public void interruptedListing() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {
+            try {
+                Thread.sleep(Long.MAX_VALUE);
+                return null; // to satisfy compiler
+            } catch (InterruptedException x) {
+                throw new RuntimeException(x);
+            }
+        });
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; timeout(time: 3, unit: 'SECONDS') {unarchive mapping: ['f': 'f']}}", true));
         r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
