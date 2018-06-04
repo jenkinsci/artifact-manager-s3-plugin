@@ -23,17 +23,25 @@
  */
 package io.jenkins.plugins.artifact_manager_jclouds;
 
+import com.google.common.base.Throwables;
 import hudson.model.Result;
+import hudson.tasks.LogRotator;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.stream.Collectors;
 import jenkins.model.ArtifactManagerConfiguration;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpVersion;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicStatusLine;
+import static org.hamcrest.Matchers.*;
 import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
+import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.Before;
@@ -41,6 +49,7 @@ import org.junit.Rule;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LoggerRule;
 
 /**
  * Explores responses to edge cases such as server errors and hangs.
@@ -65,6 +74,9 @@ public class NetworkTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
+
+    @Rule
+    public LoggerRule loggerRule = new LoggerRule();
 
     @Before
     public void configureManager() throws Exception {
@@ -303,6 +315,21 @@ public class NetworkTest {
         });
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; timeout(time: 3, unit: 'SECONDS') {unarchive mapping: ['f': 'f']}}", true));
         r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
+    }
+
+    @Test
+    public void errorCleaning() throws Exception {
+        loggerRule.record(WorkflowRun.class, Level.WARNING).capture(10);
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        r.createSlave("remote", null, null);
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; stash 'stuff'}", true));
+        MockApiMetadata.handleRemoveBlob("container", "p/1/stashes/stuff.tgz", () -> {throw new ContainerNotFoundException("container", "sorry about your stashes");});
+        r.buildAndAssertSuccess(p);
+        p.setBuildDiscarder(new LogRotator(-1, -1, -1, 0));
+        MockApiMetadata.handleRemoveBlob("container", "p/1/artifacts/f", () -> {throw new ContainerNotFoundException("container", "sorry about your artifacts");});
+        r.buildAndAssertSuccess(p);
+        assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Throwables::getRootCause).map(Throwable::getMessage).collect(Collectors.toSet()),
+            containsInAnyOrder("container not found: sorry about your stashes", "container not found: sorry about your artifacts"));
     }
 
     private static void failIn(BlobStoreProvider.HttpMethod method, String key, int code, int repeats) {

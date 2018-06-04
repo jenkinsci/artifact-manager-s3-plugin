@@ -160,6 +160,12 @@ public final class MockApiMetadata extends BaseApiMetadata {
         getBlobKeysInsideContainerHandlers.put(container, handler);
     }
 
+    private static final Map<String, Runnable> removeBlobHandlers = new ConcurrentHashMap<>();
+
+    static void handleRemoveBlob(String container, String key, Runnable handler) {
+        removeBlobHandlers.put(container + '/' + key, handler);
+    }
+
     /** Like {@link TransientStorageStrategy}. */
     public static final class MockStrategy implements LocalStorageStrategy {
 
@@ -217,7 +223,7 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
         @Override
         public Iterable<String> getBlobKeysInsideContainer(String container) throws IOException {
-            GetBlobKeysInsideContainerHandler handler = getBlobKeysInsideContainerHandlers.get(container);
+            GetBlobKeysInsideContainerHandler handler = getBlobKeysInsideContainerHandlers.remove(container);
             if (handler != null) {
                 return handler.run();
             }
@@ -247,6 +253,11 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
         @Override
         public void removeBlob(String container, String key) {
+            Runnable handler = removeBlobHandlers.remove(container + '/' + key);
+            if (handler != null) {
+                handler.run();
+                return;
+            }
             blobsByContainer.get(container).remove(key);
         }
 
