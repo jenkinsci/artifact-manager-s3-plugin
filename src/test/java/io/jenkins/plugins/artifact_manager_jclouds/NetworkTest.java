@@ -85,10 +85,14 @@ public class NetworkTest {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(new JCloudsArtifactManagerFactory(mockBlobStore));
     }
 
+    @Before
+    public void createAgent() throws Exception {
+        r.createSlave("remote", null, null);
+    }
+
     @Test
     public void unrecoverableErrorArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 403, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
@@ -101,7 +105,6 @@ public class NetworkTest {
     @Test
     public void recoverableErrorArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
@@ -113,7 +116,6 @@ public class NetworkTest {
     @Test
     public void networkExceptionArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 0, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
@@ -125,7 +127,6 @@ public class NetworkTest {
     @Test
     public void repeatedRecoverableErrorArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         int origStopAfterAttemptNumber = JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER;
         JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER = 3;
         try {
@@ -144,7 +145,6 @@ public class NetworkTest {
     @Test
     public void hangArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         long origTimeout = JCloudsArtifactManager.TIMEOUT;
         JCloudsArtifactManager.TIMEOUT = 5;
         try {
@@ -167,7 +167,6 @@ public class NetworkTest {
     @Test
     public void interruptedArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
@@ -185,7 +184,6 @@ public class NetworkTest {
     @Test
     public void unrecoverableErrorUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         failIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", 403, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
@@ -199,7 +197,6 @@ public class NetworkTest {
     @Test
     public void recoverableErrorUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         failIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", 500, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
@@ -212,7 +209,6 @@ public class NetworkTest {
     @Test
     public void networkExceptionUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         // failIn does not work: URL connection gets a 200 status despite a ConnectionClosedException being thrown; a new connection is made.
         MockBlobStore.speciallyHandle(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", (request, response, context) -> {});
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
@@ -225,7 +221,6 @@ public class NetworkTest {
     @Test
     public void repeatedRecoverableErrorUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         int origStopAfterAttemptNumber = JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER;
         JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER = 3;
         try {
@@ -245,7 +240,6 @@ public class NetworkTest {
     @Test
     public void hangUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         long origTimeout = JCloudsArtifactManager.TIMEOUT;
         JCloudsArtifactManager.TIMEOUT = 5;
         try {
@@ -267,7 +261,6 @@ public class NetworkTest {
     @Test
     public void interruptedUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         hangIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
@@ -291,7 +284,6 @@ public class NetworkTest {
     @Test
     public void errorListing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "sorry");});
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; unarchive mapping: ['f': 'f']}", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
@@ -304,7 +296,6 @@ public class NetworkTest {
     @Test
     public void interruptedListing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {
             try {
                 Thread.sleep(Long.MAX_VALUE);
@@ -321,7 +312,6 @@ public class NetworkTest {
     public void errorCleaning() throws Exception {
         loggerRule.record(WorkflowRun.class, Level.WARNING).capture(10);
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        r.createSlave("remote", null, null);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; stash 'stuff'}", true));
         MockApiMetadata.handleRemoveBlob("container", "p/1/stashes/stuff.tgz", () -> {throw new ContainerNotFoundException("container", "sorry about your stashes");});
         r.buildAndAssertSuccess(p);
