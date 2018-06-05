@@ -216,7 +216,7 @@ public class NetworkTest {
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
         r.assertLogContains("Retrying download", b);
-        // Currently catches: java.io.IOException: Failed to extract input stream
+        // Currently catches an error from FilePath.untarFrom: java.io.IOException: Failed to extract input stream
         r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
     }
 

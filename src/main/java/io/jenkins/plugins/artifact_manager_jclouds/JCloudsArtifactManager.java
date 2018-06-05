@@ -24,8 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import com.github.rholder.retry.Attempt;
-import com.github.rholder.retry.AttemptTimeLimiters;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,12 +49,6 @@ import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 
-import com.github.rholder.retry.RetryException;
-import com.github.rholder.retry.RetryListener;
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
-import com.github.rholder.retry.WaitStrategies;
-import com.google.common.util.concurrent.UncheckedTimeoutException;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -74,7 +66,8 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
@@ -368,14 +361,6 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         return provider.getContext();
     }
 
-    private static final class HTTPAbortException extends AbortException {
-        final int code;
-        HTTPAbortException(int code, String message) {
-            super(message);
-            this.code = code;
-        }
-    }
-
     /**
      * Number of upload/download attempts of nonfatal errors before giving up.
      */
@@ -386,10 +371,12 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
      * Note that this is not a <em>randomized</em> exponential backoff;
      * and the base of the exponent is hard-coded to 2.
      */
+    @SuppressWarnings("FieldMayBeFinal")
     private static long WAIT_MULTIPLIER = Long.getLong(JCloudsArtifactManager.class.getName() + ".WAIT_MULTIPLIER", 100);
     /**
      * Maximum number of seconds between upload/download attempts.
      */
+    @SuppressWarnings("FieldMayBeFinal")
     private static long WAIT_MAXIMUM = Long.getLong(JCloudsArtifactManager.class.getName() + ".WAIT_MAXIMUM", 300);
     /**
      * Number of seconds to permit a single upload/download attempt to take.
@@ -418,53 +405,54 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
      * @throws IOException if there is an unrecoverable error; {@link AbortException} will be used where appropriate
      * @throws InterruptedException if the transfer is interrupted
      */
-    @SuppressWarnings("Convert2Lambda") // bogus use of generics in RetryListener (type variable should have been on class); cannot be made into a lambda
     private static void connect(URL url, String whatConcise, Function<String, String> whatVerbose, ConnectionProcessor afterConnect, ConnectionProcessor afterResponse, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
-        String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
-        try {
-            AtomicReference<Throwable> lastError = new AtomicReference<>();
-            RetryerBuilder.<Void>newBuilder().
-                    retryIfException(x -> x instanceof IOException && (!(x instanceof HTTPAbortException) || ((HTTPAbortException) x).code >= 500) || x instanceof UncheckedTimeoutException).
-                    withRetryListener(new RetryListener() {
-                        @Override
-                        public <Void> void onRetry(Attempt<Void> attempt) {
-                            if (attempt.hasException()) {
-                                lastError.set(attempt.getExceptionCause());
+        AtomicInteger responseCode = new AtomicInteger();
+        int attempt = 1;
+        while (true) {
+            try {
+                try {
+                    executors.submit(() -> {
+                        responseCode.set(0);
+                        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                        afterConnect.handle(connection);
+                        responseCode.set(connection.getResponseCode());
+                        if (responseCode.get() < 200 || responseCode.get() >= 300) {
+                            String diag;
+                            try (InputStream err = connection.getErrorStream()) {
+                                diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
                             }
+                            throw new AbortException(String.format("Failed to %s, response: %d %s, body: %s", whatVerbose.apply(url.toString().replaceFirst("[?].+$", "?…")), responseCode.get(), connection.getResponseMessage(), diag));
                         }
-                    }).
-                    withStopStrategy(StopStrategies.stopAfterAttempt(stopAfterAttemptNumber)).
-                    withWaitStrategy(WaitStrategies.exponentialWait(waitMultiplier, waitMaximum, TimeUnit.SECONDS)).
-                    withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(timeout, TimeUnit.SECONDS, executors)).
-                    build().call(() -> {
-                Throwable t = lastError.get();
-                if (t != null) {
-                    listener.getLogger().printf("Retrying %s after: %s%n", whatConcise, t instanceof AbortException ? t.getMessage() : t.toString());
+                        afterResponse.handle(connection);
+                        return null; // success
+                    }).get(timeout, TimeUnit.SECONDS);
+                } catch (TimeoutException x) {
+                    throw new ExecutionException(new IOException(x)); // ExecutionException unwrapped & treated as retryable below
                 }
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                afterConnect.handle(connection);
-                int responseCode = connection.getResponseCode();
-                if (responseCode < 200 || responseCode >= 300) {
-                    String diag;
-                    try (InputStream err = connection.getErrorStream()) {
-                        diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
+                listener.getLogger().flush(); // seems we can get interleaved output with master otherwise
+                return; // success
+            } catch (ExecutionException wrapped) {
+                Throwable x = wrapped.getCause();
+                if (x instanceof IOException) {
+                    if (attempt == stopAfterAttemptNumber) {
+                        throw (IOException) x; // last chance
                     }
-                    throw new HTTPAbortException(responseCode, String.format("Failed to %s, response: %d %s, body: %s", whatVerbose.apply(urlSafe), responseCode, connection.getResponseMessage(), diag));
+                    if (responseCode.get() > 0 && responseCode.get() < 200 || responseCode.get() >= 300 && responseCode.get() < 500) {
+                        throw (IOException) x; // 4xx errors should not be retried
+                    }
+                    // TODO exponent base (2) could be made into a configurable parameter
+                    Thread.sleep(Math.min(((long) Math.pow(2, attempt)) * waitMultiplier, waitMaximum * 1000));
+                    listener.getLogger().printf("Retrying %s after: %s%n", whatConcise, x instanceof AbortException ? x.getMessage() : x.toString());
+                    attempt++; // and continue
+                } else if (x instanceof InterruptedException) { // all other exceptions considered fatal
+                    throw (InterruptedException) x;
+                } else if (x instanceof RuntimeException) {
+                    throw (RuntimeException) x;
+                } else if (x != null) {
+                    throw new RuntimeException(x);
+                } else {
+                    throw new IllegalStateException();
                 }
-                afterResponse.handle(connection);
-                return null;
-            });
-            listener.getLogger().flush(); // seems we can get interleaved output with master otherwise
-        } catch (ExecutionException | RetryException x) { // *sigh*, checked exceptions
-            Throwable x2 = x.getCause();
-            if (x2 instanceof IOException) {
-                throw (IOException) x2;
-            } else if (x2 instanceof RuntimeException) {
-                throw (RuntimeException) x2;
-            } else if (x2 instanceof InterruptedException) {
-                throw (InterruptedException) x2;
-            } else { // Error?
-                throw new RuntimeException(x);
             }
         }
     }
