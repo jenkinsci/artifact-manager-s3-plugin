@@ -25,24 +25,32 @@
 package io.jenkins.plugins.artifact_manager_s3;
 
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import net.sf.json.JSONObject;
+import org.apache.commons.lang.StringUtils;
 import org.jclouds.aws.domain.Region;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import hudson.Extension;
 import hudson.ExtensionList;
+import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.GlobalConfiguration;
 
 /**
- * Store the S3BlodStore configuration to save it on a separate file. This make that
+ * Store the S3BlobStore configuration to save it on a separate file. This make that
  * the change of container does not affected to the Artifactory functionality, you could change the container
  * and it would still work if both container contains the same data.
  */
 @Extension
 public class S3BlobStoreConfig extends GlobalConfiguration {
+
+    private static final String BUCKET_REGEXP = "^([a-z]|(\\d(?!\\d{0,2}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})))([a-z\\d]|(\\.(?!(\\.|-)))|(-(?!\\.))){1,61}[a-z\\d\\.]$";
+    private static final Pattern bucketPattern = Pattern.compile(BUCKET_REGEXP);
+
     private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfig.class.getName());
 
     @SuppressWarnings("FieldMayBeFinal")
@@ -75,6 +83,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setContainer(String container) {
         this.container = container;
+        save();
     }
 
     public String getPrefix() {
@@ -84,6 +93,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setPrefix(String prefix) {
         this.prefix = prefix;
+        save();
     }
 
     public String getRegion() {
@@ -92,6 +102,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setRegion(String region) {
         this.region = region;
+        save();
     }
 
     public boolean isDeleteBlobs() {
@@ -111,7 +122,6 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     @Override
     public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
         super.configure(req, json);
-        save();
         return true;
     }
 
@@ -127,5 +137,33 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
             regions.add(s);
         }
         return regions;
+    }
+
+    public FormValidation doCheckContainer(@QueryParameter String container){
+        FormValidation ret = FormValidation.ok();
+        if (StringUtils.isBlank(container)){
+            ret = FormValidation.error("The container name cannot be empty");
+        } else if (!bucketPattern.matcher(container).matches()){
+            ret = FormValidation.error("The container name does not match with S3 bucket rules");
+        }
+        return ret;
+    }
+
+    public FormValidation doCheckPrefix(@QueryParameter String prefix){
+        FormValidation ret = FormValidation.ok();
+        if (StringUtils.isBlank(prefix)){
+            ret = FormValidation.error("Prefix should have a value");
+        } else if (!prefix.endsWith("/")){
+            ret = FormValidation.warning("if Prefix point to a folder, it should end with '/' character");
+        }
+        return ret;
+    }
+
+    public FormValidation doCheckRegion(@QueryParameter String region){
+        FormValidation ret = FormValidation.ok();
+        if (StringUtils.isNotBlank(region) && !Region.DEFAULT_S3.contains(region)){
+            ret = FormValidation.error("Region is not valid");
+        }
+        return ret;
     }
 }

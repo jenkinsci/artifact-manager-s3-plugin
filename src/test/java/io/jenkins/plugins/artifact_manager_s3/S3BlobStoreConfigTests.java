@@ -1,12 +1,18 @@
 package io.jenkins.plugins.artifact_manager_s3;
 
 import java.util.logging.Logger;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.html.HtmlSelect;
+import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.RestartableJenkinsRule;
 import jenkins.model.ArtifactManagerConfiguration;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class S3BlobStoreConfigTests {
@@ -19,6 +25,9 @@ public class S3BlobStoreConfigTests {
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
+
+    @Rule
+    public RestartableJenkinsRule rr = new RestartableJenkinsRule();
 
     @Test
     public void checkConfigurationManually() throws Exception {
@@ -33,13 +42,17 @@ public class S3BlobStoreConfigTests {
 
         LOGGER.info(artifactManagerFactory.getProvider().toString());
 
+        checkFieldValues(artifactManagerFactory);
+
+        //check configuration page submit
+        j.configRoundtrip();
+        checkFieldValues(artifactManagerFactory);
+    }
+
+    private void checkFieldValues(JCloudsArtifactManagerFactory artifactManagerFactory) {
         assertEquals(artifactManagerFactory.getProvider().getContainer(), CONTAINER_NAME);
         assertEquals(artifactManagerFactory.getProvider().getPrefix(), CONTAINER_PREFIX);
         assertTrue(artifactManagerFactory.getProvider() instanceof S3BlobStore);
         assertEquals(((S3BlobStore)artifactManagerFactory.getProvider()).getRegion(), CONTAINER_REGION);
-        LOGGER.info(artifactManagerFactory.getProvider().toString());
-
-        //check configuration page submit
-        j.configRoundtrip();
     }
 }

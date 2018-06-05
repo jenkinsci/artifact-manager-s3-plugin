@@ -115,7 +115,7 @@ timestamps {
 You can also install the `log-cli` plugin, and run:
 
 ```bash
-java -jar jenkins-cli.jar -s http://localhost:8080/jenkins/ tail-log io.jenkins.plugins.artifact_manager_s3 -l ALL
+java -jar jenkins-cli.jar -s http://localhost:8080/jenkins/ tail-log io.jenkins.plugins.artifact_manager_jclouds -l ALL
 ```
 
 Or to just see HTTP traffic:
