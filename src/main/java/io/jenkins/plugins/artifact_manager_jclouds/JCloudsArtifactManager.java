@@ -28,7 +28,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -68,12 +67,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.JenkinsJVM;
 import jenkins.util.VirtualFile;
 import org.apache.commons.io.IOUtils;
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.StatusLine;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.FileEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -239,7 +246,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Integer invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            // TODO JCLOUDS-769 streaming upload is not currently straightforward, so using a temp file pending rewrite to use multipart uploads
+            // TODO use streaming upload rather than a temp file; is it necessary to set the content length in advance?
             // (we prefer not to upload individual files for stashes, so as to preserve symlinks & file permissions, as StashManager’s default does)
             Path tempDirP = Paths.get(tempDir);
             Files.createDirectories(tempDirP);
@@ -293,8 +300,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            connect(url, "download", urlSafe -> "download " + urlSafe + " into " + f, connection -> {}, connection -> {
-                try (InputStream is = connection.getInputStream()) {
+            connect("download", "download " + url.toString().replaceFirst("[?].+$", "?…") + " into " + f, client -> client.execute(new HttpGet(url.toString())), response -> {
+                try (InputStream is = response.getEntity().getContent()) {
                     new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
                     // Note that this API currently offers no count of files in the tarball we could report.
                 }
@@ -386,17 +393,21 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     private static final ExecutorService executors = JenkinsJVM.isJenkinsJVM() ? Computer.threadPoolForRemoting : Executors.newCachedThreadPool();
     
     @FunctionalInterface
-    private interface ConnectionProcessor {
-        void handle(HttpURLConnection connection) throws IOException, InterruptedException;
+    private interface ConnectionCreator {
+        CloseableHttpResponse connect(CloseableHttpClient client) throws IOException, InterruptedException;
+    }
+
+    @FunctionalInterface
+    private interface ConnectionUser {
+        void use(CloseableHttpResponse response) throws IOException, InterruptedException;
     }
 
     /**
      * Perform an HTTP network operation with appropriate timeouts and retries.
-     * @param url a URL to connect to (any query string is considered secret and will be masked from logs)
      * @param whatConcise a short description of the operation, like {@code upload}
-     * @param whatVerbose a longer description of the operation taking a sanitized URL, like {@code uploading … to …}
-     * @param afterConnect what to do, if anything, after a connection has been established but before getting the server’s response
-     * @param afterResponse what to do, if anything, after a successful (2xx) server response
+     * @param whatVerbose a longer description of the operation, like {@code uploading … to …}
+     * @param connectionCreator how to establish a connection prior to getting the server’s response
+     * @param connectionUser what to do, if anything, after a successful (2xx) server response
      * @param listener a place to print messages
      * @param stopAfterAttemptNumber see {@link #STOP_AFTER_ATTEMPT_NUMBER}
      * @param waitMultiplier see {@link #WAIT_MULTIPLIER}
@@ -405,7 +416,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
      * @throws IOException if there is an unrecoverable error; {@link AbortException} will be used where appropriate
      * @throws InterruptedException if the transfer is interrupted
      */
-    private static void connect(URL url, String whatConcise, Function<String, String> whatVerbose, ConnectionProcessor afterConnect, ConnectionProcessor afterResponse, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
+    private static void connect(String whatConcise, String whatVerbose, ConnectionCreator connectionCreator, ConnectionUser connectionUser, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
         AtomicInteger responseCode = new AtomicInteger();
         int attempt = 1;
         while (true) {
@@ -413,17 +424,26 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 try {
                     executors.submit(() -> {
                         responseCode.set(0);
-                        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                        afterConnect.handle(connection);
-                        responseCode.set(connection.getResponseCode());
-                        if (responseCode.get() < 200 || responseCode.get() >= 300) {
-                            String diag;
-                            try (InputStream err = connection.getErrorStream()) {
-                                diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
+                        try (CloseableHttpClient client = HttpClients.createSystem()) {
+                            try (CloseableHttpResponse response = connectionCreator.connect(client)) {
+                                StatusLine statusLine = response.getStatusLine();
+                                responseCode.set(statusLine != null ? statusLine.getStatusCode() : 0);
+                                if (responseCode.get() < 200 || responseCode.get() >= 300) {
+                                    String diag;
+                                    HttpEntity entity = response.getEntity();
+                                    if (entity != null) {
+                                        try (InputStream err = entity.getContent()) {
+                                            Header contentEncoding = entity.getContentEncoding();
+                                            diag = IOUtils.toString(err, contentEncoding != null ? contentEncoding.getValue() : null);
+                                        }
+                                    } else {
+                                        diag = null;
+                                    }
+                                    throw new AbortException(String.format("Failed to %s, response: %d %s, body: %s", whatVerbose, responseCode.get(), statusLine != null ? statusLine.getReasonPhrase() : "?", diag));
+                                }
+                                connectionUser.use(response);
                             }
-                            throw new AbortException(String.format("Failed to %s, response: %d %s, body: %s", whatVerbose.apply(url.toString().replaceFirst("[?].+$", "?…")), responseCode.get(), connection.getResponseMessage(), diag));
                         }
-                        afterResponse.handle(connection);
                         return null; // success
                     }).get(timeout, TimeUnit.SECONDS);
                 } catch (TimeoutException x) {
@@ -461,14 +481,11 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
      * Upload a file to a URL
      */
     private static void uploadFile(Path f, URL url, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
-        connect(url, "upload", urlSafe -> "upload " + f + " to " + urlSafe, connection -> {
-            connection.setDoOutput(true);
-            connection.setRequestMethod("PUT");
-            connection.setFixedLengthStreamingMode(Files.size(f)); // prevent loading file in memory
-            try (OutputStream out = connection.getOutputStream()) {
-                Files.copy(f, out);
-            }
-        }, connection -> {}, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+        connect("upload", "upload " + f + " to " + url.toString().replaceFirst("[?].+$", "?…"), client -> {
+            HttpPut put = new HttpPut(url.toString());
+            put.setEntity(new FileEntity(f.toFile()));
+            return client.execute(put);
+        }, response -> {}, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
     }
 
 }
