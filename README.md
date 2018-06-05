@@ -115,7 +115,7 @@ timestamps {
 You can also install the `log-cli` plugin, and run:
 
 ```bash
-java -jar jenkins-cli.jar -s http://localhost:8080/jenkins/ tail-log io.jenkins.plugins.artifact_manager_s3 -l ALL
+java -jar jenkins-cli.jar -s http://localhost:8080/jenkins/ tail-log io.jenkins.plugins.artifact_manager_jclouds -l ALL
 ```
 
 Or to just see HTTP traffic:
@@ -123,14 +123,3 @@ Or to just see HTTP traffic:
 ```bash
 java -jar jenkins-cli.jar -s http://localhost:8080/jenkins/ tail-log org.jclouds.rest.internal.InvokeHttpMethod -l FINE
 ```
-
-# Running on Agents outside AWS
-
-Create 2 agents in Jenkins, one for uploading and another for downloading, and launch them with Docker
-
-```sh
-docker run --rm -i --init -v <YOUR_HOME_DIR>/.aws:/home/jenkins/.aws -e AWS_REGION=… -e AWS_PROFILE=… jenkins/slave:alpine java -jar /usr/share/jenkins/slave.jar
-```
-
-but note that the mount will not work if your `~/.aws/` is set to be readable only by the user.
-
