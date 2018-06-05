@@ -8,14 +8,14 @@
         <f:entry title="${%S3 Bucket Region}" field="region">
             <f:select/>
         </f:entry>
-        <f:entry title="${%Base folder}" field="prefix">
+        <f:entry title="${%Base Prefix}" field="prefix">
             <f:textbox/>
         </f:entry>
-        <f:entry title="${%Delete Blods}" help="help-deleteblods.html">
-            <strong>${instance.isDeleteBlobs()}</strong>
+        <f:entry title="${%Delete Blods}" field="deleteBlods">
+            <f:checkbox readonly="true"/>
         </f:entry>
-        <f:entry title="${%Delete Stashes}" help="help-deletestashes.html">
-            <strong>${instance.isDeleteStashes()}</strong>
+        <f:entry title="${%Delete Stashes}" field="deleteStashes">
+            <f:checkbox readonly="true"/>
         </f:entry>
     </f:section>
 </j:jelly>

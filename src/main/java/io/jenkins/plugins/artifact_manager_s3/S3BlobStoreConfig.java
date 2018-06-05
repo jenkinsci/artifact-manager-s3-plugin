@@ -28,8 +28,11 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import net.sf.json.JSONObject;
 import org.jclouds.aws.domain.Region;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest;
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.util.ListBoxModel;
 import jenkins.model.GlobalConfiguration;
 
@@ -40,7 +43,7 @@ import jenkins.model.GlobalConfiguration;
  */
 @Extension
 public class S3BlobStoreConfig extends GlobalConfiguration {
-    private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfig.class.getName());
 
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteBlobs");
@@ -60,6 +63,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
      */
     private String region;
 
+    @DataBoundConstructor
     public S3BlobStoreConfig() {
         load();
     }
@@ -68,6 +72,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         return container;
     }
 
+    @DataBoundSetter
     public void setContainer(String container) {
         this.container = container;
     }
@@ -76,6 +81,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         return prefix;
     }
 
+    @DataBoundSetter
     public void setPrefix(String prefix) {
         this.prefix = prefix;
     }
@@ -83,7 +89,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     public String getRegion() {
         return region;
     }
-
+    @DataBoundSetter
     public void setRegion(String region) {
         this.region = region;
     }
@@ -104,16 +110,14 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
 
     @Override
     public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
-        boolean ret = super.configure(req, json);
-        if (ret){
-            save();
-        }
-        return ret;
+        super.configure(req, json);
+        save();
+        return true;
     }
 
     @Nonnull
     public static S3BlobStoreConfig get() {
-        return GlobalConfiguration.all().getInstance(S3BlobStoreConfig.class);
+        return ExtensionList.lookupSingleton(S3BlobStoreConfig.class);
     }
 
     public ListBoxModel doFillRegionItems() {

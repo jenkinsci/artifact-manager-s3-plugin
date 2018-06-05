@@ -92,21 +92,6 @@ public class S3BlobStore extends BlobStoreProvider {
         return getConfiguration().getRegion();
     }
 
-    @DataBoundSetter
-    public void setPrefix(String value) {
-        getConfiguration().setPrefix(value);
-    }
-
-    @DataBoundSetter
-    public void setContainer(String value) {
-        getConfiguration().setContainer(value);
-    }
-
-    @DataBoundSetter
-    public void setRegion(String value) {
-        getConfiguration().setRegion(value);
-    }
-
     public S3BlobStoreConfig getConfiguration(){
         return S3BlobStoreConfig.get();
     }
@@ -216,7 +201,7 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     @Extension
-    public static final class S3BlodStoreDescriptor extends BlobStoreProviderDescriptor {
+    public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
 
         @Override
         public String getDisplayName() {

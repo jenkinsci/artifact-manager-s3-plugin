@@ -21,11 +21,12 @@ public class S3BlobStoreConfigTests {
     public JenkinsRule j = new JenkinsRule();
 
     @Test
-    public void checkConfigurationManually() {
+    public void checkConfigurationManually() throws Exception {
         S3BlobStore provider = new S3BlobStore();
-        provider.setContainer(CONTAINER_NAME);
-        provider.setPrefix(CONTAINER_PREFIX);
-        provider.setRegion(CONTAINER_REGION);
+        S3BlobStoreConfig s3BlobStoreConfig = S3BlobStoreConfig.get();
+        s3BlobStoreConfig.setContainer(CONTAINER_NAME);
+        s3BlobStoreConfig.setPrefix(CONTAINER_PREFIX);
+        s3BlobStoreConfig.setRegion(CONTAINER_REGION);
 
         JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(artifactManagerFactory);
@@ -37,5 +38,8 @@ public class S3BlobStoreConfigTests {
         assertTrue(artifactManagerFactory.getProvider() instanceof S3BlobStore);
         assertEquals(((S3BlobStore)artifactManagerFactory.getProvider()).getRegion(), CONTAINER_REGION);
         LOGGER.info(artifactManagerFactory.getProvider().toString());
+
+        //check configuration page submit
+        j.configRoundtrip();
     }
 }

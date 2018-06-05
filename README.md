@@ -41,6 +41,20 @@ This is an example policy
 }
 ```
 
+In order to configure the plugin on Jenkins, you have to go to Manage Jenkisn/Configure System to 
+the `Artifact Managment for Builds` section, there you have to select the Cloud Provider `Amazon S3`.
+
+![](images/cloud-provider-no-configured.png)
+
+Then you can configure the S3 Bucket settings on the section `Amazon S3 Bucket Access settings` in 
+the same configuration page.
+
+* S3 Bucket Name: Name of the S3 Bucket to use to store artifacts.
+* S3 Bucket Region: Region to use to generate the URLs to get/put artifacts, by default it is autodetected.
+* Base Prefix: Prefix to use for files and folders inside the S3 Bucket, if the prefix is a folder should be end with `/`.
+
+![](images/bucket-settings.png)
+
 # Testing
 
 Pick an AWS profile and region, then create a scratch bucket and choose a subdirectory within it for testing.
