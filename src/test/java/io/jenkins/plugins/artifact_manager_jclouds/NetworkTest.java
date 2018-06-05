@@ -276,6 +276,18 @@ public class NetworkTest {
         r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
+    @Test
+    public void recoverableErrorUnarchiving() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        failIn(BlobStoreProvider.HttpMethod.GET, "p/1/artifacts/f", 500, 0);
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; unarchive mapping: ['f': 'f']}", true));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("/container/p/1/artifacts/f?…", b);
+        r.assertLogContains("response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
+        r.assertLogContains("Retrying download", b);
+        r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.steps.ArtifactUnarchiverStepExecution.run", b);
+    }
+
     // TBD if jclouds, or its S3 provider, is capable of differentiating recoverable from nonrecoverable errors. The error simulated here:
     // org.jclouds.blobstore.ContainerNotFoundException: nonexistent.s3.amazonaws.com not found: The specified bucket does not exist
     //     at org.jclouds.s3.handlers.ParseS3ErrorFromXmlContent.refineException(ParseS3ErrorFromXmlContent.java:81)
