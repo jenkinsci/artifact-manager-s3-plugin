@@ -129,10 +129,10 @@ public class NetworkTest {
     @Test
     public void repeatedRecoverableErrorArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        int origStopAfterAttemptNumber = JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER;
-        JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER = 3;
+        int origStopAfterAttemptNumber = RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER;
+        RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER = 3;
         try {
-            failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500, JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER);
+            failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500, RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER);
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
             WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
             r.assertLogContains("ERROR: Failed to upload", b);
@@ -140,15 +140,15 @@ public class NetworkTest {
             r.assertLogContains("Retrying upload", b);
             r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
         } finally {
-            JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER = origStopAfterAttemptNumber;
+            RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER = origStopAfterAttemptNumber;
         }
     }
 
     @Test
     public void hangArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        long origTimeout = JCloudsArtifactManager.TIMEOUT;
-        JCloudsArtifactManager.TIMEOUT = 5;
+        long origTimeout = RobustHTTPClient.TIMEOUT;
+        RobustHTTPClient.TIMEOUT = 5;
         try {
             hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
@@ -162,7 +162,7 @@ public class NetworkTest {
             r.assertLogContains("Retrying upload", b);
             r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
         } finally {
-            JCloudsArtifactManager.TIMEOUT = origTimeout;
+            RobustHTTPClient.TIMEOUT = origTimeout;
         }
     }
 
@@ -223,10 +223,10 @@ public class NetworkTest {
     @Test
     public void repeatedRecoverableErrorUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        int origStopAfterAttemptNumber = JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER;
-        JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER = 3;
+        int origStopAfterAttemptNumber = RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER;
+        RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER = 3;
         try {
-            failIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", 500, JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER);
+            failIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", 500, RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER);
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
             WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
             r.assertLogContains("ERROR: Failed to download", b);
@@ -235,15 +235,15 @@ public class NetworkTest {
             r.assertLogContains("Retrying download", b);
             r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
         } finally {
-            JCloudsArtifactManager.STOP_AFTER_ATTEMPT_NUMBER = origStopAfterAttemptNumber;
+            RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER = origStopAfterAttemptNumber;
         }
     }
 
     @Test
     public void hangUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        long origTimeout = JCloudsArtifactManager.TIMEOUT;
-        JCloudsArtifactManager.TIMEOUT = 5;
+        long origTimeout = RobustHTTPClient.TIMEOUT;
+        RobustHTTPClient.TIMEOUT = 5;
         try {
             hangIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz");
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
@@ -256,7 +256,7 @@ public class NetworkTest {
             r.assertLogContains("Retrying download", b);
             r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
         } finally {
-            JCloudsArtifactManager.TIMEOUT = origTimeout;
+            RobustHTTPClient.TIMEOUT = origTimeout;
         }
     }
 

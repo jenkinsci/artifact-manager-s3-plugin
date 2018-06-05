@@ -36,7 +36,6 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -54,7 +53,6 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
 import hudson.model.BuildListener;
-import hudson.model.Computer;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.remoting.VirtualChannel;
@@ -62,25 +60,10 @@ import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
-import jenkins.util.JenkinsJVM;
 import jenkins.util.VirtualFile;
-import org.apache.commons.io.IOUtils;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.StatusLine;
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.FileEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -150,10 +133,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
         private final TaskListener listener;
         // Bind when constructed on the master side; on the agent side, deserialize those values.
-        private final int stopAfterAttemptNumber = STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = WAIT_MULTIPLIER;
-        private final long waitMaximum = WAIT_MAXIMUM;
-        private final long timeout = TIMEOUT;
+        private final int stopAfterAttemptNumber = RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = RobustHTTPClient.WAIT_MULTIPLIER;
+        private final long waitMaximum = RobustHTTPClient.WAIT_MAXIMUM;
+        private final long timeout = RobustHTTPClient.TIMEOUT;
 
         UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
             this.artifactUrls = artifactUrls;
@@ -165,7 +148,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
                 Path local = f.toPath().resolve(entry.getKey());
                 URL url = entry.getValue();
-                uploadFile(local, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+                RobustHTTPClient.uploadFile(local, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
             }
             return null;
         }
@@ -230,10 +213,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final boolean useDefaultExcludes;
         private final String tempDir;
         private final TaskListener listener;
-        private final int stopAfterAttemptNumber = STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = WAIT_MULTIPLIER;
-        private final long waitMaximum = WAIT_MAXIMUM;
-        private final long timeout = TIMEOUT;
+        private final int stopAfterAttemptNumber = RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = RobustHTTPClient.WAIT_MULTIPLIER;
+        private final long waitMaximum = RobustHTTPClient.WAIT_MAXIMUM;
+        private final long timeout = RobustHTTPClient.TIMEOUT;
 
         Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
             this.url = url;
@@ -259,7 +242,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     throw new IOException(e);
                 }
                 if (count > 0) {
-                    uploadFile(tmp, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+                    RobustHTTPClient.uploadFile(tmp, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
                 }
                 return count;
             } finally {
@@ -288,10 +271,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private static final long serialVersionUID = 1L;
         private final URL url;
         private final TaskListener listener;
-        private final int stopAfterAttemptNumber = STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = WAIT_MULTIPLIER;
-        private final long waitMaximum = WAIT_MAXIMUM;
-        private final long timeout = TIMEOUT;
+        private final int stopAfterAttemptNumber = RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER;
+        private final long waitMultiplier = RobustHTTPClient.WAIT_MULTIPLIER;
+        private final long waitMaximum = RobustHTTPClient.WAIT_MAXIMUM;
+        private final long timeout = RobustHTTPClient.TIMEOUT;
 
         Unstash(URL url, TaskListener listener) throws IOException {
             this.url = url;
@@ -300,7 +283,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            connect("download", "download " + url.toString().replaceFirst("[?].+$", "?…") + " into " + f, client -> client.execute(new HttpGet(url.toString())), response -> {
+            RobustHTTPClient.connect("download", "download " + url.toString().replaceFirst("[?].+$", "?…") + " into " + f, client -> client.execute(new HttpGet(url.toString())), response -> {
                 try (InputStream is = response.getEntity().getContent()) {
                     new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
                     // Note that this API currently offers no count of files in the tarball we could report.
@@ -366,126 +349,6 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     private BlobStoreContext getContext() throws IOException {
         return provider.getContext();
-    }
-
-    /**
-     * Number of upload/download attempts of nonfatal errors before giving up.
-     */
-    static int STOP_AFTER_ATTEMPT_NUMBER = Integer.getInteger(JCloudsArtifactManager.class.getName() + ".STOP_AFTER_ATTEMPT_NUMBER", 10);
-    /**
-     * Initial number of milliseconds between first and second upload/download attempts.
-     * Subsequent ones increase exponentially.
-     * Note that this is not a <em>randomized</em> exponential backoff;
-     * and the base of the exponent is hard-coded to 2.
-     */
-    @SuppressWarnings("FieldMayBeFinal")
-    private static long WAIT_MULTIPLIER = Long.getLong(JCloudsArtifactManager.class.getName() + ".WAIT_MULTIPLIER", 100);
-    /**
-     * Maximum number of seconds between upload/download attempts.
-     */
-    @SuppressWarnings("FieldMayBeFinal")
-    private static long WAIT_MAXIMUM = Long.getLong(JCloudsArtifactManager.class.getName() + ".WAIT_MAXIMUM", 300);
-    /**
-     * Number of seconds to permit a single upload/download attempt to take.
-     */
-    static long TIMEOUT = Long.getLong(JCloudsArtifactManager.class.getName() + ".TIMEOUT", /* 15m */15 * 60);
-
-    private static final ExecutorService executors = JenkinsJVM.isJenkinsJVM() ? Computer.threadPoolForRemoting : Executors.newCachedThreadPool();
-    
-    @FunctionalInterface
-    private interface ConnectionCreator {
-        CloseableHttpResponse connect(CloseableHttpClient client) throws IOException, InterruptedException;
-    }
-
-    @FunctionalInterface
-    private interface ConnectionUser {
-        void use(CloseableHttpResponse response) throws IOException, InterruptedException;
-    }
-
-    /**
-     * Perform an HTTP network operation with appropriate timeouts and retries.
-     * @param whatConcise a short description of the operation, like {@code upload}
-     * @param whatVerbose a longer description of the operation, like {@code uploading … to …}
-     * @param connectionCreator how to establish a connection prior to getting the server’s response
-     * @param connectionUser what to do, if anything, after a successful (2xx) server response
-     * @param listener a place to print messages
-     * @param stopAfterAttemptNumber see {@link #STOP_AFTER_ATTEMPT_NUMBER}
-     * @param waitMultiplier see {@link #WAIT_MULTIPLIER}
-     * @param waitMaximum see {@link #WAIT_MAXIMUM}
-     * @param timeout see {@link #TIMEOUT}
-     * @throws IOException if there is an unrecoverable error; {@link AbortException} will be used where appropriate
-     * @throws InterruptedException if the transfer is interrupted
-     */
-    private static void connect(String whatConcise, String whatVerbose, ConnectionCreator connectionCreator, ConnectionUser connectionUser, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
-        AtomicInteger responseCode = new AtomicInteger();
-        int attempt = 1;
-        while (true) {
-            try {
-                try {
-                    executors.submit(() -> {
-                        responseCode.set(0);
-                        try (CloseableHttpClient client = HttpClients.createSystem()) {
-                            try (CloseableHttpResponse response = connectionCreator.connect(client)) {
-                                StatusLine statusLine = response.getStatusLine();
-                                responseCode.set(statusLine != null ? statusLine.getStatusCode() : 0);
-                                if (responseCode.get() < 200 || responseCode.get() >= 300) {
-                                    String diag;
-                                    HttpEntity entity = response.getEntity();
-                                    if (entity != null) {
-                                        try (InputStream err = entity.getContent()) {
-                                            Header contentEncoding = entity.getContentEncoding();
-                                            diag = IOUtils.toString(err, contentEncoding != null ? contentEncoding.getValue() : null);
-                                        }
-                                    } else {
-                                        diag = null;
-                                    }
-                                    throw new AbortException(String.format("Failed to %s, response: %d %s, body: %s", whatVerbose, responseCode.get(), statusLine != null ? statusLine.getReasonPhrase() : "?", diag));
-                                }
-                                connectionUser.use(response);
-                            }
-                        }
-                        return null; // success
-                    }).get(timeout, TimeUnit.SECONDS);
-                } catch (TimeoutException x) {
-                    throw new ExecutionException(new IOException(x)); // ExecutionException unwrapped & treated as retryable below
-                }
-                listener.getLogger().flush(); // seems we can get interleaved output with master otherwise
-                return; // success
-            } catch (ExecutionException wrapped) {
-                Throwable x = wrapped.getCause();
-                if (x instanceof IOException) {
-                    if (attempt == stopAfterAttemptNumber) {
-                        throw (IOException) x; // last chance
-                    }
-                    if (responseCode.get() > 0 && responseCode.get() < 200 || responseCode.get() >= 300 && responseCode.get() < 500) {
-                        throw (IOException) x; // 4xx errors should not be retried
-                    }
-                    // TODO exponent base (2) could be made into a configurable parameter
-                    Thread.sleep(Math.min(((long) Math.pow(2, attempt)) * waitMultiplier, waitMaximum * 1000));
-                    listener.getLogger().printf("Retrying %s after: %s%n", whatConcise, x instanceof AbortException ? x.getMessage() : x.toString());
-                    attempt++; // and continue
-                } else if (x instanceof InterruptedException) { // all other exceptions considered fatal
-                    throw (InterruptedException) x;
-                } else if (x instanceof RuntimeException) {
-                    throw (RuntimeException) x;
-                } else if (x != null) {
-                    throw new RuntimeException(x);
-                } else {
-                    throw new IllegalStateException();
-                }
-            }
-        }
-    }
-
-    /**
-     * Upload a file to a URL
-     */
-    private static void uploadFile(Path f, URL url, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
-        connect("upload", "upload " + f + " to " + url.toString().replaceFirst("[?].+$", "?…"), client -> {
-            HttpPut put = new HttpPut(url.toString());
-            put.setEntity(new FileEntity(f.toFile()));
-            return client.execute(put);
-        }, response -> {}, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
     }
 
 }
