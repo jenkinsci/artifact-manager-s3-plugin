@@ -27,16 +27,18 @@ package io.jenkins.plugins.artifact_manager_jclouds;
 import hudson.AbortException;
 import hudson.model.Computer;
 import hudson.model.TaskListener;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.net.URL;
-import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import jenkins.security.MasterToSlaveCallable;
 import jenkins.util.JenkinsJVM;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
@@ -54,29 +56,62 @@ import org.kohsuke.accmod.restrictions.Beta;
  * Utility to make HTTP connections with protection against transient failures.
  */
 @Restricted(Beta.class)
-public class RobustHTTPClient {
+public final class RobustHTTPClient implements Serializable {
+
+    private static final long serialVersionUID = 1;
+
+    private static final ExecutorService executors = JenkinsJVM.isJenkinsJVM() ? Computer.threadPoolForRemoting : Executors.newCachedThreadPool();
+
+    private int stopAfterAttemptNumber;
+    private long waitMultiplier;
+    private long waitMaximum;
+    private long timeout;
+
+    /**
+     * Creates a client configured with reasonable defaults from system properties.
+     * <p>This constructor should be run in the Jenkins master.
+     * To make requests from an agent JVM, create a {@code final} field of this type in your {@link MasterToSlaveCallable} or similar;
+     * set it with a field initializer (run in the callable’s constructor on the master),
+     * letting the agent deserialize the configuration.
+     */
+    public RobustHTTPClient() {
+        JenkinsJVM.checkJenkinsJVM();
+        this.stopAfterAttemptNumber = Integer.getInteger(RobustHTTPClient.class.getName() + ".STOP_AFTER_ATTEMPT_NUMBER", 10);
+        this.waitMultiplier = Long.getLong(RobustHTTPClient.class.getName() + ".WAIT_MULTIPLIER", 100);
+        this.waitMaximum = Long.getLong(RobustHTTPClient.class.getName() + ".WAIT_MAXIMUM", 300);
+        this.timeout = Long.getLong(RobustHTTPClient.class.getName() + ".TIMEOUT", /* 15m */15 * 60);
+    }
 
     /**
      * Number of upload/download attempts of nonfatal errors before giving up.
      */
-    static int STOP_AFTER_ATTEMPT_NUMBER = Integer.getInteger(RobustHTTPClient.class.getName() + ".STOP_AFTER_ATTEMPT_NUMBER", 10);
+    public void setStopAfterAttemptNumber(int stopAfterAttemptNumber) {
+        this.stopAfterAttemptNumber = stopAfterAttemptNumber;
+    }
+
     /**
      * Initial number of milliseconds between first and second upload/download attempts.
      * Subsequent ones increase exponentially.
      * Note that this is not a <em>randomized</em> exponential backoff;
-     * and the base of the exponent is hard-coded to 2.
+     * and the base of the exponent is currently hard-coded to 2.
      */
-    static long WAIT_MULTIPLIER = Long.getLong(RobustHTTPClient.class.getName() + ".WAIT_MULTIPLIER", 100);
+    public void setWaitMultiplier(long waitMultiplier) {
+        this.waitMultiplier = waitMultiplier;
+    }
+
     /**
      * Maximum number of seconds between upload/download attempts.
      */
-    static long WAIT_MAXIMUM = Long.getLong(RobustHTTPClient.class.getName() + ".WAIT_MAXIMUM", 300);
+    public void setWaitMaximum(long waitMaximum) {
+        this.waitMaximum = waitMaximum;
+    }
+
     /**
      * Number of seconds to permit a single upload/download attempt to take.
      */
-    static long TIMEOUT = Long.getLong(RobustHTTPClient.class.getName() + ".TIMEOUT", /* 15m */15 * 60);
-
-    private static final ExecutorService executors = JenkinsJVM.isJenkinsJVM() ? Computer.threadPoolForRemoting : Executors.newCachedThreadPool();
+    public void setTimeout(long timeout) {
+        this.timeout = timeout;
+    }
 
     @FunctionalInterface
     public interface ConnectionCreator {
@@ -95,14 +130,10 @@ public class RobustHTTPClient {
      * @param connectionCreator how to establish a connection prior to getting the server’s response
      * @param connectionUser what to do, if anything, after a successful (2xx) server response
      * @param listener a place to print messages
-     * @param stopAfterAttemptNumber see {@link #STOP_AFTER_ATTEMPT_NUMBER}
-     * @param waitMultiplier see {@link #WAIT_MULTIPLIER}
-     * @param waitMaximum see {@link #WAIT_MAXIMUM}
-     * @param timeout see {@link #TIMEOUT}
      * @throws IOException if there is an unrecoverable error; {@link AbortException} will be used where appropriate
      * @throws InterruptedException if the transfer is interrupted
      */
-    public static void connect(String whatConcise, String whatVerbose, ConnectionCreator connectionCreator, ConnectionUser connectionUser, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
+    public void connect(String whatConcise, String whatVerbose, ConnectionCreator connectionCreator, ConnectionUser connectionUser, TaskListener listener) throws IOException, InterruptedException {
         AtomicInteger responseCode = new AtomicInteger();
         int attempt = 1;
         while (true) {
@@ -166,14 +197,12 @@ public class RobustHTTPClient {
     /**
      * Upload a file to a URL.
      */
-    public static void uploadFile(Path f, URL url, TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
+    public void uploadFile(File f, URL url, TaskListener listener) throws IOException, InterruptedException {
         connect("upload", "upload " + f + " to " + url.toString().replaceFirst("[?].+$", "?…"), client -> {
             HttpPut put = new HttpPut(url.toString());
-            put.setEntity(new FileEntity(f.toFile()));
+            put.setEntity(new FileEntity(f));
             return client.execute(put);
-        }, response -> {}, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+        }, response -> {}, listener);
     }
-
-    private RobustHTTPClient() {}
 
 }

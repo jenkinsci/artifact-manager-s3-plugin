@@ -75,6 +75,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
 
+    static RobustHTTPClient client = new RobustHTTPClient();
+
     private final BlobStoreProvider provider;
 
     private transient String key; // e.g. myorg/myrepo/master/123
@@ -132,11 +134,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
         private final TaskListener listener;
-        // Bind when constructed on the master side; on the agent side, deserialize those values.
-        private final int stopAfterAttemptNumber = RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = RobustHTTPClient.WAIT_MULTIPLIER;
-        private final long waitMaximum = RobustHTTPClient.WAIT_MAXIMUM;
-        private final long timeout = RobustHTTPClient.TIMEOUT;
+        // Bind when constructed on the master side; on the agent side, deserialize the same configuration.
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
         UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
             this.artifactUrls = artifactUrls;
@@ -146,9 +145,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
-                Path local = f.toPath().resolve(entry.getKey());
-                URL url = entry.getValue();
-                RobustHTTPClient.uploadFile(local, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+                client.uploadFile(new File(f, entry.getKey()), entry.getValue(), listener);
             }
             return null;
         }
@@ -213,10 +210,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final boolean useDefaultExcludes;
         private final String tempDir;
         private final TaskListener listener;
-        private final int stopAfterAttemptNumber = RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = RobustHTTPClient.WAIT_MULTIPLIER;
-        private final long waitMaximum = RobustHTTPClient.WAIT_MAXIMUM;
-        private final long timeout = RobustHTTPClient.TIMEOUT;
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
         Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
             this.url = url;
@@ -242,7 +236,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     throw new IOException(e);
                 }
                 if (count > 0) {
-                    RobustHTTPClient.uploadFile(tmp, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+                    client.uploadFile(tmp.toFile(), url, listener);
                 }
                 return count;
             } finally {
@@ -271,10 +265,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private static final long serialVersionUID = 1L;
         private final URL url;
         private final TaskListener listener;
-        private final int stopAfterAttemptNumber = RobustHTTPClient.STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = RobustHTTPClient.WAIT_MULTIPLIER;
-        private final long waitMaximum = RobustHTTPClient.WAIT_MAXIMUM;
-        private final long timeout = RobustHTTPClient.TIMEOUT;
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
         Unstash(URL url, TaskListener listener) throws IOException {
             this.url = url;
@@ -283,12 +274,12 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            RobustHTTPClient.connect("download", "download " + url.toString().replaceFirst("[?].+$", "?…") + " into " + f, client -> client.execute(new HttpGet(url.toString())), response -> {
+            client.connect("download", "download " + url.toString().replaceFirst("[?].+$", "?…") + " into " + f, client -> client.execute(new HttpGet(url.toString())), response -> {
                 try (InputStream is = response.getEntity().getContent()) {
                     new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
                     // Note that this API currently offers no count of files in the tarball we could report.
                 }
-            }, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+            }, listener);
             return null;
         }
     }
