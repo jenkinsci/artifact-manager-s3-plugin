@@ -27,13 +27,11 @@ package io.jenkins.plugins.artifact_manager_s3;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.aws.domain.Region;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.util.FormValidation;
@@ -117,12 +115,6 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     @Override
     public String getDisplayName() {
         return "Amazon S3 Bucket Access settings";
-    }
-
-    @Override
-    public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
-        super.configure(req, json);
-        return true;
     }
 
     @Nonnull
