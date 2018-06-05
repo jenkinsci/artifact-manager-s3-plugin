@@ -24,6 +24,20 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
+import hudson.AbortException;
+import hudson.EnvVars;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.Util;
+import hudson.model.BuildListener;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.remoting.VirtualChannel;
+import hudson.slaves.WorkspaceList;
+import hudson.util.DirScanner;
+import hudson.util.io.ArchiverFactory;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import io.jenkins.plugins.httpclient.RobustHTTPClient;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,7 +52,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import jenkins.MasterToSlaveFileCallable;
+import jenkins.model.ArtifactManager;
+import jenkins.util.VirtualFile;
+import org.apache.http.client.methods.HttpGet;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
@@ -46,24 +63,6 @@ import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
-
-import hudson.AbortException;
-import hudson.EnvVars;
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.Util;
-import hudson.model.BuildListener;
-import hudson.model.Run;
-import hudson.model.TaskListener;
-import hudson.remoting.VirtualChannel;
-import hudson.slaves.WorkspaceList;
-import hudson.util.DirScanner;
-import hudson.util.io.ArchiverFactory;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
-import jenkins.MasterToSlaveFileCallable;
-import jenkins.model.ArtifactManager;
-import jenkins.util.VirtualFile;
-import org.apache.http.client.methods.HttpGet;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
