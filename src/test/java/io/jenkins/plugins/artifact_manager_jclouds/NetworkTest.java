@@ -23,8 +23,10 @@
  */
 package io.jenkins.plugins.artifact_manager_jclouds;
 
+import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.google.common.base.Throwables;
 import hudson.model.Result;
+import hudson.model.Run;
 import hudson.tasks.LogRotator;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -320,6 +322,35 @@ public class NetworkTest {
         r.buildAndAssertSuccess(p);
         assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Throwables::getRootCause).map(Throwable::getMessage).collect(Collectors.toSet()),
             containsInAnyOrder("container not found: sorry about your stashes", "container not found: sorry about your artifacts"));
+    }
+
+    // Interrupts probably never delivered during HTTP requests (maybe depends on servlet container?).
+    // Hangs would be handled by jclouds code.
+    @Test
+    public void errorBrowsing() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
+        MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "sorry");});
+        JenkinsRule.WebClient wc = r.createWebClient();
+        {
+            System.err.println("build root");
+            loggerRule.record(Run.class, Level.WARNING).capture(10);
+            wc.getPage(b);
+            assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Throwables::getRootCause).map(Throwable::getMessage).collect(Collectors.toSet()),
+                containsInAnyOrder("container not found: sorry"));
+        }
+        {
+            System.err.println("artifact root");
+            MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "sorry");});
+            try {
+                wc.getPage(b, "artifact/");
+                fail("Currently DirectoryBrowserSupport throws up storage exceptions.");
+            } catch (FailingHttpStatusCodeException x) {
+                assertEquals(500, x.getStatusCode());
+                assertThat(x.getResponse().getContentAsString(), containsString("container not found: sorry"));
+            }
+        }
     }
 
     private static void failIn(BlobStoreProvider.HttpMethod method, String key, int code, int repeats) {
