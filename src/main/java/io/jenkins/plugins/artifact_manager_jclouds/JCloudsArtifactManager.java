@@ -173,7 +173,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     @Override
     public boolean delete() throws IOException, InterruptedException {
         String blobPath = getBlobPath("");
-        if (!provider.isDeleteBlobs()) {
+        if (!provider.isDeleteArtifacts()) {
             LOGGER.log(Level.FINE, "Ignoring blob deletion: {0}", blobPath);
             return false;
         }

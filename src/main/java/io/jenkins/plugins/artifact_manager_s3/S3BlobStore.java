@@ -96,7 +96,7 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     @Override
-    public boolean isDeleteBlobs() {
+    public boolean isDeleteArtifacts() {
         return getConfiguration().isDeleteArtifacts();
     }
 
@@ -214,7 +214,7 @@ public class S3BlobStore extends BlobStoreProvider {
         sb.append("container='").append(getContainer()).append('\'');
         sb.append(", prefix='").append(getPrefix()).append('\'');
         sb.append(", region='").append(getRegion()).append('\'');
-        sb.append(", deleteBlobs='").append(isDeleteBlobs()).append('\'');
+        sb.append(", deleteBlobs='").append(isDeleteArtifacts()).append('\'');
         sb.append(", deleteStashes='").append(isDeleteStashes()).append('\'');
         sb.append('}');
         return sb.toString();

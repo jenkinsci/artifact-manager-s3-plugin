@@ -60,7 +60,7 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     public abstract String getContainer();
 
     /** A constant to define whether we should delete blobs or leave them to be managed on the blob service side. */
-    public abstract boolean isDeleteBlobs();
+    public abstract boolean isDeleteArtifacts();
 
     /** A constant to define whether we should delete stashes or leave them to be managed on the blob service side. */
     public abstract boolean isDeleteStashes();

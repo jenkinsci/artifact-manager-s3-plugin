@@ -144,7 +144,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     public FormValidation doCheckPrefix(@QueryParameter String prefix){
         FormValidation ret;
         if (StringUtils.isBlank(prefix)) {
-            ret = FormValidation.ok("BTW you might want a prefix etc.");
+            ret = FormValidation.ok("Artifacts will be stored in the root folder of the S3 Bucket.");
         } else if (prefix.endsWith("/")) {
             ret = FormValidation.ok();
         } else {

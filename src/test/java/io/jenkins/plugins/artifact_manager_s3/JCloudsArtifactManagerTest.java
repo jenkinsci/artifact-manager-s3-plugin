@@ -123,8 +123,8 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
             return delegate.getContainer();
         }
         @Override
-        public boolean isDeleteBlobs() {
-            return deleteBlobs != null ? deleteBlobs : delegate.isDeleteBlobs();
+        public boolean isDeleteArtifacts() {
+            return deleteBlobs != null ? deleteBlobs : delegate.isDeleteArtifacts();
         }
         @Override
         public boolean isDeleteStashes() {
