@@ -11,7 +11,7 @@
         <f:entry title="${%Base Prefix}" field="prefix">
             <f:textbox/>
         </f:entry>
-        <f:entry title="${%Delete Blobs}" field="deleteBlobs">
+        <f:entry title="${%Delete Artifacts}" field="deleteArtifacts">
             <f:checkbox readonly="true"/>
         </f:entry>
         <f:entry title="${%Delete Stashes}" field="deleteStashes">

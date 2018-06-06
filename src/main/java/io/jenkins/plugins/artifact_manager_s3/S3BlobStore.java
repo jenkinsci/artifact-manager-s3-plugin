@@ -55,7 +55,6 @@ import org.jclouds.osgi.ProviderRegistry;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
@@ -98,7 +97,7 @@ public class S3BlobStore extends BlobStoreProvider {
 
     @Override
     public boolean isDeleteBlobs() {
-        return getConfiguration().isDeleteBlobs();
+        return getConfiguration().isDeleteArtifacts();
     }
 
     @Override

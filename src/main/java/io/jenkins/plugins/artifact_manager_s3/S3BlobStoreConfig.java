@@ -52,7 +52,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfig.class.getName());
 
     @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteBlobs");
+    private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
 
@@ -103,8 +103,8 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         save();
     }
 
-    public boolean isDeleteBlobs() {
-        return DELETE_BLOBS;
+    public boolean isDeleteArtifacts() {
+        return DELETE_ARTIFACTS;
     }
 
     public boolean isDeleteStashes() {
@@ -142,18 +142,20 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     public FormValidation doCheckPrefix(@QueryParameter String prefix){
-        FormValidation ret = FormValidation.ok();
-        if (StringUtils.isBlank(prefix)){
-            ret = FormValidation.warning("Prefix is needed to archive files in a subdirectory.");
-        } else if (!prefix.endsWith("/")){
-            ret = FormValidation.warning("if Prefix point to a folder, it should end with '/' character");
+        FormValidation ret;
+        if (StringUtils.isBlank(prefix)) {
+            ret = FormValidation.ok("BTW you might want a prefix etc.");
+        } else if (prefix.endsWith("/")) {
+            ret = FormValidation.ok();
+        } else {
+            ret = FormValidation.error("A prefix must end with a slash.");
         }
         return ret;
     }
 
     public FormValidation doCheckRegion(@QueryParameter String region){
         FormValidation ret = FormValidation.ok();
-        if (StringUtils.isNotBlank(region) && !Region.DEFAULT_S3.contains(region)){
+        if (StringUtils.isNotBlank(region) && !Region.DEFAULT_REGIONS.contains(region)){
             ret = FormValidation.error("Region is not valid");
         }
         return ret;
