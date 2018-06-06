@@ -41,7 +41,7 @@ This is an example policy
 }
 ```
 
-In order to configure the plugin on Jenkins, you have to go to Manage Jenkisn/Configure System to 
+In order to configure the plugin on Jenkins, you have to go to Manage Jenkins/Configure System to 
 the `Artifact Managment for Builds` section, there you have to select the Cloud Provider `Amazon S3`.
 
 ![](images/cloud-provider-no-configured.png)
