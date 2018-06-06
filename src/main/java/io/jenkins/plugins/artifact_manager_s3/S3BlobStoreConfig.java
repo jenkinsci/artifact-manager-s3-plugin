@@ -40,7 +40,7 @@ import jenkins.model.GlobalConfiguration;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
- * the change of container does not affected to the Artifactory functionality, you could change the container
+ * the change of container does not affected to the Artifact functionality, you could change the container
  * and it would still work if both container contains the same data.
  */
 @Extension
@@ -134,9 +134,9 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     public FormValidation doCheckContainer(@QueryParameter String container){
         FormValidation ret = FormValidation.ok();
         if (StringUtils.isBlank(container)){
-            ret = FormValidation.error("The container name cannot be empty");
+            ret = FormValidation.warning("The container name cannot be empty");
         } else if (!bucketPattern.matcher(container).matches()){
-            ret = FormValidation.error("The container name does not match with S3 bucket rules");
+            ret = FormValidation.error("The S3 Bucket name does not match with S3 bucket rules");
         }
         return ret;
     }
@@ -144,7 +144,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     public FormValidation doCheckPrefix(@QueryParameter String prefix){
         FormValidation ret = FormValidation.ok();
         if (StringUtils.isBlank(prefix)){
-            ret = FormValidation.error("Prefix should have a value");
+            ret = FormValidation.warning("Prefix used to be needed to archive files in a subdirectory.");
         } else if (!prefix.endsWith("/")){
             ret = FormValidation.warning("if Prefix point to a folder, it should end with '/' character");
         }

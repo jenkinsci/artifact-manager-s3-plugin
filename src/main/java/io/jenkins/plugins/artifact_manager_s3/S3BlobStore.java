@@ -197,7 +197,7 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     public boolean isConfigured(){
-        return StringUtils.isNotBlank(getContainer()) && StringUtils.isNotBlank(getPrefix());
+        return StringUtils.isNotBlank(getContainer());
     }
 
     @Extension
@@ -215,8 +215,8 @@ public class S3BlobStore extends BlobStoreProvider {
         sb.append("container='").append(getContainer()).append('\'');
         sb.append(", prefix='").append(getPrefix()).append('\'');
         sb.append(", region='").append(getRegion()).append('\'');
-        sb.append(", isDeleteBlobs='").append(isDeleteBlobs()).append('\'');
-        sb.append(", isDeleteStashes='").append(isDeleteStashes()).append('\'');
+        sb.append(", deleteBlobs='").append(isDeleteBlobs()).append('\'');
+        sb.append(", deleteStashes='").append(isDeleteStashes()).append('\'');
         sb.append('}');
         return sb.toString();
     }
