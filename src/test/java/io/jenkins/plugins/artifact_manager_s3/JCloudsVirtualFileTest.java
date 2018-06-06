@@ -55,7 +55,7 @@ import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import jenkins.util.VirtualFile;
-import shaded.com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet;
 
 public class JCloudsVirtualFileTest extends S3AbstractTest {
 
