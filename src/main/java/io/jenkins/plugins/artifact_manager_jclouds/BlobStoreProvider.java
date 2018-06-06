@@ -51,21 +51,21 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
         GET, PUT;
     }
 
-    /** A constant for the blob path prefix to use. */
+    /** A constant for the artifact path prefix to use. */
     @NonNull
     public abstract String getPrefix();
 
-    /** A constant for the blob container name to use. */
+    /** A constant for the artifact container name to use. */
     @NonNull
     public abstract String getContainer();
 
-    /** A constant to define whether we should delete blobs or leave them to be managed on the blob service side. */
+    /** A constant to define whether we should delete artifacts or leave them to be managed on the artifact service side. */
     public abstract boolean isDeleteArtifacts();
 
-    /** A constant to define whether we should delete stashes or leave them to be managed on the blob service side. */
+    /** A constant to define whether we should delete stashes or leave them to be managed on the artifact service side. */
     public abstract boolean isDeleteStashes();
 
-    /** Creates the jclouds handle for working with blobs. */
+    /** Creates the jclouds handle for working with artifacts. */
     @NonNull
     public abstract BlobStoreContext getContext() throws IOException;
 
@@ -82,7 +82,7 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     public abstract URI toURI(@NonNull String container, @NonNull String key);
 
     /**
-     * Generate a URL valid for downloading OR uploading the blob for a limited period of time
+     * Generate a URL valid for downloading OR uploading the artifact for a limited period of time
      * 
      * @param blob
      *            blob to generate the URL for
