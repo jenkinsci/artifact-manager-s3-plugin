@@ -144,7 +144,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     public FormValidation doCheckPrefix(@QueryParameter String prefix){
         FormValidation ret = FormValidation.ok();
         if (StringUtils.isBlank(prefix)){
-            ret = FormValidation.warning("Prefix used to be needed to archive files in a subdirectory.");
+            ret = FormValidation.warning("Prefix is needed to archive files in a subdirectory.");
         } else if (!prefix.endsWith("/")){
             ret = FormValidation.warning("if Prefix point to a folder, it should end with '/' character");
         }
