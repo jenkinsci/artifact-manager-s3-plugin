@@ -273,7 +273,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            client.connect("download", "download " + url.toString().replaceFirst("[?].+$", "?…") + " into " + f, c -> c.execute(new HttpGet(url.toString())), response -> {
+            client.connect("download", "download " + RobustHTTPClient.sanitize(url) + " into " + f, c -> c.execute(new HttpGet(url.toString())), response -> {
                 try (InputStream is = response.getEntity().getContent()) {
                     new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
                     // Note that this API currently offers no count of files in the tarball we could report.
