@@ -238,7 +238,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         S3BlobStore.BREAK_CREDS = true;
         try {
             WorkflowRun b = j.buildAndAssertSuccess(p);
-            j.assertLogContains("caught org.jclouds.aws.AWSResponseException", b);
+            j.assertLogContains("caught java.io.IOException: org.jclouds.aws.AWSResponseException", b);
             j.assertLogNotContains("java.io.NotSerializableException", b);
         } finally {
             S3BlobStore.BREAK_CREDS = false;
