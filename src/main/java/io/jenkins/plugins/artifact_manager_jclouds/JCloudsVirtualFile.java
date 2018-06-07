@@ -46,7 +46,6 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import jenkins.util.VirtualFile;
 import org.jclouds.blobstore.BlobStore;
@@ -182,15 +181,15 @@ public class JCloudsVirtualFile extends VirtualFile {
     /**
      * List all the blobs under this one
      *
-     * @return a stream of blobs StorageMetadata
+     * @return some blobs
+     * @throws RuntimeException either now or when the stream is processed; wrap in {@link IOException} if desired
      */
-    private Stream<StorageMetadata> listStorageMetadata(boolean recursive) throws IOException {
+    private Iterator<StorageMetadata> listStorageMetadata(boolean recursive) throws IOException {
         ListContainerOptions options = prefix(key + "/");
         if (recursive) {
             options.recursive();
         }
-        PageSetIterable it = new PageSetIterable(getContext().getBlobStore(), getContainer(), options);
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED), false);
+        return new PageSetIterable(getContext().getBlobStore(), getContainer(), options);
     }
 
     @Override
@@ -207,9 +206,14 @@ public class JCloudsVirtualFile extends VirtualFile {
                 map(simple -> new JCloudsVirtualFile(provider, container, keyS + simple)). // direct children
                 toArray(VirtualFile[]::new);
         }
-        VirtualFile[] list = listStorageMetadata(false)
+        VirtualFile[] list;
+        try {
+            list = StreamSupport.stream(Spliterators.spliteratorUnknownSize(listStorageMetadata(false), Spliterator.ORDERED), false)
                 .map(meta -> new JCloudsVirtualFile(provider, getContainer(), meta.getName().replaceFirst("/$", "")))
                 .toArray(VirtualFile[]::new);
+        } catch (RuntimeException x) {
+            throw new IOException(x);
+        }
         LOGGER.log(Level.FINEST, "Listing files from {0} {1}: {2}",
                 new String[] { getContainer(), getKey(), Arrays.toString(list) });
         return list;
@@ -279,6 +283,9 @@ public class JCloudsVirtualFile extends VirtualFile {
         private PageSet<? extends StorageMetadata> set;
         private Iterator<? extends StorageMetadata> iterator;
 
+        /**
+         * @throws RuntimeException either now or when iterating; wrap in {@link IOException} if desired
+         */
         PageSetIterable(@NonNull BlobStore blobStore, @NonNull String container,
                 @NonNull ListContainerOptions options) {
             this.blobStore = blobStore;
@@ -363,13 +370,19 @@ public class JCloudsVirtualFile extends VirtualFile {
         Deque<CacheFrame> stack = cacheFrames();
         Map<String, CachedMetadata> saved = new HashMap<>();
         int prefixLength = key.length() + /* / */1;
-        listStorageMetadata(true).forEach(sm -> {
-            Long length = sm.getSize();
-            if (length != null) {
-                Date lastModified = sm.getLastModified();
-                saved.put(sm.getName().substring(prefixLength), new CachedMetadata(length, lastModified != null ? lastModified.getTime() : 0));
+        try {
+            Iterator<StorageMetadata> it = listStorageMetadata(true);
+            while (it.hasNext()) {
+                StorageMetadata sm = it.next();
+                Long length = sm.getSize();
+                if (length != null) {
+                    Date lastModified = sm.getLastModified();
+                    saved.put(sm.getName().substring(prefixLength), new CachedMetadata(length, lastModified != null ? lastModified.getTime() : 0));
+                }
             }
-        });
+        } catch (RuntimeException x) {
+            throw new IOException(x);
+        }
         stack.push(new CacheFrame(key + "/", saved));
         try {
             LOGGER.log(Level.FINE, "using cache {0} / {1}: {2} file entries", new Object[] {container, key, saved.size()});
