@@ -202,13 +202,14 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
                     blobStore.putBlob(getContainer(), blobStore.blobBuilder(iDir + "j" + j + "/k" + k).payload(new byte[0]).build());
                 }
             }
-            LOGGER.log(Level.INFO, "added 100 blobs to {0}", iDir);
+            blobStore.putBlob(getContainer(), blobStore.blobBuilder(iDir + "extra").payload(new byte[0]).build());
+            LOGGER.log(Level.INFO, "added 101 blobs to {0}", iDir);
         }
         httpLogging.record(InvokeHttpMethod.class, Level.FINE);
         httpLogging.capture(1000);
-        // Default list page size for S3 is 1000 blobs; we have 1000 plus the two created for all tests, so should hit a second page.
+        // Default list page size for S3 is 1000 blobs; we have 1010 plus the two created for all tests, so should hit a second page.
         assertThat(subdir.list("sprawling/**/k3", null, true), iterableWithSize(100));
-        assertEquals("calls GetBucketLocation then ListBucket ×2", 3, httpLogging.getRecords().size());
+        assertEquals("calls GetBucketLocation then ListBucket, advance to …/sprawling/i9/j8/k8, ListBucket again", 3, httpLogging.getRecords().size());
     }
 
     @Test
