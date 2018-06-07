@@ -100,8 +100,8 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
-    protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteBlobs, Boolean deleteStashes) {
-        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteBlobs, deleteStashes));
+    protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
+        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
     }
 
     private static final class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
