@@ -35,11 +35,13 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Spliterator;
@@ -408,16 +410,21 @@ public class JCloudsVirtualFile extends VirtualFile {
     public static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
         try {
             Iterator<StorageMetadata> it = new PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
-            boolean found = false;
+            List<String> paths = new ArrayList<>();
             while (it.hasNext()) {
                 StorageMetadata sm = it.next();
                 String path = sm.getName();
                 assert path.startsWith(prefix);
-                LOGGER.fine("deleting " + path);
-                blobStore.removeBlob(provider.getContainer(), path);
-                found = true;
+                paths.add(path);
             }
-            return found;
+            if (paths.isEmpty()) {
+                LOGGER.log(Level.FINE, "nothing to delete under {0}", prefix);
+                return false;
+            } else {
+                LOGGER.log(Level.FINE, "deleting {0} blobs under {1}", new Object[] {paths.size(), prefix});
+                blobStore.removeBlobs(provider.getContainer(), paths);
+                return true;
+            }
         } catch (RuntimeException x) {
             throw new IOException(x);
         }
