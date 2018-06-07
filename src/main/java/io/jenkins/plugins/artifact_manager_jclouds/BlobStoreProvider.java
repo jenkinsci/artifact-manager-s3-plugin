@@ -51,7 +51,7 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
         GET, PUT;
     }
 
-    /** A constant for the artifact path prefix to use. */
+    /** A constant for the blob path prefix to use. */
     @NonNull
     public abstract String getPrefix();
 
@@ -59,10 +59,10 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     @NonNull
     public abstract String getContainer();
 
-    /** A constant to define whether we should delete artifacts or leave them to be managed on the artifact service side. */
+    /** A constant to define whether we should delete artifacts or leave them to be managed on the blob service side. */
     public abstract boolean isDeleteArtifacts();
 
-    /** A constant to define whether we should delete stashes or leave them to be managed on the artifact service side. */
+    /** A constant to define whether we should delete stashes or leave them to be managed on the blob service side. */
     public abstract boolean isDeleteStashes();
 
     /** Creates the jclouds handle for working with blob. */
