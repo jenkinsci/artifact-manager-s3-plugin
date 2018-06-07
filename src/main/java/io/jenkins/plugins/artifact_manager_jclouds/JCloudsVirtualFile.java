@@ -40,21 +40,17 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Spliterator;
-import java.util.Spliterators;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.StreamSupport;
 import jenkins.util.VirtualFile;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.BlobStores;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.MutableBlobMetadata;
-import org.jclouds.blobstore.domain.PageSet;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
@@ -186,12 +182,12 @@ public class JCloudsVirtualFile extends VirtualFile {
      * @return some blobs
      * @throws RuntimeException either now or when the stream is processed; wrap in {@link IOException} if desired
      */
-    private Iterator<StorageMetadata> listStorageMetadata(boolean recursive) throws IOException {
+    private Iterable<StorageMetadata> listStorageMetadata(boolean recursive) throws IOException {
         ListContainerOptions options = prefix(key + "/");
         if (recursive) {
             options.recursive();
         }
-        return new PageSetIterable(getContext().getBlobStore(), getContainer(), options);
+        return BlobStores.listAll(getContext().getBlobStore(), getContainer(), options);
     }
 
     @Override
@@ -210,7 +206,7 @@ public class JCloudsVirtualFile extends VirtualFile {
         }
         VirtualFile[] list;
         try {
-            list = StreamSupport.stream(Spliterators.spliteratorUnknownSize(listStorageMetadata(false), Spliterator.ORDERED), false)
+            list = StreamSupport.stream(listStorageMetadata(false).spliterator(), false)
                 .map(meta -> new JCloudsVirtualFile(provider, getContainer(), meta.getName().replaceFirst("/$", "")))
                 .toArray(VirtualFile[]::new);
         } catch (RuntimeException x) {
@@ -275,66 +271,6 @@ public class JCloudsVirtualFile extends VirtualFile {
     }
 
     /**
-     * An Iterator for JClouds PageSet
-     */
-    @Restricted(NoExternalUse.class)
-    static class PageSetIterable implements Iterator<StorageMetadata> {
-        private final BlobStore blobStore;
-        private final String container;
-        private ListContainerOptions options;
-        private PageSet<? extends StorageMetadata> set;
-        private Iterator<? extends StorageMetadata> iterator;
-
-        /**
-         * @throws RuntimeException either now or when iterating; wrap in {@link IOException} if desired
-         */
-        PageSetIterable(@NonNull BlobStore blobStore, @NonNull String container,
-                @NonNull ListContainerOptions options) {
-            this.blobStore = blobStore;
-            this.container = container;
-            advanceList(options);
-        }
-
-        @Override
-        public boolean hasNext() {
-            if (iterator.hasNext()) {
-                return true;
-            }
-            String marker = set.getNextMarker();
-            if (marker == null) {
-                return false;
-            }
-            LOGGER.log(Level.FINE, "advancing marker to {0}", marker);
-            advanceList(options.afterMarker(marker));
-            return iterator.hasNext();
-        }
-
-        @Override
-        public StorageMetadata next() {
-            if (hasNext()) {
-                return iterator.next();
-            } else {
-                throw new NoSuchElementException();
-            }
-        }
-
-        /**
-         * Unsupported operation
-         */
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException();
-        }
-
-        private void advanceList(ListContainerOptions options) {
-            LOGGER.log(Level.FINE, "listing {0}: {1}", new Object[] {container, options});
-            this.options = options;
-            this.set = blobStore.list(container, options);
-            this.iterator = set.iterator();
-        }
-    }
-
-    /**
      * Cache of metadata collected during {@link #run}.
      * Keys are {@link #container}.
      * Values are a stack of cache frames, one per nested {@link #run} call.
@@ -374,9 +310,7 @@ public class JCloudsVirtualFile extends VirtualFile {
         Map<String, CachedMetadata> saved = new HashMap<>();
         int prefixLength = key.length() + /* / */1;
         try {
-            Iterator<StorageMetadata> it = listStorageMetadata(true);
-            while (it.hasNext()) {
-                StorageMetadata sm = it.next();
+            for (StorageMetadata sm : listStorageMetadata(true)) {
                 Long length = sm.getSize();
                 if (length != null) {
                     Date lastModified = sm.getLastModified();
@@ -410,10 +344,8 @@ public class JCloudsVirtualFile extends VirtualFile {
      */
     public static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
         try {
-            Iterator<StorageMetadata> it = new PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
             List<String> paths = new ArrayList<>();
-            while (it.hasNext()) {
-                StorageMetadata sm = it.next();
+            for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive())) {
                 String path = sm.getName();
                 assert path.startsWith(prefix);
                 paths.add(path);

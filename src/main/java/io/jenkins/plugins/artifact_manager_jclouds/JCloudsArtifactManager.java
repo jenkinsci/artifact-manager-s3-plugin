@@ -48,7 +48,6 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,6 +57,7 @@ import jenkins.util.VirtualFile;
 import org.apache.http.client.methods.HttpGet;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.BlobStores;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.CopyOptions;
@@ -274,9 +274,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         BlobStore blobStore = getContext().getBlobStore();
         int count = 0;
         try {
-            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive());
-            while (it.hasNext()) {
-                StorageMetadata sm = it.next();
+            for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive())) {
                 String path = sm.getName();
                 assert path.startsWith(stashPrefix);
                 LOGGER.fine("deleting " + path);
@@ -300,9 +298,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         BlobStore blobStore = getContext().getBlobStore();
         int count = 0;
         try {
-            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive());
-            while (it.hasNext()) {
-                StorageMetadata sm = it.next();
+            for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive())) {
                 String path = sm.getName();
                 assert path.startsWith(allPrefix);
                 String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
