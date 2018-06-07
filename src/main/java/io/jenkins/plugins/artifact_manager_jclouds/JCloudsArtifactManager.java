@@ -24,13 +24,24 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import com.github.rholder.retry.Attempt;
-import com.github.rholder.retry.AttemptTimeLimiters;
+import hudson.AbortException;
+import hudson.EnvVars;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.Util;
+import hudson.model.BuildListener;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.remoting.VirtualChannel;
+import hudson.slaves.WorkspaceList;
+import hudson.util.DirScanner;
+import hudson.util.io.ArchiverFactory;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import io.jenkins.plugins.httpclient.RobustHTTPClient;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -39,10 +50,12 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import jenkins.MasterToSlaveFileCallable;
+import jenkins.model.ArtifactManager;
+import jenkins.util.VirtualFile;
+import org.apache.http.client.methods.HttpGet;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
@@ -50,36 +63,6 @@ import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
-
-import com.github.rholder.retry.RetryException;
-import com.github.rholder.retry.RetryListener;
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
-import com.github.rholder.retry.WaitStrategies;
-import com.google.common.util.concurrent.UncheckedTimeoutException;
-import hudson.AbortException;
-import hudson.EnvVars;
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.Util;
-import hudson.model.BuildListener;
-import hudson.model.Computer;
-import hudson.model.Run;
-import hudson.model.TaskListener;
-import hudson.remoting.VirtualChannel;
-import hudson.slaves.WorkspaceList;
-import hudson.util.DirScanner;
-import hudson.util.io.ArchiverFactory;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import jenkins.MasterToSlaveFileCallable;
-import jenkins.model.ArtifactManager;
-import jenkins.util.JenkinsJVM;
-import jenkins.util.VirtualFile;
-import org.apache.commons.io.IOUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -90,6 +73,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 public final class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
+
+    static RobustHTTPClient client = new RobustHTTPClient();
 
     private final BlobStoreProvider provider;
 
@@ -148,11 +133,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
         private final TaskListener listener;
-        // Bind when constructed on the master side; on the agent side, deserialize those values.
-        private final int stopAfterAttemptNumber = UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = UPLOAD_WAIT_MULTIPLIER;
-        private final long waitMaximum = UPLOAD_WAIT_MAXIMUM;
-        private final long timeout = UPLOAD_TIMEOUT;
+        // Bind when constructed on the master side; on the agent side, deserialize the same configuration.
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
         UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
             this.artifactUrls = artifactUrls;
@@ -162,9 +144,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
-                Path local = f.toPath().resolve(entry.getKey());
-                URL url = entry.getValue();
-                uploadFile(local, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+                client.uploadFile(new File(f, entry.getKey()), entry.getValue(), listener);
             }
             return null;
         }
@@ -229,10 +209,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final boolean useDefaultExcludes;
         private final String tempDir;
         private final TaskListener listener;
-        private final int stopAfterAttemptNumber = UPLOAD_STOP_AFTER_ATTEMPT_NUMBER;
-        private final long waitMultiplier = UPLOAD_WAIT_MULTIPLIER;
-        private final long waitMaximum = UPLOAD_WAIT_MAXIMUM;
-        private final long timeout = UPLOAD_TIMEOUT;
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
         Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
             this.url = url;
@@ -245,7 +222,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Integer invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            // TODO JCLOUDS-769 streaming upload is not currently straightforward, so using a temp file pending rewrite to use multipart uploads
+            // TODO use streaming upload rather than a temp file; is it necessary to set the content length in advance?
             // (we prefer not to upload individual files for stashes, so as to preserve symlinks & file permissions, as StashManager’s default does)
             Path tempDirP = Paths.get(tempDir);
             Files.createDirectories(tempDirP);
@@ -258,7 +235,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     throw new IOException(e);
                 }
                 if (count > 0) {
-                    uploadFile(tmp, url, listener, stopAfterAttemptNumber, waitMultiplier, waitMaximum, timeout);
+                    client.uploadFile(tmp.toFile(), url, listener);
                 }
                 return count;
             } finally {
@@ -279,24 +256,29 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
         }
         URL url = provider.toExternalURL(blob, HttpMethod.GET);
-        workspace.act(new Unstash(url));
+        workspace.act(new Unstash(url, listener));
         listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
     }
 
     private static final class Unstash extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
         private final URL url;
+        private final TaskListener listener;
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
-        Unstash(URL url) throws IOException {
+        Unstash(URL url, TaskListener listener) throws IOException {
             this.url = url;
+            this.listener = listener;
         }
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            try (InputStream is = url.openStream()) {
-                new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
-                // Note that this API currently offers no count of files in the tarball we could report.
-            }
+            client.connect("download", "download " + RobustHTTPClient.sanitize(url) + " into " + f, c -> c.execute(new HttpGet(url.toString())), response -> {
+                try (InputStream is = response.getEntity().getContent()) {
+                    new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
+                    // Note that this API currently offers no count of files in the tarball we could report.
+                }
+            }, listener);
             return null;
         }
     }
@@ -357,93 +339,6 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     private BlobStoreContext getContext() throws IOException {
         return provider.getContext();
-    }
-
-    private static final class HTTPAbortException extends AbortException {
-        final int code;
-        HTTPAbortException(int code, String message) {
-            super(message);
-            this.code = code;
-        }
-    }
-
-    /**
-     * Number of upload attempts of nonfatal errors before giving up.
-     */
-    static int UPLOAD_STOP_AFTER_ATTEMPT_NUMBER = Integer.getInteger(JCloudsArtifactManager.class.getName() + ".UPLOAD_STOP_AFTER_ATTEMPT_NUMBER", 10);
-    /**
-     * Initial number of milliseconds between first and second upload attempts.
-     * Subsequent ones increase exponentially.
-     * Note that this is not a <em>randomized</em> exponential backoff;
-     * and the base of the exponent is hard-coded to 2.
-     */
-    static long UPLOAD_WAIT_MULTIPLIER = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_WAIT_MULTIPLIER", 100);
-    /**
-     * Maximum number of seconds between upload attempts.
-     */
-    static long UPLOAD_WAIT_MAXIMUM = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_WAIT_MAXIMUM", 300);
-    /**
-     * Number of seconds to permit a single upload attempt to take.
-     */
-    static long UPLOAD_TIMEOUT = Long.getLong(JCloudsArtifactManager.class.getName() + ".UPLOAD_TIMEOUT", /* 15m */15 * 60);
-
-    private static final ExecutorService executors = JenkinsJVM.isJenkinsJVM() ? Computer.threadPoolForRemoting : Executors.newCachedThreadPool();
-
-    /**
-     * Upload a file to a URL
-     */
-    @SuppressWarnings("Convert2Lambda") // bogus use of generics (type variable should have been on class); cannot be made into a lambda
-    private static void uploadFile(Path f, URL url, final TaskListener listener, int stopAfterAttemptNumber, long waitMultiplier, long waitMaximum, long timeout) throws IOException, InterruptedException {
-        String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
-        try {
-            AtomicReference<Throwable> lastError = new AtomicReference<>();
-            RetryerBuilder.<Void>newBuilder().
-                    retryIfException(x -> x instanceof IOException && (!(x instanceof HTTPAbortException) || ((HTTPAbortException) x).code >= 500) || x instanceof UncheckedTimeoutException).
-                    withRetryListener(new RetryListener() {
-                        @Override
-                        public <Void> void onRetry(Attempt<Void> attempt) {
-                            if (attempt.hasException()) {
-                                lastError.set(attempt.getExceptionCause());
-                            }
-                        }
-                    }).
-                    withStopStrategy(StopStrategies.stopAfterAttempt(stopAfterAttemptNumber)).
-                    withWaitStrategy(WaitStrategies.exponentialWait(waitMultiplier, waitMaximum, TimeUnit.SECONDS)).
-                    withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(timeout, TimeUnit.SECONDS, executors)).
-                    build().call(() -> {
-                Throwable t = lastError.get();
-                if (t != null) {
-                    listener.getLogger().println("Retrying upload after: " + (t instanceof AbortException ? t.getMessage() : t.toString()));
-                }
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setDoOutput(true);
-                connection.setRequestMethod("PUT");
-                connection.setFixedLengthStreamingMode(Files.size(f)); // prevent loading file in memory
-                try (OutputStream out = connection.getOutputStream()) {
-                    Files.copy(f, out);
-                }
-                int responseCode = connection.getResponseCode();
-                if (responseCode < 200 || responseCode >= 300) {
-                    String diag;
-                    try (InputStream err = connection.getErrorStream()) {
-                        diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
-                    }
-                    throw new HTTPAbortException(responseCode, String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
-                }
-                return null;
-            });
-        } catch (ExecutionException | RetryException x) { // *sigh*, checked exceptions
-            Throwable x2 = x.getCause();
-            if (x2 instanceof IOException) {
-                throw (IOException) x2;
-            } else if (x2 instanceof RuntimeException) {
-                throw (RuntimeException) x2;
-            } else if (x2 instanceof InterruptedException) {
-                throw (InterruptedException) x2;
-            } else { // Error?
-                throw new RuntimeException(x);
-            }
-        }
     }
 
 }

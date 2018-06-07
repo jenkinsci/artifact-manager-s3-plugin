@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -148,6 +149,23 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
     }
 
+    @FunctionalInterface
+    interface GetBlobKeysInsideContainerHandler {
+        Iterable<String> run() throws IOException;
+    }
+
+    private static final Map<String, GetBlobKeysInsideContainerHandler> getBlobKeysInsideContainerHandlers = new ConcurrentHashMap<>();
+
+    static void handleGetBlobKeysInsideContainer(String container, GetBlobKeysInsideContainerHandler handler) {
+        getBlobKeysInsideContainerHandlers.put(container, handler);
+    }
+
+    private static final Map<String, Runnable> removeBlobHandlers = new ConcurrentHashMap<>();
+
+    static void handleRemoveBlob(String container, String key, Runnable handler) {
+        removeBlobHandlers.put(container + '/' + key, handler);
+    }
+
     /** Like {@link TransientStorageStrategy}. */
     public static final class MockStrategy implements LocalStorageStrategy {
 
@@ -205,6 +223,10 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
         @Override
         public Iterable<String> getBlobKeysInsideContainer(String container) throws IOException {
+            GetBlobKeysInsideContainerHandler handler = getBlobKeysInsideContainerHandlers.remove(container);
+            if (handler != null) {
+                return handler.run();
+            }
             return blobsByContainer.get(container).keySet();
         }
 
@@ -231,6 +253,11 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
         @Override
         public void removeBlob(String container, String key) {
+            Runnable handler = removeBlobHandlers.remove(container + '/' + key);
+            if (handler != null) {
+                handler.run();
+                return;
+            }
             blobsByContainer.get(container).remove(key);
         }
 
