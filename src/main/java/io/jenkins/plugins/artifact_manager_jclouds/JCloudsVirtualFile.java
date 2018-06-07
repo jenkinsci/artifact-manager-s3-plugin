@@ -402,4 +402,25 @@ public class JCloudsVirtualFile extends VirtualFile {
         return cacheFrames().stream().filter(frame -> key.startsWith(frame.root)).findFirst().orElse(null);
     }
 
+    /**
+     * Delete all blobs starting with a given prefix.
+     */
+    public static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
+        try {
+            Iterator<StorageMetadata> it = new PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
+            boolean found = false;
+            while (it.hasNext()) {
+                StorageMetadata sm = it.next();
+                String path = sm.getName();
+                assert path.startsWith(prefix);
+                LOGGER.fine("deleting " + path);
+                blobStore.removeBlob(provider.getContainer(), path);
+                found = true;
+            }
+            return found;
+        } catch (RuntimeException x) {
+            throw new IOException(x);
+        }
+    }
+
 }
