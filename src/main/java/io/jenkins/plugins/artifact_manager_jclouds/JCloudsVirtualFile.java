@@ -150,7 +150,7 @@ public class JCloudsVirtualFile extends VirtualFile {
         String keyS = key + "/";
         CacheFrame frame = findCacheFrame(keyS);
         if (frame != null) {
-            LOGGER.log(Level.FINE, "cache hit on directory status of {0} / {1}", new Object[] {container, key});
+            LOGGER.log(Level.FINER, "cache hit on directory status of {0} / {1}", new Object[] {container, key});
             String relSlash = keyS.substring(frame.root.length()); // "" or "sub/dir/"
             return frame.children.keySet().stream().anyMatch(f -> f.startsWith(relSlash));
         }
@@ -164,7 +164,7 @@ public class JCloudsVirtualFile extends VirtualFile {
         if (frame != null) {
             String rel = key.substring(frame.root.length());
             CachedMetadata metadata = frame.children.get(rel);
-            LOGGER.log(Level.FINE, "cache hit on file status of {0} / {1}", new Object[] {container, key});
+            LOGGER.log(Level.FINER, "cache hit on file status of {0} / {1}", new Object[] {container, key});
             return metadata != null;
         }
         LOGGER.log(Level.FINE, "checking file status {0} / {1}", new Object[] {container, key});
@@ -195,7 +195,7 @@ public class JCloudsVirtualFile extends VirtualFile {
         String keyS = key + "/";
         CacheFrame frame = findCacheFrame(keyS);
         if (frame != null) {
-            LOGGER.log(Level.FINE, "cache hit on listing of {0} / {1}", new Object[] {container, key});
+            LOGGER.log(Level.FINER, "cache hit on listing of {0} / {1}", new Object[] {container, key});
             String relSlash = keyS.substring(frame.root.length()); // "" or "sub/dir/"
             return frame.children.keySet().stream(). // filenames relative to frame root
                 filter(f -> f.startsWith(relSlash)). // those inside this dir
@@ -228,7 +228,7 @@ public class JCloudsVirtualFile extends VirtualFile {
         if (frame != null) {
             String rel = key.substring(frame.root.length());
             CachedMetadata metadata = frame.children.get(rel);
-            LOGGER.log(Level.FINE, "cache hit on length of {0} / {1}", new Object[] {container, key});
+            LOGGER.log(Level.FINER, "cache hit on length of {0} / {1}", new Object[] {container, key});
             return metadata != null ? metadata.length : 0;
         }
         LOGGER.log(Level.FINE, "checking length {0} / {1}", new Object[] {container, key});
@@ -243,7 +243,7 @@ public class JCloudsVirtualFile extends VirtualFile {
         if (frame != null) {
             String rel = key.substring(frame.root.length());
             CachedMetadata metadata = frame.children.get(rel);
-            LOGGER.log(Level.FINE, "cache hit on lastModified of {0} / {1}", new Object[] {container, key});
+            LOGGER.log(Level.FINER, "cache hit on lastModified of {0} / {1}", new Object[] {container, key});
             return metadata != null ? metadata.lastModified : 0;
         }
         LOGGER.log(Level.FINE, "checking modification time {0} / {1}", new Object[] {container, key});
