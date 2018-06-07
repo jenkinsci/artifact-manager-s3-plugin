@@ -304,6 +304,7 @@ public class JCloudsVirtualFile extends VirtualFile {
             if (marker == null) {
                 return false;
             }
+            LOGGER.log(Level.FINE, "advancing marker to {0}", marker);
             advanceList(options.afterMarker(marker));
             return iterator.hasNext();
         }
