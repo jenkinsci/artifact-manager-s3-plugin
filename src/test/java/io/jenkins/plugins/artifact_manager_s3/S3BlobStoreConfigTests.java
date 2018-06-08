@@ -12,7 +12,7 @@ import static org.junit.Assert.assertTrue;
 
 public class S3BlobStoreConfigTests {
 
-    private static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfigTests.class.getName());
 
     public static final String CONTAINER_NAME = "container-name";
     public static final String CONTAINER_PREFIX = "container-prefix/";
