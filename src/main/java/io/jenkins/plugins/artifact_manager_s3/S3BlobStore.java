@@ -38,9 +38,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
-import javax.ws.rs.HEAD;
 
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSSessionCredentials;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
@@ -53,10 +55,6 @@ import org.jclouds.osgi.ProviderRegistry;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
-
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSSessionCredentials;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
@@ -75,39 +73,36 @@ public class S3BlobStore extends BlobStoreProvider {
 
     private static final long serialVersionUID = -8864075675579867370L;
 
-    // For now, these are taken from the environment, rather than being configured.
-    @SuppressWarnings("FieldMayBeFinal")
-    private static String BLOB_CONTAINER = System.getenv("S3_BUCKET");
-    @SuppressWarnings("FieldMayBeFinal")
-    private static String PREFIX = System.getenv("S3_DIR");
-    @SuppressWarnings("FieldMayBeFinal")
-    private static String REGION = System.getProperty(S3BlobStore.class.getName() + ".region");
-    @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DELETE_BLOBS = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteBlobs");
-    @SuppressWarnings("FieldMayBeFinal")
-    private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStore.class.getName() + ".deleteStashes");
-
     @DataBoundConstructor
-    public S3BlobStore() {}
+    public S3BlobStore() {
+    }
 
     @Override
     public String getPrefix() {
-        return PREFIX;
+        return getConfiguration().getPrefix();
     }
 
     @Override
     public String getContainer() {
-        return BLOB_CONTAINER;
+        return getConfiguration().getContainer();
+    }
+
+    public String getRegion() {
+        return getConfiguration().getRegion();
+    }
+
+    public S3BlobStoreConfig getConfiguration(){
+        return S3BlobStoreConfig.get();
     }
 
     @Override
-    public boolean isDeleteBlobs() {
-        return DELETE_BLOBS;
+    public boolean isDeleteArtifacts() {
+        return getConfiguration().isDeleteArtifacts();
     }
 
     @Override
     public boolean isDeleteStashes() {
-        return DELETE_STASHES;
+        return getConfiguration().isDeleteStashes();
     }
 
     @Override
@@ -117,11 +112,12 @@ public class S3BlobStore extends BlobStoreProvider {
         try {
             Properties props = new Properties();
 
-            if(StringUtils.isNotBlank(REGION)) {
-                props.setProperty(LocationConstants.PROPERTY_REGIONS, REGION);
+            if(StringUtils.isNotBlank(getRegion())) {
+                props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
             }
 
             return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
+                    .overrides(props)
                     .buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
@@ -199,6 +195,10 @@ public class S3BlobStore extends BlobStoreProvider {
         return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
     }
 
+    public boolean isConfigured(){
+        return StringUtils.isNotBlank(getContainer());
+    }
+
     @Extension
     public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
 
@@ -206,7 +206,17 @@ public class S3BlobStore extends BlobStoreProvider {
         public String getDisplayName() {
             return "Amazon S3";
         }
-
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("S3BlobStore{");
+        sb.append("container='").append(getContainer()).append('\'');
+        sb.append(", prefix='").append(getPrefix()).append('\'');
+        sb.append(", region='").append(getRegion()).append('\'');
+        sb.append(", deleteArtifacts='").append(isDeleteArtifacts()).append('\'');
+        sb.append(", deleteStashes='").append(isDeleteStashes()).append('\'');
+        sb.append('}');
+        return sb.toString();
+    }
 }

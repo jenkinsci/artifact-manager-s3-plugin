@@ -41,12 +41,19 @@ This is an example policy
 }
 ```
 
-Then, run the Jenkins master with the environment variables. Note the `/` at the end of `S3_DIR`
+In order to configure the plugin on Jenkins, you have to go to Manage Jenkins/Configure System to 
+the `Artifact Managment for Builds` section, there you have to select the Cloud Provider `Amazon S3`.
 
-```
-S3_BUCKET=my-bucket-name
-S3_DIR=some/path/
-```
+![](images/cloud-provider-no-configured.png)
+
+Then you can configure the S3 Bucket settings on the section `Amazon S3 Bucket Access settings` in 
+the same configuration page.
+
+* S3 Bucket Name: Name of the S3 Bucket to use to store artifacts.
+* S3 Bucket Region: Region to use to generate the URLs to get/put artifacts, by default it is autodetected.
+* Base Prefix: Prefix to use for files and folders inside the S3 Bucket, if the prefix is a folder should be end with `/`.
+
+![](images/bucket-settings.png)
 
 # Testing
 
@@ -81,8 +88,6 @@ For interactive testing, you may instead add to `~/.mavenrc` (cf. comment in MNG
 ```sh
 export AWS_PROFILE=…
 export AWS_REGION=…
-export S3_BUCKET=…
-export S3_DIR=…/
 ```
 
 then:
@@ -118,8 +123,3 @@ Or to just see HTTP traffic:
 ```bash
 java -jar jenkins-cli.jar -s http://localhost:8080/jenkins/ tail-log org.jclouds.rest.internal.InvokeHttpMethod -l FINE
 ```
-
-# Force the Region
-
-If you have problems detecting the region on your environment you can force the region setting by adding this property 
-`-Dio.jenkins.plugins.artifact_manager_s3.S3BlobStore.region=REGION_NAME` to the Jenkins JVM options.

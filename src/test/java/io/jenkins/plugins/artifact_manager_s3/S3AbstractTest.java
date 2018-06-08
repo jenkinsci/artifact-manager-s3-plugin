@@ -44,6 +44,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 
 public abstract class S3AbstractTest {
@@ -52,6 +53,8 @@ public abstract class S3AbstractTest {
 
     private static final String S3_BUCKET = System.getenv("S3_BUCKET");
     protected static final String S3_DIR = System.getenv("S3_DIR");
+    private static final String S3_REGION = System.getenv("S3_REGION");
+
     protected BlobStoreProvider provider;
 
     @BeforeClass
@@ -73,6 +76,9 @@ public abstract class S3AbstractTest {
 
     @Rule
     public LoggerRule loggerRule = new LoggerRule();
+
+    @Rule
+    public JenkinsRule j = new JenkinsRule();
 
     protected BlobStoreContext context;
     protected BlobStore blobStore;
@@ -97,6 +103,10 @@ public abstract class S3AbstractTest {
     @Before
     public void setupContext() throws Exception {
         provider = new S3BlobStore();
+        S3BlobStoreConfig s3BlobStoreConfig = S3BlobStoreConfig.get();
+        s3BlobStoreConfig.setContainer(S3_BUCKET);
+        s3BlobStoreConfig.setPrefix(S3_DIR);
+        s3BlobStoreConfig.setRegion(S3_REGION);
 
         loggerRule.recordPackage(JCloudsVirtualFile.class, Level.FINE);
 

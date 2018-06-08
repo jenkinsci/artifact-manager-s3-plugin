@@ -157,7 +157,7 @@ public final class MockBlobStore extends BlobStoreProvider {
     }
 
     @Override
-    public boolean isDeleteBlobs() {
+    public boolean isDeleteArtifacts() {
         return true;
     }
 

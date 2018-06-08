@@ -95,23 +95,20 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     }
 
     @Rule
-    public JenkinsRule j = new JenkinsRule();
-
-    @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
-    protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteBlobs, Boolean deleteStashes) {
-        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteBlobs, deleteStashes));
+    protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
+        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
     }
 
     private static final class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
         private final BlobStoreProvider delegate;
         private final String prefix;
-        private final Boolean deleteBlobs, deleteStashes;
-        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteBlobs, Boolean deleteStashes) {
+        private final Boolean deleteArtifacts, deleteStashes;
+        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteArtifacts, Boolean deleteStashes) {
             this.delegate = delegate;
             this.prefix = prefix;
-            this.deleteBlobs = deleteBlobs;
+            this.deleteArtifacts = deleteArtifacts;
             this.deleteStashes = deleteStashes;
         }
         @Override
@@ -123,8 +120,8 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
             return delegate.getContainer();
         }
         @Override
-        public boolean isDeleteBlobs() {
-            return deleteBlobs != null ? deleteBlobs : delegate.isDeleteBlobs();
+        public boolean isDeleteArtifacts() {
+            return deleteArtifacts != null ? deleteArtifacts : delegate.isDeleteArtifacts();
         }
         @Override
         public boolean isDeleteStashes() {
