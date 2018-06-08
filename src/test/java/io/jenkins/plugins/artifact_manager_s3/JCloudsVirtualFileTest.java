@@ -186,16 +186,30 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     @Test
     @SuppressWarnings("deprecation")
     public void listGlob() throws Exception {
-        httpLogging.record(InvokeHttpMethod.class, Level.FINE);
-        httpLogging.capture(1000);
-        assertThat(subdir.list("*", null, true), containsInAnyOrder(weirdCharacters.getName(), vf.getName()));
-        // TODO more interesting to create a directory with enough files to exceed a single iterator page:
-        assertEquals("calls GetBucketLocation then ListBucket", 2, httpLogging.getRecords().size());
         assertThat(subdir.list("**/**"), arrayContainingInAnyOrder(vf.getName(), weirdCharacters.getName()));
         assertArrayEquals(new String[] { vf.getName() }, subdir.list(tmpFile.getName().substring(0, 4) + "*"));
         assertArrayEquals(new String[0], subdir.list("**/something**"));
         assertArrayEquals(new String[0], vf.list("**/**"));
         assertArrayEquals(new String[0], missing.list("**/**"));
+    }
+
+    @Test
+    public void pagedListing() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            String iDir = getPrefix() + "sprawling/i" + i + "/";
+            for (int j = 0; j < 10; j++) {
+                for (int k = 0; k < 10; k++) {
+                    blobStore.putBlob(getContainer(), blobStore.blobBuilder(iDir + "j" + j + "/k" + k).payload(new byte[0]).build());
+                }
+            }
+            blobStore.putBlob(getContainer(), blobStore.blobBuilder(iDir + "extra").payload(new byte[0]).build());
+            LOGGER.log(Level.INFO, "added 101 blobs to {0}", iDir);
+        }
+        httpLogging.record(InvokeHttpMethod.class, Level.FINE);
+        httpLogging.capture(1000);
+        // Default list page size for S3 is 1000 blobs; we have 1010 plus the two created for all tests, so should hit a second page.
+        assertThat(subdir.list("sprawling/**/k3", null, true), iterableWithSize(100));
+        assertEquals("calls GetBucketLocation then ListBucket, advance to …/sprawling/i9/j8/k8, ListBucket again", 3, httpLogging.getRecords().size());
     }
 
     @Test
