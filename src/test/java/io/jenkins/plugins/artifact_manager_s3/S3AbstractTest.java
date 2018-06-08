@@ -26,7 +26,6 @@ package io.jenkins.plugins.artifact_manager_s3;
 
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
@@ -123,7 +122,7 @@ public abstract class S3AbstractTest {
 
     @After
     public void deleteBlobs() throws Exception {
-        JCloudsArtifactManager.delete(provider, blobStore, prefix);
+        JCloudsVirtualFile.delete(provider, blobStore, prefix);
     }
 
 }

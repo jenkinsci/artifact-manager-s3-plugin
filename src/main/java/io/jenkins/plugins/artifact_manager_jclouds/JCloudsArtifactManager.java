@@ -157,28 +157,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             LOGGER.log(Level.FINE, "Ignoring blob deletion: {0}", blobPath);
             return false;
         }
-        return delete(provider, getContext().getBlobStore(), blobPath);
-    }
-
-    /**
-     * Delete all blobs starting with prefix
-     */
-    public static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
-        try {
-            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
-            boolean found = false;
-            while (it.hasNext()) {
-                StorageMetadata sm = it.next();
-                String path = sm.getName();
-                assert path.startsWith(prefix);
-                LOGGER.fine("deleting " + path);
-                blobStore.removeBlob(provider.getContainer(), path);
-                found = true;
-            }
-            return found;
-        } catch (RuntimeException x) {
-            throw new IOException(x);
-        }
+        return JCloudsVirtualFile.delete(provider, getContext().getBlobStore(), blobPath);
     }
 
     @Override
