@@ -30,6 +30,7 @@ import hudson.model.Run;
 import hudson.tasks.LogRotator;
 import io.jenkins.plugins.httpclient.RobustHTTPClient;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.stream.Collectors;
@@ -150,7 +151,7 @@ public class NetworkTest {
     public void hangArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         JCloudsArtifactManager.client = new RobustHTTPClient();
-        JCloudsArtifactManager.client.setTimeout(5);
+        JCloudsArtifactManager.client.setTimeout(5, TimeUnit.SECONDS);
         try {
             hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
@@ -245,7 +246,7 @@ public class NetworkTest {
     public void hangUnstashing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         JCloudsArtifactManager.client = new RobustHTTPClient();
-        JCloudsArtifactManager.client.setTimeout(5);
+        JCloudsArtifactManager.client.setTimeout(5, TimeUnit.SECONDS);
         try {
             hangIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz");
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
