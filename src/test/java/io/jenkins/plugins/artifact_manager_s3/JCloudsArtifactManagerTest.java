@@ -95,9 +95,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     }
 
     @Rule
-    public JenkinsRule j = new JenkinsRule();
-
-    @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
