@@ -52,10 +52,8 @@ public abstract class S3AbstractTest {
 
     protected static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
 
-    private static final String S3_BUCKET = "cloudbees-arch-us-west-2";//System.getenv("S3_BUCKET");
+    private static final String S3_BUCKET = System.getenv("S3_BUCKET");
     protected static final String S3_DIR = System.getenv("S3_DIR");
-    protected static final String S3_REGION = System.getenv("S3_REGION");
-
     protected BlobStoreProvider provider;
 
     @BeforeClass
@@ -107,7 +105,6 @@ public abstract class S3AbstractTest {
         S3BlobStoreConfig s3BlobStoreConfig = S3BlobStoreConfig.get();
         s3BlobStoreConfig.setContainer(S3_BUCKET);
         s3BlobStoreConfig.setPrefix(S3_DIR);
-        s3BlobStoreConfig.setPrefix(S3_REGION);
 
         loggerRule.recordPackage(JCloudsVirtualFile.class, Level.FINE);
 
