@@ -1,4 +1,4 @@
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.logging.Logger;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
