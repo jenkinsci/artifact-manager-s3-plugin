@@ -283,7 +283,10 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
     }
 
-    /** @see <a href="https://issues.apache.org/jira/browse/JCLOUDS-1422">JCLOUDS-1422</a> */
+    /**
+     * TODO delete when updating to 2.1.1 or 2.2.0
+     * @see <a href="https://issues.apache.org/jira/browse/JCLOUDS-1422">JCLOUDS-1422</a>
+     */
     public static final class PatchedLocalBlobStore implements BlobStore {
 
         private final LocalBlobStore delegate;
