@@ -305,19 +305,22 @@ WARNING: Caught exception evaluating: build.getArtifactsUpTo(build.TREE_CUTOFF+1
 org.jclouds.aws.AWSResponseException: request GET https://my-bucket.s3.amazonaws.com/?prefix=folder/small-files/78/artifacts/ HTTP/1.1 failed with code 400, error: AWSError{requestId='E64A06B2AC7FAED3', requestToken='Q6+7KaTKjqkkjjUdHgGi7/XXXXX0=', code='ExpiredToken', message='The provided token has expired.', context='{Token-0=FQoDYXdzEKj//////////XXXXXXXX//vPushetZVjU6wXXX=, HostId=Q6+7KaTXXXX=}'}
         at org.jclouds.aws.handlers.ParseAWSErrorFromXmlContent.handleError(ParseAWSErrorFromXmlContent.java:75)
         at org.jclouds.http.handlers.DelegatingErrorHandler.handleError(DelegatingErrorHandler.java:65)
-        at org.jclouds.http.internal.BaseHttpCommandExecutorService.shouldContinue(BaseHttpCommandExecutorService.java:140)
-        at org.jclouds.http.internal.BaseHttpCommandExecutorService.invoke(BaseHttpCommandExecutorService.java:109)
-        at org.jclouds.rest.internal.InvokeHttpMethod.invoke(InvokeHttpMethod.java:90)
-        at org.jclouds.rest.internal.InvokeHttpMethod.apply(InvokeHttpMethod.java:73)
-        at org.jclouds.rest.internal.InvokeHttpMethod.apply(InvokeHttpMethod.java:44)
+        at org.jclouds.http.internal.BaseHttpCommandExecutorService.shouldContinue(BaseHttpCommandExecutorService.java:138)
+        at org.jclouds.http.internal.BaseHttpCommandExecutorService.invoke(BaseHttpCommandExecutorService.java:107)
+        at org.jclouds.rest.internal.InvokeHttpMethod.invoke(InvokeHttpMethod.java:91)
+        at org.jclouds.rest.internal.InvokeHttpMethod.apply(InvokeHttpMethod.java:74)
+        at org.jclouds.rest.internal.InvokeHttpMethod.apply(InvokeHttpMethod.java:45)
         at org.jclouds.rest.internal.DelegatesToInvocationFunction.handle(DelegatesToInvocationFunction.java:156)
         at org.jclouds.rest.internal.DelegatesToInvocationFunction.invoke(DelegatesToInvocationFunction.java:123)
-        at com.sun.proxy.$Proxy128.listBucket(Unknown Source)
-        at org.jclouds.s3.blobstore.S3BlobStore.list(S3BlobStore.java:175)
-        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile$PageSetIterable.advanceList(JCloudsVirtualFile.java:322)
-        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile$PageSetIterable.<init>(JCloudsVirtualFile.java:286)
-        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.listStorageMetadata(JCloudsVirtualFile.java:192)
-        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.run(JCloudsVirtualFile.java:366)
+        at com.sun.proxy.$Proxy141.listBucket(Unknown Source)
+        at org.jclouds.s3.blobstore.S3BlobStore.list(S3BlobStore.java:177)
+        at org.jclouds.blobstore.BlobStores$1$1.computeNext(BlobStores.java:86)
+        at org.jclouds.blobstore.BlobStores$1$1.computeNext(BlobStores.java:73)
+        at com.google.common.collect.AbstractIterator.tryToComputeNext(AbstractIterator.java:143)
+        at com.google.common.collect.AbstractIterator.hasNext(AbstractIterator.java:138)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.run(JCloudsVirtualFile.java:313)
+        ... 77 more
+
  
 ```
 
