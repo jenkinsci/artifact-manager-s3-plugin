@@ -68,6 +68,8 @@ the same configuration page.
 
 Artifact Manager on S3 plugin is transparently used by the Jenkins Artifact system, so as other Artifacts Managers, 
 you only have to use the Artifact Step to archive/unarchive, and the stash/unstash step, let's see how it works. 
+We have also to mention here, the [Copy Artifacts plugin](https://plugins.jenkins.io/copyartifact) that allow you 
+to download artifacts from a finished build.
 
 ## Pipeline job
 
@@ -222,7 +224,7 @@ java -jar jenkins-cli.jar -s http://localhost:8080/jenkins/ tail-log org.jclouds
 
 ## No valid session credentials
 
-The AWS credentilas has to have the token attribute, Basic AWS credentials are not valid. You would see the following 
+The AWS credentials has to have the token attribute, Basic AWS credentials are not valid. You would see the following 
 errors in the Jenkins Logs
  
 ```
@@ -259,7 +261,7 @@ java.io.IOException: No valid session credentials
 	at java.lang.Thread.run(Thread.java:748)
 ```
 
-Check the environment variable AWS_PROFILE, it should point to a profile with aws_session_token in ~/aws/credentilas
+Check the environment variable AWS_PROFILE, it should point to a profile with aws_session_token in `~/aws/credentials`
 
 ## Must provide an explicit region in the builder or setup environment to supply a region
 
