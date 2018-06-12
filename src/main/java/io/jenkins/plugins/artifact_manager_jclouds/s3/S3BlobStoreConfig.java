@@ -24,7 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import java.io.IOException;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -34,7 +33,6 @@ import org.jclouds.aws.domain.Region;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import hudson.AbortException;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Failure;

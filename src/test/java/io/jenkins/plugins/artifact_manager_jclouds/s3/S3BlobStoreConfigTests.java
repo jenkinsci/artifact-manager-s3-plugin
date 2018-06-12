@@ -1,6 +1,5 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import java.io.IOException;
 import java.util.logging.Logger;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
