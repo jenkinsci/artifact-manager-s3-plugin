@@ -7,6 +7,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import hudson.model.Failure;
 import hudson.util.FormValidation;
 import jenkins.model.ArtifactManagerConfiguration;
 import static org.junit.Assert.assertEquals;
@@ -51,8 +52,8 @@ public class S3BlobStoreConfigTests {
         assertEquals(configuration.getRegion(), CONTAINER_REGION);
     }
 
-    @Test(expected = IOException.class)
-    public void checkContainerWrongConfiguration() throws IOException {
+    @Test(expected = Failure.class)
+    public void checkContainerWrongConfiguration() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
         descriptor.setContainer("/wrong-container-name");
         fail();

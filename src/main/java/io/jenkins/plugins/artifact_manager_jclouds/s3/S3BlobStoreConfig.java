@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.aws.domain.Region;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -82,7 +83,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     @DataBoundSetter
-    public void setContainer(String container) throws IOException {
+    public void setContainer(String container) throws Failure {
         this.container = container;
         checkValue(doCheckContainer(container));
         save();
@@ -93,7 +94,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     @DataBoundSetter
-    public void setPrefix(String prefix) throws IOException {
+    public void setPrefix(String prefix){
         this.prefix = prefix;
         checkValue(doCheckPrefix(prefix));
         save();
@@ -104,13 +105,13 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     @DataBoundSetter
-    public void setRegion(String region) throws IOException {
+    public void setRegion(String region) {
         this.region = region;
         checkValue(doCheckRegion(region));
         save();
     }
 
-    private void checkValue(FormValidation formValidation) throws FormValidation {
+    private void checkValue(@NonNull FormValidation formValidation) {
         if (formValidation.kind == FormValidation.Kind.ERROR) {
             throw new Failure(formValidation.getMessage());
         }
