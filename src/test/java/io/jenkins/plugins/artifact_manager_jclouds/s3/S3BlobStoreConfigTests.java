@@ -92,7 +92,6 @@ public class S3BlobStoreConfigTests {
     public void checkValidationsRegion() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
         assertEquals(descriptor.doCheckRegion("").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckRegion(null).kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckRegion("us-west-1").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckRegion("no-valid").kind, FormValidation.Kind.ERROR);
     }
