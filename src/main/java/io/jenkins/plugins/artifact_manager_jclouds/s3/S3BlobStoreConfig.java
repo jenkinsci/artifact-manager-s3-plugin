@@ -81,7 +81,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     @DataBoundSetter
-    public void setContainer(String container) throws Failure {
+    public void setContainer(String container) {
         this.container = container;
         checkValue(doCheckContainer(container));
         save();
