@@ -36,6 +36,7 @@ import org.kohsuke.stapler.QueryParameter;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.ExtensionList;
+import hudson.model.Failure;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.GlobalConfiguration;
@@ -111,7 +112,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
 
     private void checkValue(FormValidation formValidation) throws FormValidation {
         if (formValidation.kind == FormValidation.Kind.ERROR) {
-            throw formValidation;
+            throw new Failure(formValidation.getMessage());
         }
     }
 
