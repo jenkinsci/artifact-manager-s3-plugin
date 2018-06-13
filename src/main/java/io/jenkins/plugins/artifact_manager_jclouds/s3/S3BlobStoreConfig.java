@@ -27,6 +27,7 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.aws.domain.Region;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -34,6 +35,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import hudson.Extension;
 import hudson.ExtensionList;
+import hudson.model.Failure;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.GlobalConfiguration;
@@ -81,6 +83,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setContainer(String container) {
         this.container = container;
+        checkValue(doCheckContainer(container));
         save();
     }
 
@@ -89,18 +92,27 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     @DataBoundSetter
-    public void setPrefix(String prefix) {
+    public void setPrefix(String prefix){
         this.prefix = prefix;
+        checkValue(doCheckPrefix(prefix));
         save();
     }
 
     public String getRegion() {
         return region;
     }
+
     @DataBoundSetter
     public void setRegion(String region) {
         this.region = region;
+        checkValue(doCheckRegion(region));
         save();
+    }
+
+    private void checkValue(@NonNull FormValidation formValidation) {
+        if (formValidation.kind == FormValidation.Kind.ERROR) {
+            throw new Failure(formValidation.getMessage());
+        }
     }
 
     public boolean isDeleteArtifacts() {
@@ -160,4 +172,6 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         }
         return ret;
     }
+    
+    
 }
