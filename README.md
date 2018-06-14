@@ -131,7 +131,7 @@ this step would use the Artifact Manager on S3 plugin to store the artifacts int
 
 ![](images/fsj-step-archive.png)
 
-# Manage Artiacts
+# Manage Artifacts
 
 The default behaviour of the plugin it is not delete artifact from the S3 Bucket, so the artifacts storaged 
 on the S3 Bucket would be in the S3 bucket even do you remove the build from Jenkins. 
@@ -265,7 +265,7 @@ Check the environment variable AWS_PROFILE, it should point to a profile with aw
 
 ## Must provide an explicit region in the builder or setup environment to supply a region
 
-In some cases the region should be expecified, set the environment variable AWS_REGION to the correct region.
+In some cases the region should be specified, set the environment variable AWS_REGION to the correct region.
 
 ```
 com.amazonaws.SdkClientException: Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region.
