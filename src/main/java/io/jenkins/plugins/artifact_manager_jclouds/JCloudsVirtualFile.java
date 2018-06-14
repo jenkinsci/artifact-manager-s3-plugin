@@ -24,10 +24,7 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.remoting.Callable;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -45,7 +42,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.StreamSupport;
-import jenkins.util.VirtualFile;
+
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.BlobStores;
@@ -53,9 +50,16 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.MutableBlobMetadata;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.ListContainerOptions;
-import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
+import org.jclouds.rest.AuthorizationException;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.AbortException;
+import hudson.remoting.Callable;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import jenkins.util.VirtualFile;
 
 /**
  * <a href="https://jclouds.apache.org/start/blobstore/">JClouds BlobStore Guide</a>
@@ -317,6 +321,9 @@ public class JCloudsVirtualFile extends VirtualFile {
                     saved.put(sm.getName().substring(prefixLength), new CachedMetadata(length, lastModified != null ? lastModified.getTime() : 0));
                 }
             }
+        } catch (AuthorizationException e) {
+            String cause = e.getCause() != null ? e.getCause().getMessage() : "";
+            throw new AbortException(String.format("Authorization failed: %s %s", e.getMessage(), cause));
         } catch (RuntimeException x) {
             throw new IOException(x);
         }
