@@ -64,6 +64,21 @@ the same configuration page.
 
 ![](images/bucket-settings.png)
 
+Every field on the configuration form has a validation, this validation will check that the field value is a proper value.
+
+![](images/s3-bucket-name-not-valid.png)
+
+If you save a wrong configuration, you will see a related error explained why, then you have to came back to 
+the configuration page to set the proper value.
+
+![](images/save-wrong-configuration.png) 
+
+Before saving the configuration, we recommend you to test the configuration by using the "Validate S3 Bucket configuration" 
+button. This button will test the bucket exists and the credentials used are valid and has access to the bucket. 
+See the [troubleshooting section](#Troubleshooting) for more details about the reported error. 
+
+![](images/validation-success.png)
+
 # How to use  Artifact Manager on S3 plugin
 
 Artifact Manager on S3 plugin is transparently used by the Jenkins Artifact system, so as other Artifacts Managers, 
@@ -226,6 +241,8 @@ java -jar jenkins-cli.jar -s http://localhost:8080/jenkins/ tail-log org.jclouds
 
 The AWS credentials has to have the token attribute, Basic AWS credentials are not valid. You would see the following 
 errors in the Jenkins Logs
+
+![](images/validation-no-valid-credentials.png)
  
 ```
 Jun 06, 2018 4:20:33 PM hudson.model.Run getArtifactsUpTo
@@ -267,6 +284,7 @@ Check the environment variable AWS_PROFILE, it should point to a profile with aw
 
 In some cases the region should be expecified, set the environment variable AWS_REGION to the correct region.
 
+
 ```
 com.amazonaws.SdkClientException: Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region.
 	at com.amazonaws.client.builder.AwsClientBuilder.setRegion(AwsClientBuilder.java:371)
@@ -290,6 +308,8 @@ com.amazonaws.SdkClientException: Unable to find a region via the region provide
 ## The provided token has expired
 
 When the AWS token is expired you will see the following error in logs, you have to refresh your AWS token.
+
+![](images/validation-session-expired.png)
 
 Pipeline log
 
@@ -329,6 +349,8 @@ org.jclouds.aws.AWSResponseException: request GET https://my-bucket.s3.amazonaws
 Idf the AWS login region is different than the S3 Bucket region, you would see the following errors in logs, 
 to fix it, you have to force the S3 bucket region on the Plugin configuration to the `S3 Bucket region`.
 
+![](images/validation-wrong-region.png)
+
 ```
 hudson.remoting.ProxyException: org.jclouds.aws.AWSResponseException: request GET https://my-buckets3.amazonaws.com/?prefix=folder/small-files/139/artifacts/ HTTP/1.1 failed with code 400, error: AWSError{requestId='120C24FCF0A58541', requestToken='OcrNlauC5ArwjvfQEl7esXXXXXoeMy6dZLOxK9Cxyv9QNscw7G87L/bE3b5ic=', code='AuthorizationHeaderMalformed', message='The authorization header is malformed; the region 'xx-xxxx-x' is wrong; expecting 'xx-xxxx-x'', context='{Region=xx-xxxx-x, HostId=OcrNlauC5ArwjvfQEl7esXXXXXoeMy6dZLOxK9Cxyv9QNscw7G87L/bE3b5ic=}'}
 	at org.jclouds.aws.handlers.ParseAWSErrorFromXmlContent.handleError(ParseAWSErrorFromXmlContent.java:75)
@@ -364,6 +386,8 @@ hudson.remoting.ProxyException: org.jclouds.aws.AWSResponseException: request GE
 
 The configuration will warning you about you are trying to save a empty bucket name even do you save the configuration, 
 and you try to archive artifacts, you would see the following errors. To fix it you have to set a proper S3 Bucket name.
+
+![](images/validation-empty-bucket-name.png)
 
 Pipeline log
 ```
@@ -428,6 +452,8 @@ Caused by: java.lang.IllegalArgumentException: Object '' doesn't match S3 bucket
 
 If you set an unexistent S3 Bucket you would see the following errors in logs, 
 to fix it set a proper S3 Bucket name in the Plugin configuration.
+
+![](images/validation-s3-bucket-does-not-exists.png)
 
 ```
 NFO: small-files #170 completed: FAILURE
