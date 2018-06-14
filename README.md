@@ -75,7 +75,7 @@ the configuration page to set the proper value.
 
 Before saving the configuration, we recommend you to test the configuration by using the "Validate S3 Bucket configuration" 
 button. This button will test the bucket exists and the credentials used are valid and has access to the bucket. 
-See the [troubleshooting section](#Troubleshooting) for more details about the reported error. 
+See the [troubleshooting section](#troubleshooting) for more details about the reported error. 
 
 ![](images/validation-success.png)
 
