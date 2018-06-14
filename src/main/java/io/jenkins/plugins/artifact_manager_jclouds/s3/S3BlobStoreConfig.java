@@ -24,6 +24,7 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
+import java.util.Collections;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -36,9 +37,15 @@ import org.kohsuke.stapler.QueryParameter;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Failure;
+import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.GlobalConfiguration;
+import jenkins.model.Jenkins;
+import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
@@ -141,6 +148,16 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
             regions.add(s);
         }
         return regions;
+    }
+
+    public ListBoxModel doFillCredentialsIdItems() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        ListBoxModel credentials = new ListBoxModel();
+        credentials.add("None", null);
+        credentials.addAll(CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(),
+                                                               ACL.SYSTEM, Collections.emptyList() ,
+                                                               CredentialsMatchers.instanceOf(AWSCredentialsImpl.class)));
+        return credentials;
     }
 
     public FormValidation doCheckContainer(@QueryParameter String container){
