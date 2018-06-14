@@ -76,10 +76,12 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     /**
      * class to test configuration against Amazon S3 Bucket.
      */
-    class S3BlobStoreTester extends S3BlobStore {
-        S3BlobStoreConfig config =  new S3BlobStoreConfig();
+    private static class S3BlobStoreTester extends S3BlobStore {
+        private static final long serialVersionUID = -3645770416235883487L;
+        private transient S3BlobStoreConfig config;
 
         public S3BlobStoreTester(String container, String prefix, String region){
+            config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
             config.setRegion(region);
