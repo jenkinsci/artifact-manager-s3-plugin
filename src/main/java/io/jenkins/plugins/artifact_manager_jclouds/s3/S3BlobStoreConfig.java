@@ -209,7 +209,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
-            LOGGER.severe(t.getMessage());
+            LOGGER.finest(t.getMessage());
         }
         return ret;
     }
