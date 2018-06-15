@@ -35,12 +35,14 @@ import org.jclouds.aws.domain.Region;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Failure;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.GlobalConfiguration;
+import jenkins.model.Jenkins;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
@@ -195,8 +197,10 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         return ret;
     }
 
+    @RequirePOST
     public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix,
                                                    @QueryParameter String region){
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
             S3BlobStore provider = new S3BlobStoreTester(container, prefix, region);
