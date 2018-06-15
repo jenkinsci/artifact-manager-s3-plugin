@@ -220,7 +220,7 @@ public class S3BlobStore extends BlobStoreProvider {
      * Select the type of AWS credential that has to be created based on the configuration. If no AWS credential is
      * provided, the IAM instance profile or user AWS configuration is use to create the AWS credentials.
      * @return A n AWS session credential.
-     * @throws IOException
+     * @throws IOException in case of error.
      */
     private AWSSessionCredentials sessionCredentials() throws IOException {
         AWSSessionCredentials awsCredentials;

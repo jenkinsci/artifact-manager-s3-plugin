@@ -170,6 +170,8 @@ Artifact Manager on S3 plugin needs an AWS credentials in order to access to the
 configuration page. If you do not select any AWS credential and keep the "" dropdown on the option "IAM instance Profile/user AWS configuration"
 Artifact Manager on S3 plugin would try to use the IAM instance profile credentials of the Jenkins host, or user AWS configuration (~/.aws). 
 
+![](images/configue-credentials.png)
+
 If you use a regular Key/Secret AWS Credentials you can set the token duration by adding the property 
 `-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.sessionDuration` to the Jenkins JVM properties, 
 the default value is one hour. However if you set and IAM Role to assume on the AWS credential, 

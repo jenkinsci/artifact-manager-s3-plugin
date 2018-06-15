@@ -96,11 +96,12 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         private static final long serialVersionUID = -3645770416235883487L;
         private transient S3BlobStoreConfig config;
 
-        public S3BlobStoreTester(String container, String prefix, String region){
+        public S3BlobStoreTester(String container, String prefix, String region,String credentialsId){
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
             config.setRegion(region);
+            config.setCredentialsId(credentialsId);
         }
 
         @Override
@@ -251,11 +252,11 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
 
     @RequirePOST
     public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix,
-                                                   @QueryParameter String region){
+                                                   @QueryParameter String region, @QueryParameter String credentialsId){
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
-            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region);
+            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region, credentialsId);
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, "");
             jc.list();
         } catch (Throwable t){
