@@ -28,17 +28,21 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import org.apache.commons.lang.StringUtils;
+import org.jclouds.aws.AWSResponseException;
 import org.jclouds.aws.domain.Region;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Failure;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.GlobalConfiguration;
+import jenkins.model.Jenkins;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
@@ -70,6 +74,26 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
      * force the region to use for the URLs generated.
      */
     private String region;
+
+    /**
+     * class to test configuration against Amazon S3 Bucket.
+     */
+    private static class S3BlobStoreTester extends S3BlobStore {
+        private static final long serialVersionUID = -3645770416235883487L;
+        private transient S3BlobStoreConfig config;
+
+        public S3BlobStoreTester(String container, String prefix, String region){
+            config = new S3BlobStoreConfig();
+            config.setContainer(container);
+            config.setPrefix(prefix);
+            config.setRegion(region);
+        }
+
+        @Override
+        public S3BlobStoreConfig getConfiguration() {
+            return config;
+        }
+    }
 
     @DataBoundConstructor
     public S3BlobStoreConfig() {
@@ -148,7 +172,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         if (StringUtils.isBlank(container)){
             ret = FormValidation.warning("The container name cannot be empty");
         } else if (!bucketPattern.matcher(container).matches()){
-            ret = FormValidation.error("The S3 Bucket name does not match with S3 bucket rules");
+            ret = FormValidation.error("The S3 Bucket name does not match S3 bucket rules");
         }
         return ret;
     }
@@ -172,6 +196,37 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         }
         return ret;
     }
-    
-    
+
+    @RequirePOST
+    public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix,
+                                                   @QueryParameter String region){
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        FormValidation ret = FormValidation.ok("success");
+        try {
+            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region);
+            JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, "");
+            jc.list();
+        } catch (Throwable t){
+            String msg = processExceptionMessage(t);
+            ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
+            LOGGER.finest(t.getMessage());
+        }
+        return ret;
+    }
+
+    /**
+     * it retuns a different cause message based on exception type.
+     * @param t Throwable to process.
+     * @return the proper cause message.
+     */
+    private String processExceptionMessage(Throwable t) {
+        String msg = t.getMessage();
+        String className = t.getClass().getSimpleName();
+        Throwable cause = t.getCause();
+        if(cause instanceof AWSResponseException){
+            className = cause.getClass().getSimpleName();
+            msg = ((AWSResponseException) cause).getError().getMessage();
+        }
+        return className + ":" + StringUtils.defaultIfBlank(msg, "Unknown error");
+    }
 }
