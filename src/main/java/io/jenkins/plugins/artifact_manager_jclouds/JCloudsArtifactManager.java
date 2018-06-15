@@ -67,7 +67,8 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
- * Artifact manager that stores files in a JClouds BlobStore using any of JClouds supported backends
+ * Jenkins artifact/stash implementation using any blob store supported by Apache jclouds.
+ * To offer a new backend, implement {@link BlobStoreProvider}.
  */
 @Restricted(NoExternalUse.class)
 public final class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
