@@ -159,6 +159,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     public AWSCredentialsImpl getCredentials() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         Optional<AmazonWebServicesCredentials> credential = CredentialsProvider.lookupCredentials(
                 AmazonWebServicesCredentials.class, Jenkins.get(),ACL.SYSTEM, Collections.emptyList())
                                                                                .stream()
