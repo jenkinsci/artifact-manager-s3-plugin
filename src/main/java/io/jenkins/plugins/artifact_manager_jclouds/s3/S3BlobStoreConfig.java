@@ -32,10 +32,10 @@ import javax.annotation.Nonnull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.aws.domain.Region;
-import org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Failure;
@@ -48,7 +48,6 @@ import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.IdCredentials;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
@@ -133,6 +132,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setCredentialsId(String credentialsId) {
         this.credentialsId = credentialsId;
+        save();
     }
 
     public AWSCredentialsImpl getCredentials() {
@@ -186,10 +186,11 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         return regions;
     }
 
+    @RequirePOST
     public ListBoxModel doFillCredentialsIdItems() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel credentials = new ListBoxModel();
-        credentials.add("IAM Instance Profile", "");
+        credentials.add("IAM instance Profile/user AWS configuration", "");
         credentials.addAll(CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(),
                                                                ACL.SYSTEM, Collections.emptyList(),
                                                                CredentialsMatchers.instanceOf(AWSCredentialsImpl.class)));

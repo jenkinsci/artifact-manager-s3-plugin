@@ -151,11 +151,14 @@ In order to delete artifacts on the S3 Bucket, you would have to add the propert
 
 # AWS Credentials
 
-IAM instance Profile
-AWS Credential 
+Artifact Manager on S3 plugin needs an AWS credentials in order to access to the S3 Bucket, you can select one on the
+configuration page. If you do not select any AWS credential and keep the "" dropdown on the option "IAM instance Profile/user AWS configuration"
+Artifact Manager on S3 plugin would try to use the IAM instance profile credentials of the Jenkins host, or user AWS configuration (~/.aws). 
 
-Token Session Duration
-`-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.sessionDuration`
+If you use a regular Key/Secret AWS Credentials you can set the token duration by adding the property 
+`-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.sessionDuration` to the Jenkins JVM properties, 
+the default value is one hour. However if you set and IAM Role to assume on the AWS credential, 
+the token duration is always one hour, this parameter does not change the duration in AWS Credentials Plugin settings.
 
 # Extending Artifact Manager on S3 plugin
 
@@ -555,4 +558,138 @@ WARNING: null
 ...
 12:00:02 Retrying upload after: java.net.SocketException: Broken pipe (Write failed)
 12:01:06 Retrying upload after: java.net.SocketException: Broken pipe (Write failed)
+```
+
+# Member must have length greater than or equal to 20
+
+If you use an invalid IAM Role ID on your credentilas, you would see the following error, 
+you have to set a proper ARN specifying the IAM role to assume. The format should be something like: 
+"arn:aws:iam::123456789012:role/MyIAMRoleName".
+
+```
+Jun 15, 2018 12:01:16 PM hudson.model.Run getArtifactsUpTo
+WARNING: null
+java.io.IOException: com.amazonaws.services.securitytoken.model.AWSSecurityTokenServiceException: 1 validation error detected: Value 'MyIAMRoleName' at 'roleArn' failed to satisfy constraint: Member must have length greater than or equal to 20 (Service: AWSSecurityTokenService; Status Code: 400; Error Code: ValidationError; Request ID: XXXXXX)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.run(JCloudsVirtualFile.java:321)
+        at hudson.model.Run.getArtifactsUpTo(Run.java:1098)
+...
+        at org.eclipse.jetty.util.thread.QueuedThreadPool$2.run(QueuedThreadPool.java:590)
+        at java.lang.Thread.run(Thread.java:748)
+Caused by: com.amazonaws.services.securitytoken.model.AWSSecurityTokenServiceException: 1 validation error detected: Value 'MyIAMRoleName' at 'roleArn' failed to satisfy constraint: Member must have length greater than or equal to 20 (Service: AWSSecurityTokenService; Status Code: 400; Error Code: ValidationError; Request ID: XXXXXX)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1632)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1304)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeHelper(AmazonHttpClient.java:1058)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.doExecute(AmazonHttpClient.java:743)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeWithTimer(AmazonHttpClient.java:717)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.execute(AmazonHttpClient.java:699)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.access$500(AmazonHttpClient.java:667)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutionBuilderImpl.execute(AmazonHttpClient.java:649)
+        at com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:513)
+        at com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient.doInvoke(AWSSecurityTokenServiceClient.java:1307)
+        at com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient.invoke(AWSSecurityTokenServiceClient.java:1283)
+        at com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient.executeAssumeRole(AWSSecurityTokenServiceClient.java:466)
+        at com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient.assumeRole(AWSSecurityTokenServiceClient.java:442)
+        at com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl.getCredentials(AWSCredentialsImpl.java:124)
+        at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.sessionCredentialsFromKeyAndSecret(S3BlobStore.java:145)
+        at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.getCredentialsSupplier(S3BlobStore.java:186)
+        at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.getContext(S3BlobStore.java:126)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.getContext(JCloudsVirtualFile.java:96)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.listStorageMetadata(JCloudsVirtualFile.java:190)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.run(JCloudsVirtualFile.java:313)
+        ... 77 more
+
+```
+
+# User: arn:aws:iam::XXXXXX:user/people/myUser is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::XXXXXXX:role/my-role
+
+If you see the following error, your user would not assume the IAM Role that you set on your Jenkins AWS Credentials. 
+Check that your user can assume that IAM Role in AWS Console.
+
+```
+Jun 15, 2018 12:00:15 PM hudson.model.Run getArtifactsUpTo
+WARNING: null
+java.io.IOException: com.amazonaws.services.securitytoken.model.AWSSecurityTokenServiceException: User: arn:aws:iam::XXXXXX:user/people/myUser is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::XXXXXXX:role/my-role (Service: AWSSecurityTokenService; Status Code: 403; Error Code: AccessDenied; Request ID: XXXXXX)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.run(JCloudsVirtualFile.java:321)
+        at hudson.model.Run.getArtifactsUpTo(Run.java:1098)
+        at com.cloudbees.workflow.rest.external.RunExt.createMinimal(RunExt.java:253)
+        at com.cloudbees.workflow.rest.external.RunExt.createNew(RunExt.java:317)
+        at com.cloudbees.workflow.rest.external.RunExt.create(RunExt.java:309)
+        at com.cloudbees.workflow.rest.external.JobExt.create(JobExt.java:131)
+        at com.cloudbees.workflow.rest.endpoints.JobAPI.doRuns(JobAPI.java:69)
+        at java.lang.invoke.MethodHandle.invokeWithArguments(MethodHandle.java:627)
+...
+        at org.eclipse.jetty.util.thread.QueuedThreadPool$2.run(QueuedThreadPool.java:590)
+        at java.lang.Thread.run(Thread.java:748)
+Caused by: com.amazonaws.services.securitytoken.model.AWSSecurityTokenServiceException: User: arn:aws:iam::XXXXXX:user/people/myUser is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::XXXXXXX:role/my-role (Service: AWSSecurityTokenService; Status Code: 403; Error Code: AccessDenied; Request ID: XXXXXX)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1632)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1304)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeHelper(AmazonHttpClient.java:1058)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.doExecute(AmazonHttpClient.java:743)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeWithTimer(AmazonHttpClient.java:717)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.execute(AmazonHttpClient.java:699)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutor.access$500(AmazonHttpClient.java:667)
+        at com.amazonaws.http.AmazonHttpClient$RequestExecutionBuilderImpl.execute(AmazonHttpClient.java:649)
+        at com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:513)
+        at com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient.doInvoke(AWSSecurityTokenServiceClient.java:1307)
+        at com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient.invoke(AWSSecurityTokenServiceClient.java:1283)
+        at com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient.executeAssumeRole(AWSSecurityTokenServiceClient.java:466)
+        at com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient.assumeRole(AWSSecurityTokenServiceClient.java:442)
+        at com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl.getCredentials(AWSCredentialsImpl.java:124)
+        at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.sessionCredentialsFromKeyAndSecret(S3BlobStore.java:145)
+        at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.getCredentialsSupplier(S3BlobStore.java:186)
+        at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.getContext(S3BlobStore.java:126)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.getContext(JCloudsVirtualFile.java:96)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.listStorageMetadata(JCloudsVirtualFile.java:190)
+        at io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile.run(JCloudsVirtualFile.java:313)
+        ... 77 more
+
+```
+
+# Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region. 
+
+There is no user AWS configuration (~/.aws), and there is not AWS credential configured. You need a user AWS configuration, 
+or you have to configure an AWS credential in Jenkins. 
+ 
+```
+com.amazonaws.SdkClientException: Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region.
+	at com.amazonaws.client.builder.AwsClientBuilder.setRegion(AwsClientBuilder.java:371)
+	at com.amazonaws.client.builder.AwsClientBuilder.configureMutableProperties(AwsClientBuilder.java:337)
+	at com.amazonaws.client.builder.AwsSyncClientBuilder.build(AwsSyncClientBuilder.java:46)
+	at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.sessionCredentialsFromKeyAndSecret(S3BlobStore.java:154)
+	at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.getCredentialsSupplier(S3BlobStore.java:187)
+	at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.getContext(S3BlobStore.java:127)
+	at io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager.getContext(JCloudsArtifactManager.java:316)
+	at io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager.archive(JCloudsArtifactManager.java:116)
+	at hudson.tasks.ArtifactArchiver.perform(ArtifactArchiver.java:235)
+	at org.jenkinsci.plugins.workflow.steps.CoreStep$Execution.run(CoreStep.java:80)
+	at org.jenkinsci.plugins.workflow.steps.CoreStep$Execution.run(CoreStep.java:67)
+	at org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution$1$1.call(SynchronousNonBlockingStepExecution.java:50)
+	at hudson.security.ACL.impersonate(ACL.java:290)
+	at org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution$1.run(SynchronousNonBlockingStepExecution.java:47)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+```
+
+```
+java.lang.NullPointerException
+	at com.amazonaws.auth.AbstractAWSSigner.sanitizeCredentials(AbstractAWSSigner.java:411)
+	at com.amazonaws.auth.AWS4Signer.presignRequest(AWS4Signer.java:273)
+	at com.amazonaws.services.s3.AmazonS3Client.generatePresignedUrl(AmazonS3Client.java:3009)
+	at com.amazonaws.services.s3.AmazonS3Client.generatePresignedUrl(AmazonS3Client.java:2945)
+	at io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore.toExternalURL(S3BlobStore.java:246)
+	at io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManager.archive(JCloudsArtifactManager.java:124)
+	at hudson.tasks.ArtifactArchiver.perform(ArtifactArchiver.java:235)
+	at org.jenkinsci.plugins.workflow.steps.CoreStep$Execution.run(CoreStep.java:80)
+	at org.jenkinsci.plugins.workflow.steps.CoreStep$Execution.run(CoreStep.java:67)
+	at org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution$1$1.call(SynchronousNonBlockingStepExecution.java:50)
+	at hudson.security.ACL.impersonate(ACL.java:290)
+	at org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution$1.run(SynchronousNonBlockingStepExecution.java:47)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
 ```
