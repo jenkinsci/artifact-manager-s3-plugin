@@ -25,12 +25,14 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.Collections;
+import java.util.Optional;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.aws.domain.Region;
+import org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -46,6 +48,7 @@ import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.IdCredentials;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
@@ -64,6 +67,8 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static int SESSION_DURATION = Integer.getInteger(S3BlobStoreConfig.class.getName() + ".sessionDuration", 3600);
 
     /**
      * Name of the S3 Bucket.
@@ -77,6 +82,11 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
      * force the region to use for the URLs generated.
      */
     private String region;
+    /**
+     * AWS credentials to access to the S3 Bucket, if it is empty, it would use the IAM instance profile from the
+     * jenkins hosts.
+     */
+    private String credentialsId;
 
     @DataBoundConstructor
     public S3BlobStoreConfig() {
@@ -116,6 +126,28 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         save();
     }
 
+    public String getCredentialsId() {
+        return credentialsId;
+    }
+
+    @DataBoundSetter
+    public void setCredentialsId(String credentialsId) {
+        this.credentialsId = credentialsId;
+    }
+
+    public AWSCredentialsImpl getCredentials() {
+        Optional<AmazonWebServicesCredentials> credential = CredentialsProvider.lookupCredentials(
+                AmazonWebServicesCredentials.class, Jenkins.get(),ACL.SYSTEM, Collections.emptyList())
+                                                                               .stream()
+                                                                               .filter(it -> it.getId().equals(credentialsId))
+                                                                               .findFirst();
+        if(credential.isPresent() && credential.get() instanceof AWSCredentialsImpl){
+            return (AWSCredentialsImpl)credential.get();
+        } else {
+            return null;
+        }
+    }
+
     private void checkValue(@NonNull FormValidation formValidation) {
         if (formValidation.kind == FormValidation.Kind.ERROR) {
             throw new Failure(formValidation.getMessage());
@@ -128,6 +160,10 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
 
     public boolean isDeleteStashes() {
         return DELETE_STASHES;
+    }
+
+    public int getSessionDuration(){
+        return SESSION_DURATION;
     }
 
     @Nonnull
@@ -153,9 +189,9 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     public ListBoxModel doFillCredentialsIdItems() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         ListBoxModel credentials = new ListBoxModel();
-        credentials.add("None", null);
+        credentials.add("IAM Instance Profile", "");
         credentials.addAll(CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(),
-                                                               ACL.SYSTEM, Collections.emptyList() ,
+                                                               ACL.SYSTEM, Collections.emptyList(),
                                                                CredentialsMatchers.instanceOf(AWSCredentialsImpl.class)));
         return credentials;
     }
