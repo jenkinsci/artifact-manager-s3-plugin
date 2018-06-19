@@ -22,13 +22,14 @@
  * THE SOFTWARE.
  */
 
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
+import static org.junit.Assume.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -94,21 +95,21 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     }
 
     @Rule
-    public JenkinsRule j = new JenkinsRule();
-
-    @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
-    protected ArtifactManagerFactory getArtifactManagerFactory() {
-        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix()));
+    protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
+        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
     }
 
     private static final class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
         private final BlobStoreProvider delegate;
         private final String prefix;
-        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix) {
+        private final Boolean deleteArtifacts, deleteStashes;
+        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteArtifacts, Boolean deleteStashes) {
             this.delegate = delegate;
             this.prefix = prefix;
+            this.deleteArtifacts = deleteArtifacts;
+            this.deleteStashes = deleteStashes;
         }
         @Override
         public String getPrefix() {
@@ -117,6 +118,14 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         @Override
         public String getContainer() {
             return delegate.getContainer();
+        }
+        @Override
+        public boolean isDeleteArtifacts() {
+            return deleteArtifacts != null ? deleteArtifacts : delegate.isDeleteArtifacts();
+        }
+        @Override
+        public boolean isDeleteStashes() {
+            return deleteStashes != null ? deleteStashes : delegate.isDeleteStashes();
         }
         @Override
         public BlobStoreContext getContext() throws IOException {
@@ -137,24 +146,43 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     }
 
     @Test
-    public void smokes() throws Exception {
-        if (image != null) {
-            System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
-            try (JavaContainer container = image.start(JavaContainer.class).start()) {
-                DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test", "test", "", ""));
-                Jenkins.get().addNode(agent);
-                j.waitOnline(agent);
-                try {
-                    agent.getChannel().call(new LoadS3Credentials());
-                    fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
-                } catch (SdkClientException x) {
-                    System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
-                }
+    public void agentPermissions() throws Exception {
+        assumeNotNull(image);
+        System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
+        try (JavaContainer container = image.start(JavaContainer.class).start()) {
+            DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test", "test", "", ""));
+            Jenkins.get().addNode(agent);
+            j.waitOnline(agent);
+            try {
+                agent.getChannel().call(new LoadS3Credentials());
+                fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
+            } catch (SdkClientException x) {
+                System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
             }
         }
-        // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.run(j, getArtifactManagerFactory(), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
     }
+
+    @Test
+    public void artifactArchive() throws Exception {
+        // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
+        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
+    }
+
+    @Test
+    public void artifactArchiveAndDelete() throws Exception {
+        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), false, image);
+    }
+
+    @Test
+    public void artifactStash() throws Exception {
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), false, image);
+    }
+
+    @Test
+    public void artifactStashAndDelete() throws Exception {
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), false, image);
+    }
+
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
         @Override
         public Void call() {
@@ -165,7 +193,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void artifactBrowsingPerformance() throws Exception {
-        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory());
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         FreeStyleProject p = j.createFreeStyleProject();
         p.getBuildersList().add(new TestBuilder() {
             @Override
@@ -201,13 +229,13 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Issue({"JENKINS-51390", "JCLOUDS-1200"})
     @Test
     public void serializationProblem() throws Exception {
-        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory());
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f', text: 'content'; archiveArtifacts 'f'; dir('d') {try {unarchive mapping: ['f': 'f']} catch (x) {sleep 1; echo(/caught $x/)}}}", true));
         S3BlobStore.BREAK_CREDS = true;
         try {
             WorkflowRun b = j.buildAndAssertSuccess(p);
-            j.assertLogContains("caught org.jclouds.aws.AWSResponseException", b);
+            j.assertLogContains("caught java.io.IOException: org.jclouds.aws.AWSResponseException", b);
             j.assertLogNotContains("java.io.NotSerializableException", b);
         } finally {
             S3BlobStore.BREAK_CREDS = false;
@@ -216,7 +244,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     //@Test
     public void archiveSingleLargeFile() throws Exception {
-        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory());
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         FreeStyleProject p = j.createFreeStyleProject();
         p.getBuildersList().add(new TestBuilder() {
             @Override

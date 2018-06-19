@@ -27,25 +27,23 @@ package io.jenkins.plugins.artifact_manager_jclouds;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
-import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.ExceptionLogger;
+import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
-import org.apache.http.HttpVersion;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
-import org.apache.http.message.BasicStatusLine;
 import org.apache.http.protocol.HttpContext;
-import org.eclipse.jetty.util.ConcurrentHashSet;
+import org.apache.http.protocol.HttpRequestHandler;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -73,16 +71,17 @@ public final class MockBlobStore extends BlobStoreProvider {
     public String getContainer() {
         return "container";
     }
-    
-    private static final Set<String> fails = new ConcurrentHashSet<>();
+
+    private static final Map<String, HttpRequestHandler> specialHandlers = new ConcurrentHashMap<>();
 
     /**
-     * Requests that the <em>next</em> HTTP access to a particular presigned URL should fail with a 500 error.
+     * Requests that the <em>next</em> HTTP access to a particular presigned URL should behave specially.
      * @param method upload or download
      * @param key the blob’s {@link StorageMetadata#getName}
+     * @param handler what to do instead
      */
-    static void failIn(HttpMethod method, String key) {
-        fails.add(method + ":" + key);
+    static void speciallyHandle(HttpMethod method, String key, HttpRequestHandler handler) {
+        specialHandlers.put(method + ":" + key, handler);
     }
 
     @Override
@@ -98,9 +97,9 @@ public final class MockBlobStore extends BlobStoreProvider {
                     }
                     String container = m.group(1);
                     String key = m.group(2);
-                    if (fails.remove(method + ":" + key)) {
-                        response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, 500, "simulated failure"));
-                        response.setEntity(new StringEntity("Detailed explanation."));
+                    HttpRequestHandler specialHandler = specialHandlers.remove(method + ":" + key);
+                    if (specialHandler != null) {
+                        specialHandler.handle(request, response, _context);
                         return;
                     }
                     BlobStore blobStore = context.getBlobStore();
@@ -132,7 +131,13 @@ public final class MockBlobStore extends BlobStoreProvider {
                         }
                     }
                 }).
-                setExceptionLogger(ExceptionLogger.STD_ERR).
+                setExceptionLogger(x -> {
+                    if (x instanceof ConnectionClosedException) {
+                        LOGGER.info(x.toString());
+                    } else {
+                        LOGGER.log(Level.INFO, "error thrown in HTTP service", x);
+                    }
+                }).
                 create();
             server.start();
             baseURL = new URL("http://" + server.getInetAddress().getHostName() + ":" + server.getLocalPort() + "/");
@@ -149,6 +154,16 @@ public final class MockBlobStore extends BlobStoreProvider {
     @Override
     public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
         return new URL(baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName() + "?method=" + httpMethod);
+    }
+
+    @Override
+    public boolean isDeleteArtifacts() {
+        return true;
+    }
+
+    @Override
+    public boolean isDeleteStashes() {
+        return true;
     }
 
 }

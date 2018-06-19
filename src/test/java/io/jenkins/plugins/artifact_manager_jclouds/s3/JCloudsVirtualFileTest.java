@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-package io.jenkins.plugins.artifact_manager_s3;
+package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import static org.hamcrest.Matchers.*;
@@ -55,7 +55,6 @@ import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import jenkins.util.VirtualFile;
-import shaded.com.google.common.collect.ImmutableSet;
 
 public class JCloudsVirtualFileTest extends S3AbstractTest {
 
@@ -179,8 +178,6 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
 
     @Test
     public void list() throws Exception {
-        VirtualFile[] rootList = root.list();
-        assertTrue("Expected list to contain files: " + Arrays.toString(rootList), rootList.length > 0);
         assertVirtualFileArrayEquals(new JCloudsVirtualFile[] { vf, weirdCharacters }, subdir.list());
         assertVirtualFileArrayEquals(new JCloudsVirtualFile[0], vf.list());
         assertVirtualFileArrayEquals(new JCloudsVirtualFile[0], missing.list());
@@ -189,21 +186,30 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     @Test
     @SuppressWarnings("deprecation")
     public void listGlob() throws Exception {
-        httpLogging.record(InvokeHttpMethod.class, Level.FINE);
-        httpLogging.capture(1000);
-        String timestampDir = getPrefix().replaceFirst(".*/([^/?]+/)$", "$1");
-        assertEquals(ImmutableSet.of(timestampDir + weirdCharacters.getName(), timestampDir + vf.getName()),
-                subdir.getParent().list(timestampDir + "*", null, true));
-        int httpCount = httpLogging.getRecords().size();
-        System.err.println("total count: " + httpCount);
-        // TODO current count is 5, but this test is bad (nondeterministic)—lists files in the bucket not created by this test
-        // should rather create a directory with a specific number of files (enough to exceed a single iterator page!)
-        assertThat(httpCount, lessThanOrEqualTo(100));
-        assertArrayEquals(new String[] { vf.getName(), weirdCharacters.getName() }, subdir.list("**/**"));
+        assertThat(subdir.list("**/**"), arrayContainingInAnyOrder(vf.getName(), weirdCharacters.getName()));
         assertArrayEquals(new String[] { vf.getName() }, subdir.list(tmpFile.getName().substring(0, 4) + "*"));
         assertArrayEquals(new String[0], subdir.list("**/something**"));
         assertArrayEquals(new String[0], vf.list("**/**"));
         assertArrayEquals(new String[0], missing.list("**/**"));
+    }
+
+    @Test
+    public void pagedListing() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            String iDir = getPrefix() + "sprawling/i" + i + "/";
+            for (int j = 0; j < 10; j++) {
+                for (int k = 0; k < 10; k++) {
+                    blobStore.putBlob(getContainer(), blobStore.blobBuilder(iDir + "j" + j + "/k" + k).payload(new byte[0]).build());
+                }
+            }
+            blobStore.putBlob(getContainer(), blobStore.blobBuilder(iDir + "extra").payload(new byte[0]).build());
+            LOGGER.log(Level.INFO, "added 101 blobs to {0}", iDir);
+        }
+        httpLogging.record(InvokeHttpMethod.class, Level.FINE);
+        httpLogging.capture(1000);
+        // Default list page size for S3 is 1000 blobs; we have 1010 plus the two created for all tests, so should hit a second page.
+        assertThat(subdir.list("sprawling/**/k3", null, true), iterableWithSize(100));
+        assertEquals("calls GetBucketLocation then ListBucket, advance to …/sprawling/i9/j8/k8, ListBucket again", 3, httpLogging.getRecords().size());
     }
 
     @Test

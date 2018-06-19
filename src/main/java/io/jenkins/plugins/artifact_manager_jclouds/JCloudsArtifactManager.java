@@ -24,30 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.blobstore.domain.StorageMetadata;
-import org.jclouds.blobstore.options.CopyOptions;
-import org.jclouds.blobstore.options.ListContainerOptions;
-import org.jenkinsci.plugins.workflow.flow.StashManager;
-
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -61,20 +37,45 @@ import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import io.jenkins.plugins.httpclient.RobustHTTPClient;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
-import org.apache.commons.io.IOUtils;
+import org.apache.http.client.methods.HttpGet;
+import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.BlobStores;
+import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.blobstore.domain.StorageMetadata;
+import org.jclouds.blobstore.options.CopyOptions;
+import org.jclouds.blobstore.options.ListContainerOptions;
+import org.jenkinsci.plugins.workflow.flow.StashManager;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
- * Artifact manager that stores files in a JClouds BlobStore using any of JClouds supported backends
+ * Jenkins artifact/stash implementation using any blob store supported by Apache jclouds.
+ * To offer a new backend, implement {@link BlobStoreProvider}.
  */
 @Restricted(NoExternalUse.class)
 public final class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
+
+    static RobustHTTPClient client = new RobustHTTPClient();
 
     private final BlobStoreProvider provider;
 
@@ -124,34 +125,40 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
         }
 
-        workspace.act(new UploadToBlobStorage(artifactUrls));
+        workspace.act(new UploadToBlobStorage(artifactUrls, listener));
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
+    }
+
+    private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
+        private static final long serialVersionUID = 1L;
+
+        private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
+        private final TaskListener listener;
+        // Bind when constructed on the master side; on the agent side, deserialize the same configuration.
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
+
+        UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
+            this.artifactUrls = artifactUrls;
+            this.listener = listener;
+        }
+
+        @Override
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+            for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
+                client.uploadFile(new File(f, entry.getKey()), entry.getValue(), listener);
+            }
+            return null;
+        }
     }
 
     @Override
     public boolean delete() throws IOException, InterruptedException {
-        return delete(provider, getContext().getBlobStore(), getBlobPath(""));
-    }
-
-    /**
-     * Delete all blobs starting with prefix
-     */
-    public static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
-        try {
-            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive());
-            boolean found = false;
-            while (it.hasNext()) {
-                StorageMetadata sm = it.next();
-                String path = sm.getName();
-                assert path.startsWith(prefix);
-                LOGGER.fine("deleting " + path);
-                blobStore.removeBlob(provider.getContainer(), path);
-                found = true;
-            }
-            return found;
-        } catch (RuntimeException x) {
-            throw new IOException(x);
+        String blobPath = getBlobPath("");
+        if (!provider.isDeleteArtifacts()) {
+            LOGGER.log(Level.FINE, "Ignoring blob deletion: {0}", blobPath);
+            return false;
         }
+        return JCloudsVirtualFile.delete(provider, getContext().getBlobStore(), blobPath);
     }
 
     @Override
@@ -168,7 +175,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         Blob blob = blobStore.blobBuilder(path).build();
         blob.getMetadata().setContainer(provider.getContainer());
         URL url = provider.toExternalURL(blob, HttpMethod.PUT);
-        int count = workspace.act(new Stash(url, includes, excludes, useDefaultExcludes, WorkspaceList.tempDir(workspace).getRemote()));
+        int count = workspace.act(new Stash(url, includes, excludes, useDefaultExcludes, WorkspaceList.tempDir(workspace).getRemote(), listener));
         if (count == 0 && !allowEmpty) {
             throw new AbortException("No files included in stash");
         }
@@ -181,18 +188,21 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         private final String includes, excludes;
         private final boolean useDefaultExcludes;
         private final String tempDir;
+        private final TaskListener listener;
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
-        Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir) throws IOException {
+        Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
             this.url = url;
             this.includes = includes;
             this.excludes = excludes;
             this.useDefaultExcludes = useDefaultExcludes;
             this.tempDir = tempDir;
+            this.listener = listener;
         }
 
         @Override
         public Integer invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            // TODO JCLOUDS-769 streaming upload is not currently straightforward, so using a temp file pending rewrite to use multipart uploads
+            // TODO use streaming upload rather than a temp file; is it necessary to set the content length in advance?
             // (we prefer not to upload individual files for stashes, so as to preserve symlinks & file permissions, as StashManager’s default does)
             Path tempDirP = Paths.get(tempDir);
             Files.createDirectories(tempDirP);
@@ -205,7 +215,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     throw new IOException(e);
                 }
                 if (count > 0) {
-                    uploadFile(tmp, url);
+                    client.uploadFile(tmp.toFile(), url, listener);
                 }
                 return count;
             } finally {
@@ -226,24 +236,29 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
         }
         URL url = provider.toExternalURL(blob, HttpMethod.GET);
-        workspace.act(new Unstash(url));
+        workspace.act(new Unstash(url, listener));
         listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
     }
 
     private static final class Unstash extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
         private final URL url;
+        private final TaskListener listener;
+        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
-        Unstash(URL url) throws IOException {
+        Unstash(URL url, TaskListener listener) throws IOException {
             this.url = url;
+            this.listener = listener;
         }
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            try (InputStream is = url.openStream()) {
-                new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
-                // Note that this API currently offers no count of files in the tarball we could report.
-            }
+            client.connect("download", "download " + RobustHTTPClient.sanitize(url) + " into " + f, c -> c.execute(new HttpGet(url.toString())), response -> {
+                try (InputStream is = response.getEntity().getContent()) {
+                    new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
+                    // Note that this API currently offers no count of files in the tarball we could report.
+                }
+            }, listener);
             return null;
         }
     }
@@ -251,12 +266,16 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     @Override
     public void clearAllStashes(TaskListener listener) throws IOException, InterruptedException {
         String stashPrefix = getBlobPath("stashes/");
+
+        if (!provider.isDeleteStashes()) {
+            LOGGER.log(Level.FINE, "Ignoring stash deletion: {0}", stashPrefix);
+            return;
+        }
+
         BlobStore blobStore = getContext().getBlobStore();
         int count = 0;
         try {
-            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive());
-            while (it.hasNext()) {
-                StorageMetadata sm = it.next();
+            for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive())) {
                 String path = sm.getName();
                 assert path.startsWith(stashPrefix);
                 LOGGER.fine("deleting " + path);
@@ -280,9 +299,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         BlobStore blobStore = getContext().getBlobStore();
         int count = 0;
         try {
-            Iterator<StorageMetadata> it = new JCloudsVirtualFile.PageSetIterable(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive());
-            while (it.hasNext()) {
-                StorageMetadata sm = it.next();
+            for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive())) {
                 String path = sm.getName();
                 assert path.startsWith(allPrefix);
                 String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
@@ -300,48 +317,4 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         return provider.getContext();
     }
 
-    private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
-        private static final long serialVersionUID = 1L;
-
-        private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
-
-        UploadToBlobStorage(Map<String, URL> artifactUrls) {
-            this.artifactUrls = artifactUrls;
-        }
-
-        @Override
-        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
-                Path local = f.toPath().resolve(entry.getKey());
-                URL url = entry.getValue();
-                LOGGER.log(Level.FINE, "Uploading {0} to {1}",
-                        new String[] { local.toAbsolutePath().toString(), url.toString() });
-                uploadFile(local, url);
-            }
-            return null;
-        }
-    }
-
-    /**
-     * Upload a file to a URL
-     */
-    private static void uploadFile(Path f, URL url) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setDoOutput(true);
-        connection.setRequestMethod("PUT");
-        connection.setFixedLengthStreamingMode(Files.size(f)); // prevent loading file in memory
-        try (OutputStream out = connection.getOutputStream()) {
-            Files.copy(f, out);
-        }
-        int responseCode = connection.getResponseCode();
-        String urlSafe = url.toString().replaceFirst("[?].+$", "?…");
-        if (responseCode < 200 || responseCode >= 300) {
-            String diag;
-            try (InputStream err = connection.getErrorStream()) {
-                diag = err != null ? IOUtils.toString(err, connection.getContentEncoding()) : null;
-            }
-            throw new IOException(String.format("Failed to upload %s to %s, response: %d %s, body: %s", f.toAbsolutePath(), urlSafe, responseCode, connection.getResponseMessage(), diag));
-        }
-        LOGGER.log(Level.FINE, "Uploaded {0} to {1}: {2}", new Object[] { f.toAbsolutePath(), urlSafe, responseCode });
-    }
 }

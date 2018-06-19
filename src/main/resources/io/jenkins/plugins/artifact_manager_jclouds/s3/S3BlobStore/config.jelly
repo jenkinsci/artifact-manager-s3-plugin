@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <j:if test="${!instance.isConfigured()}">
+        <div class="alert alert-warning">
+            <strong>${%configure_first}</strong>
+        </div>
+    </j:if>
+</j:jelly>
