@@ -490,7 +490,7 @@ Caused by: java.lang.IllegalArgumentException: Object '' doesn't match S3 bucket
         ... 130 more
 ```
 
-# The specified bucket does not exist
+## The specified bucket does not exist
 
 If you set an unexistent S3 Bucket you would see the following errors in logs, 
 to fix it set a proper S3 Bucket name in the Plugin configuration.
@@ -543,7 +543,7 @@ Caused by: org.jclouds.blobstore.ContainerNotFoundException: borken.s3-xx-xxxx-x
         ... 116 more
 ```
 
-# Network outages
+## Network outages
 
 The following message of error appears when the host it is not accessible meanwhile we are sending/getting data from S3.
 
@@ -617,7 +617,7 @@ WARNING: null
 12:01:06 Retrying upload after: java.net.SocketException: Broken pipe (Write failed)
 ```
 
-# Member must have length greater than or equal to 20
+## Member must have length greater than or equal to 20
 
 If you use an invalid IAM Role ID on your credentials, you would see the following error, 
 you have to set a proper ARN specifying the IAM role to assume. The format should be something like: 
@@ -659,7 +659,7 @@ Caused by: com.amazonaws.services.securitytoken.model.AWSSecurityTokenServiceExc
 
 ```
 
-# User: arn:aws:iam::XXXXXX:user/people/myUser is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::XXXXXXX:role/my-role
+## User: arn:aws:iam::XXXXXX:user/people/myUser is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::XXXXXXX:role/my-role
 
 If you see the following error, your user would not assume the IAM Role that you set on your Jenkins AWS Credentials. 
 Check that your user can assume that IAM Role in AWS Console.
@@ -706,7 +706,7 @@ Caused by: com.amazonaws.services.securitytoken.model.AWSSecurityTokenServiceExc
 
 ```
 
-# Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region. 
+## Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region. 
 
 There is no user AWS configuration (~/.aws), and there is not AWS credential configured. You need a user AWS configuration, 
 or you have to configure an AWS credential in Jenkins. 
