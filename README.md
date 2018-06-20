@@ -201,7 +201,7 @@ Artifact Manager on S3 plugin would try to use the IAM instance profile credenti
 
 ![](images/configue-credentials.png)
 
-Every time you archive/unarchive or download an artifact, Jenkins will generate a temporal URL, it will be valid for an hour, 
+Every time you archive/unarchive or download an artifact, Jenkins will generate a temporary URL, it will be valid for an hour, 
 so if you try to reuse an artifact download URL one hour later was generated, it will not be valid, 
 you cannot download the artifact with that URL any more, thus you have to go back to Jenkins 
 and click on the artifact to download it again. 
