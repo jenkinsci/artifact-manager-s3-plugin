@@ -33,8 +33,8 @@ pct:
     version: 2.38
     passCustomJenkinsWAR: true
   plugins:
-    - "copyartifact"
-    - "workflow-job"
+#    - "copyartifact"
+#    - "workflow-job"
     - "workflow-basic-steps"
 flow:
 #  javaOptions:
