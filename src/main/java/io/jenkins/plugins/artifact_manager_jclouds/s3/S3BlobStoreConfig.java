@@ -158,7 +158,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
 
     @DataBoundSetter
     public void setCredentialsId(String credentialsId) {
-        this.credentialsId = StringUtils.defaultIfBlank(credentialsId, "");
+        this.credentialsId = StringUtils.defaultIfBlank(credentialsId, null);
         save();
     }
 
