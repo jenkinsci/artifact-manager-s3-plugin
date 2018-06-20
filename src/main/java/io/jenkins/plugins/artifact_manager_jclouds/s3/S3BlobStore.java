@@ -68,7 +68,7 @@ import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder
 import com.amazonaws.services.securitytoken.model.GetSessionTokenRequest;
 import com.amazonaws.services.securitytoken.model.GetSessionTokenResult;
 import com.google.common.base.Supplier;
-import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -140,10 +140,9 @@ public class S3BlobStore extends BlobStoreProvider {
     /**
      * create a AWS session credentials from a Key and a Secret configured in a AWS credential in Jenkins.
      * @return the AWS session credential result of the request to the AWS token service.
-     * @throws IOException in case of error.
      */
-    private AWSSessionCredentials sessionCredentialsFromKeyAndSecret() throws IOException{
-        AWSCredentialsImpl jenkinsAwsCredentials = getConfiguration().getCredentials();
+    private AWSSessionCredentials sessionCredentialsFromKeyAndSecret() {
+        AmazonWebServicesCredentials jenkinsAwsCredentials = getConfiguration().getCredentials();
         AWSCredentials awsCredentials = jenkinsAwsCredentials.getCredentials();
 
         if(awsCredentials instanceof AWSSessionCredentials){
