@@ -594,6 +594,8 @@ If you use an invalid IAM Role ID on your credentilas, you would see the followi
 you have to set a proper ARN specifying the IAM role to assume. The format should be something like: 
 "arn:aws:iam::123456789012:role/MyIAMRoleName".
 
+![](images/no-valid-iam-role.png)
+
 ```
 Jun 15, 2018 12:01:16 PM hudson.model.Run getArtifactsUpTo
 WARNING: null
@@ -632,6 +634,8 @@ Caused by: com.amazonaws.services.securitytoken.model.AWSSecurityTokenServiceExc
 
 If you see the following error, your user would not assume the IAM Role that you set on your Jenkins AWS Credentials. 
 Check that your user can assume that IAM Role in AWS Console.
+
+![](images/cannot-assume-role.png)
 
 ```
 Jun 15, 2018 12:00:15 PM hudson.model.Run getArtifactsUpTo
@@ -677,6 +681,10 @@ Caused by: com.amazonaws.services.securitytoken.model.AWSSecurityTokenServiceExc
 
 There is no user AWS configuration (~/.aws), and there is not AWS credential configured. You need a user AWS configuration, 
 or you have to configure an AWS credential in Jenkins. 
+
+![](images/unable-to-get-region-from-environment.png)
+
+![](images/unable-to-get-credentials-from-environment.png)
  
 ```
 com.amazonaws.SdkClientException: Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region.

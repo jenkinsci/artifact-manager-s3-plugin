@@ -143,10 +143,6 @@ public class S3BlobStore extends BlobStoreProvider {
      * @throws IOException in case of error.
      */
     private AWSSessionCredentials sessionCredentialsFromKeyAndSecret() throws IOException{
-        if(!hasCredentialsConfigured()){
-            throw new IOException("No valid session credentials");
-        }
-
         AWSCredentialsImpl jenkinsAwsCredentials = getConfiguration().getCredentials();
         AWSCredentials awsCredentials = jenkinsAwsCredentials.getCredentials();
 
@@ -166,7 +162,7 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     /**
-     * creates an AWS session credentials from the instance profile or user AWS configuration (~~.aws)
+     * creates an AWS session credentials from the instance profile or user AWS configuration (~/.aws)
      * @return the AWS session credential from the instance profile or user AWS configuration.
      * @throws IOException in case ot error.
      */

@@ -26,6 +26,7 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -68,6 +69,9 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
+    /**
+     * Session token duration in seconds.
+     */
     @SuppressWarnings("FieldMayBeFinal")
     private static int SESSION_DURATION = Integer.getInteger(S3BlobStoreConfig.class.getName() + ".sessionDuration", 3600);
 
@@ -154,7 +158,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
 
     @DataBoundSetter
     public void setCredentialsId(String credentialsId) {
-        this.credentialsId = credentialsId;
+        this.credentialsId = StringUtils.defaultIfBlank(credentialsId, "");
         save();
     }
 
@@ -217,7 +221,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         credentials.add("IAM instance Profile/user AWS configuration", "");
         credentials.addAll(CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(),
                                                                ACL.SYSTEM, Collections.emptyList(),
-                                                               CredentialsMatchers.instanceOf(AWSCredentialsImpl.class)));
+                                                               CredentialsMatchers.instanceOf(AmazonWebServicesCredentials.class)));
         return credentials;
     }
 

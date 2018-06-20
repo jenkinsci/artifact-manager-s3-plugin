@@ -11,7 +11,7 @@
         <f:entry title="${%Base Prefix}" field="prefix">
             <f:textbox/>
         </f:entry>
-        <f:entry title="${%Amazon Cerdentials}" field="credentialsId">
+        <f:entry title="${%Amazon Credentials}" field="credentialsId">
             <c:select />
         </f:entry>
         <f:entry title="${%Delete Artifacts}" field="deleteArtifacts">
