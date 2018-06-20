@@ -590,7 +590,7 @@ WARNING: null
 
 # Member must have length greater than or equal to 20
 
-If you use an invalid IAM Role ID on your credentilas, you would see the following error, 
+If you use an invalid IAM Role ID on your credentials, you would see the following error, 
 you have to set a proper ARN specifying the IAM role to assume. The format should be something like: 
 "arn:aws:iam::123456789012:role/MyIAMRoleName".
 
