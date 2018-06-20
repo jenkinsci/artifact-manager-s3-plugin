@@ -1,7 +1,7 @@
-
 Table of Contents
 =================
 
+   * [Table of Contents](#table-of-contents)
    * [Artifact Manager on S3 plugin](#artifact-manager-on-s3-plugin)
    * [Prerequisites](#prerequisites)
    * [Configuration](#configuration)
@@ -11,6 +11,7 @@ Table of Contents
    * [Manage Artifacts](#manage-artifacts)
       * [Delete Artifacts](#delete-artifacts)
       * [Delete Stash](#delete-stash)
+   * [AWS Credentials](#aws-credentials)
    * [Extending Artifact Manager on S3 plugin](#extending-artifact-manager-on-s3-plugin)
       * [Testing](#testing)
    * [Troubleshooting](#troubleshooting)
@@ -21,6 +22,10 @@ Table of Contents
       * [Empty S3 Bucket name](#empty-s3-bucket-name)
       * [The specified bucket does not exist](#the-specified-bucket-does-not-exist)
       * [Network outages](#network-outages)
+      * [Member must have length greater than or equal to 20](#member-must-have-length-greater-than-or-equal-to-20)
+      * [User: arn:aws:iam::XXXXXX:user/people/myUser is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::XXXXXXX:role/my-role](#user-arnawsiamxxxxxxuserpeoplemyuser-is-not-authorized-to-perform-stsassumerole-on-resource-arnawsiamxxxxxxxrolemy-role)
+      * [Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region.](#unable-to-find-a-region-via-the-region-provider-chain-must-provide-an-explicit-region-in-the-builder-or-setup-environment-to-supply-a-region)
+
    
 # Artifact Manager on S3 plugin
 
