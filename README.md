@@ -1,3 +1,27 @@
+
+Table of Contents
+=================
+
+   * [Artifact Manager on S3 plugin](#artifact-manager-on-s3-plugin)
+   * [Prerequisites](#prerequisites)
+   * [Configuration](#configuration)
+   * [How to use  Artifact Manager on S3 plugin](#how-to-use--artifact-manager-on-s3-plugin)
+      * [Pipeline job](#pipeline-job)
+      * [FreeStyle job](#freestyle-job)
+   * [Manage Artifacts](#manage-artifacts)
+      * [Delete Artifacts](#delete-artifacts)
+      * [Delete Stash](#delete-stash)
+   * [Extending Artifact Manager on S3 plugin](#extending-artifact-manager-on-s3-plugin)
+      * [Testing](#testing)
+   * [Troubleshooting](#troubleshooting)
+      * [No valid session credentials](#no-valid-session-credentials)
+      * [Must provide an explicit region in the builder or setup environment to supply a region](#must-provide-an-explicit-region-in-the-builder-or-setup-environment-to-supply-a-region)
+      * [The provided token has expired](#the-provided-token-has-expired)
+      * [The region 'YYYY' is wrong; expecting 'XXXX'](#the-region-yyyy-is-wrong-expecting-xxxx)
+      * [Empty S3 Bucket name](#empty-s3-bucket-name)
+      * [The specified bucket does not exist](#the-specified-bucket-does-not-exist)
+      * [Network outages](#network-outages)
+   
 # Artifact Manager on S3 plugin
 
 Artifact Manager on S3 plugin is an Artifact Manager that allow you to store you artifacts into a S3 Bucket on Amazon.
