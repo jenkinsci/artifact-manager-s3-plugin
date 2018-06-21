@@ -30,6 +30,7 @@ if (infra.isRunningOnJenkinsInfra()) {
           ]){
               node('test-k8s') {
                 stage('Run Docker image'){
+                  checkout scm
                   container('artifact-manager-s3-k8s') {
                     sh 'echo "Hello world"'
                   }
