@@ -11,7 +11,7 @@ if (infra.isRunningOnJenkinsInfra()) {
 
     node(){
         stage('Build Docker Image'){
-            unarchive: mapping: [jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war", "jenkins.war"]
+            unarchive: mapping: ["jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war": "jenkins.war"]
             def dockerFile = """
             FROM jenkins/jenkins:1.121.1
             COPY jenkins.war /usr/share/jenkins/jenkins.war
