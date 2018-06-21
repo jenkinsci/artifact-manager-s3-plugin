@@ -16,26 +16,25 @@ packaging:
           dir: initScripts
 ath:
   # TODO: ATH test dependency issues
-  disabled: true
+  disabled: false
   useLocalSnapshots: false
   pluginEvaluationOutcome: skipOnInvalid
   tests:
     - "core.ArtifactsTest"
-    - "plugins.CopyArtifactPluginTest"
-    - "plugins.CompressArtifactsPluginTest"
-    - "plugins.WorkflowPluginTest"
-    - "plugins.WorkflowMultibranchTest"
+#    - "plugins.CopyArtifactPluginTest"
+#    - "plugins.CompressArtifactsPluginTest"
+#    - "plugins.WorkflowPluginTest"
+#    - "plugins.WorkflowMultibranchTest"
   categories:
     - "org.jenkinsci.test.acceptance.junit.SmokeTest"
 pct:
+  disabled: false
   useLocalSnapshots: false
   jth:
     version: 2.38
     passCustomJenkinsWAR: true
   plugins:
-    - "copyartifact"
-#    - "workflow-job"
-#    - "workflow-basic-steps"
+    - artifact-manager-s3
 flow:
 #  javaOptions:
 #    pct:
