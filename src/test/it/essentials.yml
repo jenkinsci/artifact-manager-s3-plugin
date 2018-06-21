@@ -16,7 +16,7 @@ packaging:
           dir: initScripts
 ath:
   # TODO: ATH test dependency issues
-  disabled: false
+  disabled: true
   useLocalSnapshots: false
   pluginEvaluationOutcome: skipOnInvalid
   tests:
@@ -28,7 +28,7 @@ ath:
   categories:
     - "org.jenkinsci.test.acceptance.junit.SmokeTest"
 pct:
-  disabled: false
+  disabled: true
   useLocalSnapshots: false
   jth:
     version: 2.38
