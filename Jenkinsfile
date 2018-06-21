@@ -24,11 +24,11 @@ if (infra.isRunningOnJenkinsInfra()) {
                 customImage = docker.build("artifact-manager-s3:${env.BUILD_ID}")
             }
     }
-    podTemplate(name: 'artifact-manager-s3-k8s', label: test-k8s,
+    podTemplate(name: 'artifact-manager-s3-k8s', label: 'test-k8s',
           containers: [
             containerTemplate(name: 'artifact-manager-s3-k8s', image: "artifact-manager-s3:${env.BUILD_ID}", ttyEnabled: true),
           ]){
-              node(test-k8s) {
+              node('test-k8s') {
                 stage('Run Docker image'){
                   container('artifact-manager-s3-k8s') {
                     sh 'echo "Hello world"'
