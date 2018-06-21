@@ -23,7 +23,6 @@ if (infra.isRunningOnJenkinsInfra()) {
                 writeFile file: "Dockerfile", text: dockerFile
                 customImage = docker.build("artifact-manager-s3:${env.BUILD_ID}")
             }
-        }
     }
     podTemplate(name: 'artifact-manager-s3-k8s', label: test-k8s,
           containers: [
