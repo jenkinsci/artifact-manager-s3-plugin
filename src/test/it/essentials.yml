@@ -35,7 +35,7 @@ pct:
   plugins:
 #    - "copyartifact"
 #    - "workflow-job"
-    - "workflow-basic-steps"
+#    - "workflow-basic-steps"
 flow:
 #  javaOptions:
 #    pct:
