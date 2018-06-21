@@ -16,6 +16,8 @@ if (infra.isRunningOnJenkinsInfra()) {
             FROM jenkins/jenkins:1.121.1
             COPY jenkins.war /usr/share/jenkins/jenkins.war
             """
+
+            writeFile file: "Dockerfile", text: dockerFile
             def customImage = docker.build("artifact-manager-s3:${env.BUILD_ID}")
         }
 
