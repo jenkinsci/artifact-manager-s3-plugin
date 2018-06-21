@@ -10,6 +10,7 @@ if (infra.isRunningOnJenkinsInfra()) {
     essentialsTest(baseDir: "src/test/it")
 
     node(){
+        def customImage
         stage('Build Docker Image'){
             unarchive mapping: ["jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war": "jenkins.war"]
 
@@ -20,7 +21,7 @@ if (infra.isRunningOnJenkinsInfra()) {
             """
 
             writeFile file: "Dockerfile", text: dockerFile
-            def customImage = docker.build("artifact-manager-s3:${env.BUILD_ID}")
+            customImage = docker.build("artifact-manager-s3:${env.BUILD_ID}")
         }
 
         stage('Run Docker image'){
