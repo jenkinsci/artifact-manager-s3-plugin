@@ -24,6 +24,9 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
+import java.util.Collections;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -39,10 +42,14 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Failure;
+import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
@@ -61,6 +68,11 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
+    /**
+     * Session token duration in seconds.
+     */
+    @SuppressWarnings("FieldMayBeFinal")
+    private static int SESSION_DURATION = Integer.getInteger(S3BlobStoreConfig.class.getName() + ".sessionDuration", 3600);
 
     /**
      * Name of the S3 Bucket.
@@ -74,6 +86,11 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
      * force the region to use for the URLs generated.
      */
     private String region;
+    /**
+     * AWS credentials to access to the S3 Bucket, if it is empty, it would use the IAM instance profile from the
+     * jenkins hosts.
+     */
+    private String credentialsId;
 
     /**
      * class to test configuration against Amazon S3 Bucket.
@@ -82,11 +99,12 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         private static final long serialVersionUID = -3645770416235883487L;
         private transient S3BlobStoreConfig config;
 
-        public S3BlobStoreTester(String container, String prefix, String region){
+        public S3BlobStoreTester(String container, String prefix, String region,String credentialsId){
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
             config.setRegion(region);
+            config.setCredentialsId(credentialsId);
         }
 
         @Override
@@ -133,6 +151,30 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         save();
     }
 
+    public String getCredentialsId() {
+        return credentialsId;
+    }
+
+    @DataBoundSetter
+    public void setCredentialsId(String credentialsId) {
+        this.credentialsId = StringUtils.defaultIfBlank(credentialsId, null);
+        save();
+    }
+
+    public AmazonWebServicesCredentials getCredentials() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Optional<AmazonWebServicesCredentials> credential = CredentialsProvider.lookupCredentials(
+                AmazonWebServicesCredentials.class, Jenkins.get(),ACL.SYSTEM, Collections.emptyList())
+                                                                               .stream()
+                                                                               .filter(it -> it.getId().equals(credentialsId))
+                                                                               .findFirst();
+        if(credential.isPresent()){
+            return credential.get();
+        } else {
+            return null;
+        }
+    }
+
     private void checkValue(@NonNull FormValidation formValidation) {
         if (formValidation.kind == FormValidation.Kind.ERROR) {
             throw new Failure(formValidation.getMessage());
@@ -145,6 +187,10 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
 
     public boolean isDeleteStashes() {
         return DELETE_STASHES;
+    }
+
+    public int getSessionDuration(){
+        return SESSION_DURATION;
     }
 
     @Nonnull
@@ -165,6 +211,17 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
             regions.add(s);
         }
         return regions;
+    }
+
+    @RequirePOST
+    public ListBoxModel doFillCredentialsIdItems() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        ListBoxModel credentials = new ListBoxModel();
+        credentials.add("IAM instance Profile/user AWS configuration", "");
+        credentials.addAll(CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(),
+                                                               ACL.SYSTEM, Collections.emptyList(),
+                                                               CredentialsMatchers.instanceOf(AmazonWebServicesCredentials.class)));
+        return credentials;
     }
 
     public FormValidation doCheckContainer(@QueryParameter String container){
@@ -199,11 +256,11 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
 
     @RequirePOST
     public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix,
-                                                   @QueryParameter String region){
+                                                   @QueryParameter String region, @QueryParameter String credentialsId){
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
-            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region);
+            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region, credentialsId);
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, "");
             jc.list();
         } catch (Throwable t){

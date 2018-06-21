@@ -40,7 +40,10 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import org.apache.commons.lang.StringUtils;
@@ -60,7 +63,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
+import com.amazonaws.services.securitytoken.model.GetSessionTokenRequest;
+import com.amazonaws.services.securitytoken.model.GetSessionTokenResult;
 import com.google.common.base.Supplier;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -124,12 +132,43 @@ public class S3BlobStore extends BlobStoreProvider {
         }
     }
 
+    /**
+     * field only for tests.
+     */
     static boolean BREAK_CREDS;
 
-    private Supplier<Credentials> getCredentialsSupplier() throws IOException {
-        // get user credentials from env vars, profiles,...
-        AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+    /**
+     * create a AWS session credentials from a Key and a Secret configured in a AWS credential in Jenkins.
+     * @return the AWS session credential result of the request to the AWS token service.
+     */
+    private AWSSessionCredentials sessionCredentialsFromKeyAndSecret() {
+        AmazonWebServicesCredentials jenkinsAwsCredentials = getConfiguration().getCredentials();
+        AWSCredentials awsCredentials = jenkinsAwsCredentials.getCredentials();
+
+        if(awsCredentials instanceof AWSSessionCredentials){
+            return (AWSSessionCredentials)awsCredentials;
+        }
+
+        AWSCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(awsCredentials);
+        AWSSecurityTokenServiceClientBuilder tokenSvcBuilder = AWSSecurityTokenServiceClientBuilder.standard().withRegion(getRegion()).withCredentials(credentialsProvider);
+        AWSSecurityTokenService tokenSvc = tokenSvcBuilder.build();
+
+        GetSessionTokenRequest sessionTokenRequest = new GetSessionTokenRequest().withDurationSeconds(getConfiguration().getSessionDuration());
+        GetSessionTokenResult sessionToken = tokenSvc.getSessionToken(sessionTokenRequest);
+        com.amazonaws.services.securitytoken.model.Credentials credentials = sessionToken.getCredentials();
+
+        return new BasicSessionCredentials(credentials.getAccessKeyId(), credentials.getSecretAccessKey(), credentials.getSessionToken());
+    }
+
+    /**
+     * creates an AWS session credentials from the instance profile or user AWS configuration (~/.aws)
+     * @return the AWS session credential from the instance profile or user AWS configuration.
+     * @throws IOException in case ot error.
+     */
+    private AWSSessionCredentials sessionCredentialsFromInstanceProfile() throws IOException {
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder();
         AWSCredentials awsCredentials = builder.getCredentials().getCredentials();
+
         if (awsCredentials == null) {
             throw new IOException("Unable to get credentials from environment");
         }
@@ -138,8 +177,27 @@ public class S3BlobStore extends BlobStoreProvider {
         if(!(awsCredentials instanceof AWSSessionCredentials)){
             throw new IOException("No valid session credentials");
         }
+        return (AWSSessionCredentials)awsCredentials;
+    }
 
-        String sessionToken = ((AWSSessionCredentials) awsCredentials).getSessionToken();
+    /**
+     *
+     * @return true if an AWS credential is configured and the AWS credential exists.
+     */
+    private boolean hasCredentialsConfigured(){
+        return StringUtils.isNotBlank(getConfiguration().getCredentialsId())
+               && getConfiguration().getCredentials() != null;
+    }
+
+    /**
+     *
+     * @return the proper credential supplier using the configuration settings.
+     * @throws IOException in case of error.
+     */
+    private Supplier<Credentials> getCredentialsSupplier() throws IOException {
+        // get user credentials from env vars, profiles,...
+        AWSSessionCredentials awsCredentials = sessionCredentials();
+        String sessionToken = awsCredentials.getSessionToken();
         if (BREAK_CREDS) {
             sessionToken = "<broken>";
         }
@@ -151,6 +209,22 @@ public class S3BlobStore extends BlobStoreProvider {
                 .build();
 
         return () -> sessionCredentials;
+    }
+
+    /**
+     * Select the type of AWS credential that has to be created based on the configuration. If no AWS credential is
+     * provided, the IAM instance profile or user AWS configuration is used to create the AWS credentials.
+     * @return A n AWS session credential.
+     * @throws IOException in case of error.
+     */
+    private AWSSessionCredentials sessionCredentials() throws IOException {
+        AWSSessionCredentials awsCredentials;
+        if(hasCredentialsConfigured()){
+            awsCredentials = sessionCredentialsFromKeyAndSecret();
+        } else {
+            awsCredentials = sessionCredentialsFromInstanceProfile();
+        }
+        return awsCredentials;
     }
 
     @Nonnull
@@ -175,7 +249,8 @@ public class S3BlobStore extends BlobStoreProvider {
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
         assert blob != null;
         assert httpMethod != null;
-        AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials());
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder().withCredentials(credentialsProvider);
         Date expiration = new Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
@@ -195,6 +270,24 @@ public class S3BlobStore extends BlobStoreProvider {
         return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
     }
 
+    /**
+     *
+     * @return an AmazonS3ClientBuilder using the region or not, it depends if a region is configured or not.
+     */
+    private AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
+        AmazonS3ClientBuilder ret;
+        if(StringUtils.isNotBlank(getRegion())) {
+            ret = AmazonS3ClientBuilder.standard().withRegion(getRegion());
+        } else {
+            ret = AmazonS3ClientBuilder.standard().withForceGlobalBucketAccessEnabled(true);
+        }
+        return ret;
+    }
+
+    /**
+     *
+     * @return true if a container is configured.
+     */
     public boolean isConfigured(){
         return StringUtils.isNotBlank(getContainer());
     }
