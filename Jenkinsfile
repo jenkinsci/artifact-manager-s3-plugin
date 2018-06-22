@@ -9,8 +9,9 @@ if (infra.isRunningOnJenkinsInfra()) {
     // Integration tests with a standard Custom WAR Packager => ATH => PCT flow
     essentialsTest(baseDir: "src/test/it")
 
-    def name = 'artifact-manager-s3'
-    def label = "${name}-${UUID.randomUUID().toString()}"
+def name = 'artifact-manager-s3'
+def label = "${name}-${UUID.randomUUID().toString()}"
+def baseDir = "src/test/it"
 def yamlDinD = """
 apiVersion: v1
 kind: Pod
@@ -39,12 +40,15 @@ spec:
     timestamps {
       podTemplate(label: label, yaml: yamlDinD) {
           node(label){
-              stage('Build Docker Image'){
+            stage('Build Docker Image'){
+                infra.checkout()
+                dir(baseDir) {
                   unarchive mapping: ["jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war": "jenkins.war"]
                   def dockerFile = """
                   FROM jenkins/jenkins:2.121.1
                   COPY jenkins.war /usr/share/jenkins/jenkins.war
                   COPY jenkins_home /var/jenkins_home
+                  COPY initScripts/enableArtifactManager.groovy /var/jenkins_home/init.groovy.d/enableArtifactManager.groovy
                   RUN chown -R jenkins:jenkins /var/jenkins_home
                   """
                   container('docker'){
@@ -54,9 +58,9 @@ spec:
                           customImage.push()
                       }
                   }
+                }
               }
-          }
-       }
+            }
     }
 
 label = "${name}-${UUID.randomUUID().toString()}"
