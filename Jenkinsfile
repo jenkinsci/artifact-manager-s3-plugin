@@ -10,26 +10,36 @@ if (infra.isRunningOnJenkinsInfra()) {
     essentialsTest(baseDir: "src/test/it")
 
     def name = 'artifact-manager-s3'
+    def label = "${name}-${UUID.randomUUID().toString()}"
 
-    node(){
-            stage('Build Docker Image'){
-                unarchive mapping: ["jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war": "jenkins.war"]
-
-                sh "pwd && echo '' && ls -la"
-                def dockerFile = """
-                FROM jenkins/jenkins:2.121.1
-                COPY jenkins.war /usr/share/jenkins/jenkins.war
-                """
-                docker.withRegistry('https://docker.cloudbees.com', '80ca7cb9-b576-43df-9f54-ac49882dd7a9') {
-                    writeFile file: "Dockerfile", text: dockerFile
-                    def customImage = docker.build("${name}:${env.BUILD_ID}")
-                    customImage.push()
-                }
-            }
+    timestamps {
+      podTemplate(name: "${name}-dind", label: label,
+        containers: [
+          containerTemplate(name: 'docker', image: 'docker:dind', ttyEnabled: true, command: 'cat'),
+        ]) {
+          node(label){
+              stage('Build Docker Image'){
+                  unarchive mapping: ["jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war": "jenkins.war"]
+                  def dockerFile = """
+                  FROM jenkins/jenkins:2.121.1
+                  COPY jenkins.war /usr/share/jenkins/jenkins.war
+                  COPY jenkins_home /var/jenkins_home
+                  RUN chown -R jenkins:jenkins /var/jenkins_home
+                  """
+                  conatiner('docker'){
+                      docker.withRegistry('https://docker.cloudbees.com', '80ca7cb9-b576-43df-9f54-ac49882dd7a9') {
+                          writeFile file: "Dockerfile", text: dockerFile
+                          def customImage = docker.build("${name}:${env.BUILD_ID}")
+                          customImage.push()
+                      }
+                  }
+              }
+          }
+       }
     }
 
-    def label = "mypod-${UUID.randomUUID().toString()}"
-    def yaml = """
+label = "${name}-${UUID.randomUUID().toString()}"
+def yaml = """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -62,10 +72,11 @@ spec:
               }
               container(name) {
                 sh 'id'
+                sh 'ls -la /var/jenkins_home/jobs'
               }
             }
           }
-        }
+      }
     }
 } else {
     error 'Run tests manually.'
