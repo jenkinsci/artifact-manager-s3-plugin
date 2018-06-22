@@ -33,6 +33,7 @@ spec:
     image: docker:dind
     tty: true
     securityContext:
+      runAsUser: 0
       privileged: true
 """
     timestamps {
