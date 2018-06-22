@@ -36,6 +36,8 @@ spec:
     securityContext:
       runAsUser: 0
       privileged: true
+    imagePullSecrets:
+    - name: docker.cloudbees.com
 """
     timestamps {
       podTemplate(label: label, yaml: yamlDinD) {
