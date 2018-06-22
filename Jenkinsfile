@@ -32,7 +32,7 @@ spec:
   - name: docker
     image: docker:dind
     tty: true
-    command: 'cat'
+    command: cat
     securityContext:
       privileged: true
 """
