@@ -61,6 +61,7 @@ spec:
                 }
               }
             }
+          }
     }
 
 label = "${name}-${UUID.randomUUID().toString()}"
