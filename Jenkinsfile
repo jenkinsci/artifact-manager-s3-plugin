@@ -9,8 +9,9 @@ if (infra.isRunningOnJenkinsInfra()) {
     // Integration tests with a standard Custom WAR Packager => ATH => PCT flow
     essentialsTest(baseDir: "src/test/it")
 
+    def name = 'artifact-manager-s3'
+
     node(){
-            def customImage
             stage('Build Docker Image'){
                 unarchive mapping: ["jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war": "jenkins.war"]
 
@@ -19,14 +20,15 @@ if (infra.isRunningOnJenkinsInfra()) {
                 FROM jenkins/jenkins:2.121.1
                 COPY jenkins.war /usr/share/jenkins/jenkins.war
                 """
-
-                writeFile file: "Dockerfile", text: dockerFile
-                customImage = docker.build("artifact-manager-s3:${env.BUILD_ID}")
+                //docker.withRegistry('https://docker.cloudbees.com', '80ca7cb9-b576-43df-9f54-ac49882dd7a9') {
+                    writeFile file: "Dockerfile", text: dockerFile
+                    def customImage = docker.build("${name}:${env.BUILD_ID}")
+                //    customImage.push()
+                //}
             }
     }
 
     def label = "mypod-${UUID.randomUUID().toString()}"
-    def name = 'artifact-manager-s3'
     def yaml = """
 apiVersion: v1
 kind: Pod
@@ -43,8 +45,8 @@ spec:
     securityContext:
       runAsUser: 1000
       allowPrivilegeEscalation: false
-  - name: jenkins
-    image: artifact-manager-s3:${env.BUILD_ID}
+  - name: ${name}
+    image: ${name}:${env.BUILD_ID}
     tty: true
     securityContext:
       runAsUser: 1000
