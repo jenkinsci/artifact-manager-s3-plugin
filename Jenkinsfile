@@ -11,12 +11,36 @@ if (infra.isRunningOnJenkinsInfra()) {
 
     def name = 'artifact-manager-s3'
     def label = "${name}-${UUID.randomUUID().toString()}"
+def yamlDinD="""
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: ${name}-
+  labels:
+    name: jnlp
+    label: jnlp
+spec:
+  securityContext:
+    runAsUser: 1000
+  containers:
+  - name: jnlp
+    image: jenkins/jnlp-slave
+    tty: true
+    securityContext:
+      runAsUser: 1000
+      allowPrivilegeEscalation: false
+  - name: docker
+    image: docker:dind
+    tty: true
+    command: 'cat'
+    securityContext:
+      privileged: true
+"""
+
+
 
     timestamps {
-      podTemplate(name: "${name}-dind", label: label,
-        containers: [
-          containerTemplate(name: 'docker', image: 'docker:dind', ttyEnabled: true, command: 'cat'),
-        ]) {
+      podTemplate(name: "${name}-dind", label: label, yaml: yamlDinD) {
           node(label){
               stage('Build Docker Image'){
                   unarchive mapping: ["jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war": "jenkins.war"]
