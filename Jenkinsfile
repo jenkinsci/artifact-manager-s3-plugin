@@ -20,11 +20,11 @@ if (infra.isRunningOnJenkinsInfra()) {
                 FROM jenkins/jenkins:2.121.1
                 COPY jenkins.war /usr/share/jenkins/jenkins.war
                 """
-                //docker.withRegistry('https://docker.cloudbees.com', '80ca7cb9-b576-43df-9f54-ac49882dd7a9') {
+                docker.withRegistry('https://docker.cloudbees.com', '80ca7cb9-b576-43df-9f54-ac49882dd7a9') {
                     writeFile file: "Dockerfile", text: dockerFile
                     def customImage = docker.build("${name}:${env.BUILD_ID}")
-                //    customImage.push()
-                //}
+                    customImage.push()
+                }
             }
     }
 
