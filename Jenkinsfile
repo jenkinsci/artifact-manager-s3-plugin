@@ -11,7 +11,7 @@ if (infra.isRunningOnJenkinsInfra()) {
 
     def name = 'artifact-manager-s3'
     def label = "${name}-${UUID.randomUUID().toString()}"
-def yamlDinD="""
+def yamlDinD = """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -40,7 +40,7 @@ spec:
 
 
     timestamps {
-      podTemplate(name: "${name}-dind", label: label, yaml: yamlDinD) {
+      podTemplate(label: label, yaml: yamlDinD) {
           node(label){
               stage('Build Docker Image'){
                   unarchive mapping: ["jenkins-war-2.121-artifact-manager-s3-SNAPSHOT.war": "jenkins.war"]
