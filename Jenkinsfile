@@ -80,7 +80,7 @@ spec:
     runAsUser: 1000
   containers:
   - name: jnlp
-    image: jenkins/jnlp-slave
+    image: docker.io/jenkins/jnlp-slave
     tty: true
     securityContext:
       runAsUser: 1000
