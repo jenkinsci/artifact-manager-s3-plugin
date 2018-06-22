@@ -31,14 +31,11 @@ spec:
       allowPrivilegeEscalation: false
   - name: docker
     image: docker:dind
+    command: ["cat"]
     tty: true
-    command: cat
     securityContext:
       privileged: true
 """
-
-
-
     timestamps {
       podTemplate(label: label, yaml: yamlDinD) {
           node(label){
