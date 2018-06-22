@@ -26,7 +26,7 @@ if (infra.isRunningOnJenkinsInfra()) {
                   COPY jenkins_home /var/jenkins_home
                   RUN chown -R jenkins:jenkins /var/jenkins_home
                   """
-                  conatiner('docker'){
+                  container('docker'){
                       docker.withRegistry('https://docker.cloudbees.com', '80ca7cb9-b576-43df-9f54-ac49882dd7a9') {
                           writeFile file: "Dockerfile", text: dockerFile
                           def customImage = docker.build("${name}:${env.BUILD_ID}")
@@ -43,11 +43,13 @@ def yaml = """
 apiVersion: v1
 kind: Pod
 metadata:
-  generateName: jnlp-
+  generateName: ${name}-
   labels:
     name: jnlp
     label: jnlp
 spec:
+  securityContext:
+    runAsUser: 1000
   containers:
   - name: jnlp
     image: jenkins/jnlp-slave
