@@ -36,8 +36,6 @@ spec:
     securityContext:
       runAsUser: 0
       privileged: true
-    imagePullSecrets:
-    - name: docker.cloudbees.com
 """
     timestamps {
       podTemplate(label: label, yaml: yamlDinD) {
@@ -88,11 +86,13 @@ spec:
       runAsUser: 1000
       allowPrivilegeEscalation: false
   - name: ${name}
-    image: ${name}:${env.BUILD_ID}
+    image: docker.cloudbees.com/${name}:${env.BUILD_ID}
     tty: true
     securityContext:
       runAsUser: 1000
       allowPrivilegeEscalation: false
+  imagePullSecrets:
+    - name: docker.cloudbees.com
 """
     timestamps {
       podTemplate(label: label, yaml: yaml){
