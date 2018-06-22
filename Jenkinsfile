@@ -49,7 +49,7 @@ spec:
                   COPY jenkins.war /usr/share/jenkins/jenkins.war
                   COPY jenkins_home /var/jenkins_home
                   COPY initScripts/enableArtifactManager.groovy /var/jenkins_home/init.groovy.d/enableArtifactManager.groovy
-                  RUN chown -R jenkins:jenkins /var/jenkins_home
+                  RUN sudo chown -R jenkins:jenkins /var/jenkins_home
                   """
                   container('docker'){
                       docker.withRegistry('https://docker.cloudbees.com', '80ca7cb9-b576-43df-9f54-ac49882dd7a9') {
