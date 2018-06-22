@@ -24,19 +24,47 @@ if (infra.isRunningOnJenkinsInfra()) {
                 customImage = docker.build("artifact-manager-s3:${env.BUILD_ID}")
             }
     }
-    podTemplate(name: 'artifact-manager-s3-k8s', label: 'test-k8s',
-          containers: [
-            containerTemplate(name: 'artifact-manager-s3-k8s', image: "artifact-manager-s3:${env.BUILD_ID}", ttyEnabled: true)
-          ]){
-              node('test-k8s') {
-                stage('Run Docker image'){
-                  checkout scm
-                  container('artifact-manager-s3-k8s') {
-                    sh 'echo "Hello world"'
-                  }
-                }
+
+    def label = "mypod-${UUID.randomUUID().toString()}"
+    def name = 'artifact-manager-s3'
+    def yaml = """
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: jnlp-
+  labels:
+    name: jnlp
+    label: jnlp
+spec:
+  containers:
+  - name: jnlp
+    image: jenkins/jnlp-slave
+    tty: true
+    securityContext:
+      runAsUser: 1000
+      allowPrivilegeEscalation: false
+  - name: jenkins
+    image: artifact-manager-s3:${env.BUILD_ID}
+    tty: true
+    securityContext:
+      runAsUser: 1000
+      allowPrivilegeEscalation: false
+"""
+    timestamps {
+      podTemplate(label: label, yaml: yaml){
+          node(label) {
+            sh 'id'
+            stage('Run on k8s'){
+              container('jnlp') {
+                sh 'id'
               }
+              container(name) {
+                sh 'id'
+              }
+            }
           }
+        }
+    }
 } else {
     error 'Run tests manually.'
 }
