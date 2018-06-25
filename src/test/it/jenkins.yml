@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: <NAME>-
+  labels:
+    name: jnlp
+    label: jnlp
+spec:
+  securityContext:
+    runAsUser: 1000
+  containers:
+  - name: jnlp
+    image: docker.io/jenkins/jnlp-slave
+    tty: true
+    securityContext:
+      runAsUser: 1000
+      allowPrivilegeEscalation: false
+  - name: <NAME>
+    image: docker.cloudbees.com/<NAME>:<BUILD_ID>
+    tty: true
+    env:
+      - name: JAVA_OPTS
+        value: -Djava.awt.headless=true -Djenkins.install.runSetupWizard=false -Djenkins.model.Jenkins.logStartupPerformance=true -Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteArtifacts=true -Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes=true
+    securityContext:
+      runAsUser: 1000
+      allowPrivilegeEscalation: false
+  imagePullSecrets:
+    - name: docker.cloudbees.com

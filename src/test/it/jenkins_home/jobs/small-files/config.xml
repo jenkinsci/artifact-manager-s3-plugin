@@ -36,7 +36,7 @@ def t1,t2,t3,t4
 timestamps {
     node() {
       stage(&apos;Setup&apos;) {
-        for(def i = 1; i &lt; 1; i++) {
+        for(def i = 1; i &lt; 100; i++) {
           writeFile file: &quot;test/test-${i}.txt&quot;, text: &quot;test ${i}&quot;
         }
       }
