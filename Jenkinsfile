@@ -24,17 +24,17 @@ if (infra.isRunningOnJenkinsInfra()) {
             env.yamlDinD = env.yamlDinD.replaceAll("<NAME>",name)
 
             env.labelJenkins = "${name}-${UUID.randomUUID().toString()}"
-            env.yaml = readFile file: baseDir + "/jenkins.yml"
-            env.yaml = env.yaml.replaceAll("<NAME>",name)
-            env.yaml = env.yaml.replaceAll("<BUILD_ID>",env.BUILD_ID)  
+            env.yamlJenkins = readFile file: baseDir + "/jenkins.yml"
+            env.yamlJenkins = env.yamlJenkins.replaceAll("<NAME>",name)
+            env.yamlJenkins = env.yamlJenkins.replaceAll("<BUILD_ID>",env.BUILD_ID)  
           }  
         }
       }
     }
     
     timestamps {
-      podTemplate(label: labelDind, yaml: yamlDinD) {
-          node(labelDind){
+      podTemplate(label: env.labelDind, yaml: env.yamlDinD) {
+          node(env.labelDind){
             stage('Build Docker Image'){
                 infra.checkout()
                 dir(baseDir) {
@@ -52,8 +52,8 @@ if (infra.isRunningOnJenkinsInfra()) {
     }
 
     timestamps {
-      podTemplate(label: labelJenkins, yaml: yaml){
-          node(labelJenkins) {
+      podTemplate(label: env.labelJenkins, yaml: env.yamlJenkins){
+          node(env.labelJenkins) {
             stage('Run on k8s'){
               container(name) {
                 sh 'sh /var/jenkins_home/runJobs.sh' 
