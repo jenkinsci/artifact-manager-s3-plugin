@@ -21,12 +21,12 @@ if (infra.isRunningOnJenkinsInfra()) {
             env.labelDind = "${name}-${UUID.randomUUID().toString()}"
             env.baseDir = "src/test/it"
             env.yamlDinD = readFile file: baseDir + "/dind-agent.yml"
-            env.yamlDinD.replaceAll("<NAME>",name)
+            env.yamlDinD = env.yamlDinD.replaceAll("<NAME>",name)
 
             env.labelJenkins = "${name}-${UUID.randomUUID().toString()}"
             env.yaml = readFile file: baseDir + "/jenkins.yml"
-            env.yaml.replaceAll("<NAME>",name)
-            env.yaml.replaceAll("<BUILD_ID>",env.BUILD_ID)  
+            env.yaml = env.yaml.replaceAll("<NAME>",name)
+            env.yaml = env.yaml.replaceAll("<BUILD_ID>",env.BUILD_ID)  
           }  
         }
       }
