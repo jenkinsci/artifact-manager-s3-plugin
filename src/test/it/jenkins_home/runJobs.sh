@@ -1,7 +1,7 @@
 #!/bin/sh
 buildJob(){
   local job=${1:-?}
-  curl http://127.0.0.1:8080/job/${job}/build?delay=0sec
+  curl -sS http://127.0.0.1:8080/job/${job}/build?delay=0sec
 }
 
 waitFinishJob(){
@@ -10,37 +10,37 @@ waitFinishJob(){
   while [ "${RUNNING}" = "<building>true</building>" ] 
   do
     sleep 10
-    RUNNING=$(curl -sS http://127.0.0.1:8080/job/${job}//1/api/xml?xpath=/workfwRun/building)
+    RUNNING="$(curl -sS http://127.0.0.1:8080/job/${job}//1/api/xml?xpath=/workfwRun/building)"
     echo -n "."
   done                     
 }
 
 getResultJob(){
   local job=${1:-?}
-  echo $(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/result)
+  echo "$(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/result)"
 }
 
 getDurationJob(){
   local job=${1:-?}
-  echo $(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/duration)
+  echo "$(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/duration)"
 }
 
 deleteJob(){
   local job=${1:-?}
-  echo $(curl -sS http://127.0.0.1:8080/job/${job}/doDelete)
+  echo "$(curl -sS http://127.0.0.1:8080/job/${job}/doDelete)"
 }
 
 downloadArtifacts(){
   local job=${1:-?}
-  echo $(curl http://127.0.0.1:8080/job/${job}/1/artifact/*zip*/archive.zip)
+  echo "$(curl http://127.0.0.1:8080/job/${job}/1/artifact/*zip*/archive.zip)"
 }
 
 waitForJenkinsUpAndRunning(){
-  local STATUS=$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)
+  local STATUS="$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)"
   while [ "${STATUS}" != "<mode>NORMAL</mode>" ]
   do
     sleep 10
-    STATUS=$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)
+    STATUS="$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)"
     echo -n "."
   done
 }
