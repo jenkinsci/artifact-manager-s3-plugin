@@ -12,7 +12,9 @@ if (infra.isRunningOnJenkinsInfra()) {
     def name = 'artifact-manager-s3'
     def label = "${name}-${UUID.randomUUID().toString()}"
     timestamps {
-      podTemplate(label: label) {
+      podTemplate(label: label, containers: [
+        containerTemplate(name: 'jnlp', image: 'jenkins/jnlp-slave', args: '${computer.jnlpmac} ${computer.name}')
+        ]) {
         node(label){
           stage ('Prepare environment'){
             infra.checkout()
