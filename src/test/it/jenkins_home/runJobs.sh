@@ -37,7 +37,7 @@ downloadArtifacts(){
 
 waitForJenkinsUpAndRunning(){
   local STATUS=$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)
-  while [[ "${STATUS}" != "<mode>NORMAL</mode>" ]]
+  while [ "${STATUS}" != "<mode>NORMAL</mode>" ]
   do
     sleep 10
     STATUS=$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)
@@ -76,7 +76,7 @@ deleteJob small-files
 deleteJob stash
 
 echo "Check results"
-[[ "${RESULT_BIGFILE}" == "<result>SUCCESS</result>" ]] || exit -1
-[[ "${RESULT_SMALFILES}" == "<result>SUCCESS</result>" ]] || exit -1
-[[ "${RETURL_STASH}" == "<result>SUCCESS</result>" ]] || exit -1
+[ "${RESULT_BIGFILE}" == "<result>SUCCESS</result>" ] || exit -1
+[ "${RESULT_SMALFILES}" == "<result>SUCCESS</result>" ] || exit -1
+[ "${RETURL_STASH}" == "<result>SUCCESS</result>" ] || exit -1
 
