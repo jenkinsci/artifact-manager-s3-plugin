@@ -7,9 +7,11 @@ buildJob(){
 waitFinishJob(){
   local job=${1:-?}
   RUNNING="<building>true</building>"
-  while [ ${RUNNING} = "<building>true</building>" ] 
+  while [ "${RUNNING}" = "<building>true</building>" ] 
   do
+    sleep 10
     RUNNING=$(curl -sS http://127.0.0.1:8080/job/${job}//1/api/xml?xpath=/workfwRun/building)
+    echo -n "."
   done                     
 }
 
@@ -32,6 +34,19 @@ downloadArtifacts(){
   local job=${1:-?}
   return $(curl http://127.0.0.1:8080/job/${job}/1/artifact/*zip*/archive.zip)
 }
+
+waitForJenkinsUpAndRunning(){
+  local STATUS=$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)
+  while [[ "${STATUS}" != "<mode>NORMAL</mode>" ]]
+  do
+    sleep 10
+    STATUS=$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)
+    echo -n "."
+  done
+}
+
+echo "Waiting for Jenkins up and running"
+waitForJenkinsUpAndRunning
 
 echo "Build jobs"
 buildJob big-file
@@ -61,7 +76,7 @@ deleteJob small-files
 deleteJob stash
 
 echo "Check results"
-[[ ${RESULT_BIGFILE} == "<result>SUCCESS</result>" ]] || exit -1
-[[ ${RESULT_SMALFILES} == "<result>SUCCESS</result>" ]] || exit -1
-[[ ${RETURL_STASH} == "<result>SUCCESS</result>" ]] || exit -1
+[[ "${RESULT_BIGFILE}" == "<result>SUCCESS</result>" ]] || exit -1
+[[ "${RESULT_SMALFILES}" == "<result>SUCCESS</result>" ]] || exit -1
+[[ "${RETURL_STASH}" == "<result>SUCCESS</result>" ]] || exit -1
 
