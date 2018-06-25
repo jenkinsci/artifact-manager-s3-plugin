@@ -17,22 +17,22 @@ waitFinishJob(){
 
 getResultJob(){
   local job=${1:-?}
-  return $(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/result)
+  echo $(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/result)
 }
 
 getDurationJob(){
   local job=${1:-?}
-  return $(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/duration)
+  echo $(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/duration)
 }
 
 deleteJob(){
   local job=${1:-?}
-  return $(curl -sS http://127.0.0.1:8080/job/${job}/doDelete)
+  echo $(curl -sS http://127.0.0.1:8080/job/${job}/doDelete)
 }
 
 downloadArtifacts(){
   local job=${1:-?}
-  return $(curl http://127.0.0.1:8080/job/${job}/1/artifact/*zip*/archive.zip)
+  echo $(curl http://127.0.0.1:8080/job/${job}/1/artifact/*zip*/archive.zip)
 }
 
 waitForJenkinsUpAndRunning(){
