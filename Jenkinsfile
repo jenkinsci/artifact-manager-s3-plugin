@@ -15,6 +15,7 @@ if (infra.isRunningOnJenkinsInfra()) {
       podTemplate(label: label) {
         node(label){
           stage ('Prepare environment'){
+            infra.checkout()
             env.labelDind = "${name}-${UUID.randomUUID().toString()}"
             env.baseDir = "src/test/it"
             env.yamlDinD = readFile file: baseDir + "/dind-agent.yml"
