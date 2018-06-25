@@ -6,9 +6,11 @@ buildJob(){
 
 waitFinishJob(){
   local job=${1:-?}
+  RUNNING="<building>true</building>"
+  while [ ${RUNNING} = "<building>true</building>" ] 
   do
     RUNNING=$(curl -sS http://127.0.0.1:8080/job/${job}//1/api/xml?xpath=/workfwRun/building)
-  while [ ${RUNNING} = "<building>true</building>" ]                    
+  done                     
 }
 
 getResultJob(){
