@@ -9,15 +9,29 @@ if (infra.isRunningOnJenkinsInfra()) {
     // Integration tests with a standard Custom WAR Packager => ATH => PCT flow
     essentialsTest(baseDir: "src/test/it")
 
-def name = 'artifact-manager-s3'
-def label = "${name}-${UUID.randomUUID().toString()}"
-def baseDir = "src/test/it"
-def yamlDinD = readFile file: baseDir + "/dind-agent.yml"
-yamlDinD.replaceAll("<NAME>",name)
-
+    def name = 'artifact-manager-s3'
+    def label = "${name}-${UUID.randomUUID().toString()}"
     timestamps {
-      podTemplate(label: label, yaml: yamlDinD) {
-          node(label){
+      podTemplate(label: label) {
+        node(label){
+          stage ('Prepare environment'){
+            env.labelDind = "${name}-${UUID.randomUUID().toString()}"
+            env.baseDir = "src/test/it"
+            env.yamlDinD = readFile file: baseDir + "/dind-agent.yml"
+            env.yamlDinD.replaceAll("<NAME>",name)
+
+            env.labelJenkins = "${name}-${UUID.randomUUID().toString()}"
+            env.yaml = readFile file: baseDir + "/jenkins.yml"
+            env.yaml.replaceAll("<NAME>",name)
+            env.yaml.replaceAll("<BUILD_ID>",env.BUILD_ID)  
+          }  
+        }
+      }
+    }
+    
+    timestamps {
+      podTemplate(label: labelDind, yaml: yamlDinD) {
+          node(labelDind){
             stage('Build Docker Image'){
                 infra.checkout()
                 dir(baseDir) {
@@ -34,14 +48,9 @@ yamlDinD.replaceAll("<NAME>",name)
           }
     }
 
-label = "${name}-${UUID.randomUUID().toString()}"
-def yaml = readFile file: baseDir + "/jenkins.yml"
-yaml.replaceAll("<NAME>",name)
-yaml.replaceAll("<BUILD_ID>",env.BUILD_ID)
-
     timestamps {
-      podTemplate(label: label, yaml: yaml){
-          node(label) {
+      podTemplate(label: labelJenkins, yaml: yaml){
+          node(labelJenkins) {
             stage('Run on k8s'){
               container(name) {
                 sh 'sh /var/jenkins_home/runJobs.sh' 
