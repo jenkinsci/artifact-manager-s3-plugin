@@ -64,6 +64,7 @@ if (infra.isRunningOnJenkinsInfra()) {
                 }
             }
           }
+        }
       }
     }
 } else {
