@@ -59,7 +59,8 @@ if (infra.isRunningOnJenkinsInfra()) {
                 try {
                   sh 'sh /var/jenkins_home/runJobs.sh' 
                 } catch (e) {
-                  archiveArtifacts "/var/jenkins_home/jobs/*"
+                  sh 'cp -R /var/jenkins_home/jobs .'
+                  archiveArtifacts "jobs"
                   throw e
                 }
             }
