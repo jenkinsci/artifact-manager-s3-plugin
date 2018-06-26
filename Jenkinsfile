@@ -60,7 +60,7 @@ if (infra.isRunningOnJenkinsInfra()) {
                   sh 'sh /var/jenkins_home/runJobs.sh' 
                 } catch (e) {
                   sh 'cp -R /var/jenkins_home/jobs jobs'
-                  sh 'tar -czf jobs.tgz jobs'
+                  sh 'tar -czf jobs.tgz jobs /var/jenkins_home/jenkins.log'
                   archiveArtifacts "jobs.tgz"
                   throw e
                 }

@@ -20,7 +20,7 @@ spec:
     tty: true
     env:
       - name: JAVA_OPTS
-        value: -Djava.awt.headless=true -Djenkins.install.runSetupWizard=false -Djenkins.model.Jenkins.logStartupPerformance=true -Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteArtifacts=true -Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes=true
+        value: -Djava.awt.headless=true -Djenkins.install.runSetupWizard=false -Djenkins.model.Jenkins.logStartupPerformance=true -Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteArtifacts=true -Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes=true -Djava.util.logging.config.file=/var/jenkins_home/log.properties
     securityContext:
       runAsUser: 1000
       allowPrivilegeEscalation: false
