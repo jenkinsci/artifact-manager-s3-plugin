@@ -56,9 +56,12 @@ if (infra.isRunningOnJenkinsInfra()) {
           node(env.labelJenkins) {
             stage('Run on k8s'){
               container(name) {
-                sh 'sh /var/jenkins_home/runJobs.sh' 
-                archiveArtifacts "/var/jenkins_home/jobs/*"
-              }
+                try {
+                  sh 'sh /var/jenkins_home/runJobs.sh' 
+                } catch (e) {
+                  archiveArtifacts "/var/jenkins_home/jobs/*"
+                  throw e
+                }
             }
           }
       }
