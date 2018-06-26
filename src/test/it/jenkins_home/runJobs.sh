@@ -68,13 +68,13 @@ echo "RESULT_SMALFILES=${RESULT_SMALFILES} - $(getDurationJob small-files)"
 echo "RETURL_STASH=${RETURL_STASH} - $(getDurationJob stash)"
 
 echo "Check results"
-[ "${RESULT_BIGFILE}" == "<result>SUCCESS</result>" ] || exit -1
-[ "${RESULT_SMALFILES}" == "<result>SUCCESS</result>" ] || exit -1
-[ "${RETURL_STASH}" == "<result>SUCCESS</result>" ] || exit -1
+[ "${RESULT_BIGFILE}" = "<result>SUCCESS</result>" ] || exit 1
+[ "${RESULT_SMALFILES}" = "<result>SUCCESS</result>" ] || exit 1
+[ "${RETURL_STASH}" = "<result>SUCCESS</result>" ] || exit 1
 
 echo "Download Artifact"
 RESULT_DOWNLOAD=$(downloadArtifacts small-files)
-[ "${RESULT_DOWNLOAD}" == "200" ] || exit -1
+[ "${RESULT_DOWNLOAD}" = "200" ] || exit 1
 
 echo "Delete jobs and artifacts"
 echo "Big-file - $(deleteJob big-file)"
