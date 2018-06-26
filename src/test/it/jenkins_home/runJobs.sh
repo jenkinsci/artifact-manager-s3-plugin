@@ -61,7 +61,7 @@ waitFinishJob big-file
 echo "Job Results"
 RESULT_BIGFILE=$(getResultJob big-file)
 RESULT_SMALFILES=$(getResultJob small-files)
-RETURL_STASH$(getResultJob stash)
+RETURL_STASH=$(getResultJob stash)
 
 echo "RESULT_BIGFILE=${RESULT_BIGFILE} - $(getDurationJob big-file)"
 echo "RESULT_SMALFILES=${RESULT_SMALFILES} - $(getDurationJob small-files)"
