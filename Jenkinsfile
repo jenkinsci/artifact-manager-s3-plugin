@@ -58,11 +58,9 @@ if (infra.isRunningOnJenkinsInfra()) {
               container(name) {
                 try {
                   sh 'sh /var/jenkins_home/runJobs.sh' 
-                } catch (e) {
-                  sh 'cp -R /var/jenkins_home/jobs jobs'
-                  sh 'tar -czf jobs.tgz jobs /var/jenkins_home/jenkins.log'
-                  archiveArtifacts "jobs.tgz"
-                  throw e
+                } finally {
+                  sh 'tar -czf results.tgz /var/jenkins_home/jobs /var/jenkins_home/jenkins.log'
+                  archiveArtifacts "results.tgz"
                 }
             }
           }

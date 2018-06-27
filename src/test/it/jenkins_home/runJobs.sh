@@ -74,7 +74,7 @@ echo "Check results"
 
 echo "Download Artifact"
 RESULT_DOWNLOAD=$(downloadArtifacts small-files)
-[ "${RESULT_DOWNLOAD}" = "200" ] || exit 1
+[ "${RESULT_DOWNLOAD}" -lt "400" ] || exit 1
 
 echo "Delete jobs and artifacts"
 echo "Big-file - $(deleteJob big-file)"
