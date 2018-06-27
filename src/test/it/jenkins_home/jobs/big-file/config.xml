@@ -19,14 +19,18 @@ def file = &quot;test.bin&quot;
 
 timestamps {
     node() {
-      stage(&apos;Generating ${file}&apos;) {
-        sh &quot;[ -f ${file} ] || dd if=/dev/urandom of=${file} bs=10240 count=102400&quot;
-      }
-      stage(&apos;Archive&apos;) {
-        archiveArtifacts file
-      }
-      stage(&apos;Unarchive&apos;) {
-        unarchive mapping: [&quot;${file}&quot;: &apos;test.bin&apos;]
+      try{
+        stage(&apos;Generating ${file}&apos;) {
+          sh &quot;[ -f ${file} ] || dd if=/dev/urandom of=${file} bs=10240 count=102400&quot;
+        }
+        stage(&apos;Archive&apos;) {
+          archiveArtifacts file
+        }
+        stage(&apos;Unarchive&apos;) {
+          unarchive mapping: [&quot;${file}&quot;: &apos;test.bin&apos;]
+        }      
+      } finally {
+        deleteDir()
       }
     }
 }</script>
