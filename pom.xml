@@ -144,6 +144,12 @@
       <version>1.7</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>io.findify</groupId>
+      <artifactId>s3mock_2.12</artifactId>
+      <version>0.2.5</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>

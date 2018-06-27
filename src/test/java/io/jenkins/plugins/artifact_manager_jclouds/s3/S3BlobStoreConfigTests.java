@@ -1,6 +1,14 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.logging.Logger;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import org.junit.Rule;
@@ -12,6 +20,13 @@ import jenkins.model.ArtifactManagerConfiguration;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
+import io.findify.s3mock.S3Mock;
+import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 
 public class S3BlobStoreConfigTests {
 
@@ -94,5 +109,42 @@ public class S3BlobStoreConfigTests {
         assertEquals(descriptor.doCheckRegion("").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckRegion("us-west-1").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckRegion("no-valid").kind, FormValidation.Kind.ERROR);
+    }
+
+    @Test
+    public void createS3Bucket() throws IOException {
+        int port =  findFreePort();
+        String credentialsId = "my-fake-credentials";
+        String serviceEndpoint = "http://127.0.0.1:" + port;
+        S3BlobStoreConfig.endpointConfiguration = new EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
+        S3BlobStore provider = new S3BlobStore();
+        S3BlobStoreConfig s3BlobStoreConfig = S3BlobStoreConfig.get();
+        s3BlobStoreConfig.setContainer(CONTAINER_NAME);
+        s3BlobStoreConfig.setPrefix(CONTAINER_PREFIX);
+        s3BlobStoreConfig.setRegion(CONTAINER_REGION);
+
+        S3Mock api = new S3Mock.Builder().withPort(port).withInMemoryBackend().build();
+        api.start();
+
+        provider.createS3Bucket(CONTAINER_NAME);
+
+        AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
+        AmazonS3 client = AmazonS3ClientBuilder
+                .standard()
+                .withPathStyleAccessEnabled(true)
+                .withEndpointConfiguration(endpoint)
+                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+                .build();
+        client.putObject(CONTAINER_NAME, "file/name", "contents");
+        api.shutdown();
+    }
+
+    private Integer findFreePort() throws IOException {
+        try (
+                ServerSocket socket = new ServerSocket(0);
+        ) {
+            return socket.getLocalPort();
+
+        }
     }
 }
