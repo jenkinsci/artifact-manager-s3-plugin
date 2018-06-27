@@ -135,11 +135,8 @@ public class S3BlobStoreConfigTests {
     }
 
     private Integer findFreePort() throws IOException {
-        try (
-                ServerSocket socket = new ServerSocket(0);
-        ) {
+        try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
-
         }
     }
 }
