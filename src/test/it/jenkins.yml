@@ -1,6 +1,8 @@
 apiVersion: v1
 kind: Pod
 metadata:
+  annotations:
+    iam.amazonaws.com/role: <IAM_ROLE>
   generateName: <NAME>-
   labels:
     name: jnlp
@@ -16,7 +18,7 @@ spec:
       runAsUser: 1000
       allowPrivilegeEscalation: false
   - name: <NAME>
-    image: docker.cloudbees.com/<NAME>:<BUILD_ID>
+    image: <DOCKER_REPO>/<NAME>:<BUILD_ID>
     tty: true
     env:
       - name: JAVA_OPTS
@@ -25,4 +27,4 @@ spec:
       runAsUser: 1000
       allowPrivilegeEscalation: false
   imagePullSecrets:
-    - name: docker.cloudbees.com
+    - name: <DOCKER_SECRET>
