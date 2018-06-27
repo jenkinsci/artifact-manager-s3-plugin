@@ -47,6 +47,12 @@ spec:
     - groupId: "org.jenkins-ci.plugins"
       artifactId: "aws-java-sdk"
       version: 1.11.329
+    - groupId: "org.jenkins-ci.plugins"
+      artifactId: "aws-credentials"
+      version: 1.23
+    - groupId: "org.jenkins-ci.plugins.workflow"
+      artifactId: "workflow-cps"
+      version: 2.54-rc730.05bb1322341d
   environments:
     - name: aws
       plugins:
