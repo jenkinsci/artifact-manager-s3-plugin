@@ -10,7 +10,7 @@ waitFinishJob(){
   while [ "${RUNNING}" = "<building>true</building>" ] 
   do
     sleep 10
-    RUNNING="$(curl -sS http://127.0.0.1:8080/job/${job}//1/api/xml?xpath=/workfwRun/building)"
+    RUNNING="$(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/building)"
     echo -n "."
   done                     
 }

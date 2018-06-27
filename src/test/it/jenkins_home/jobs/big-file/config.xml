@@ -16,7 +16,6 @@
   <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.54-rc730.05bb1322341d">
     <script>def name = &quot;test-s3-big-file&quot;
 def file = &quot;test.bin&quot;
-def t1,t2,t3,t4
 
 timestamps {
     node() {
@@ -24,31 +23,11 @@ timestamps {
         sh &quot;[ -f ${file} ] || dd if=/dev/urandom of=${file} bs=10240 count=102400&quot;
       }
       stage(&apos;Archive&apos;) {
-        t1 = System.currentTimeMillis()
         archiveArtifacts file
-        t2 = System.currentTimeMillis()
       }
       stage(&apos;Unarchive&apos;) {
-        t3 = System.currentTimeMillis()
         unarchive mapping: [&quot;${file}&quot;: &apos;test.bin&apos;]
-        t4 = System.currentTimeMillis()
       }
-      //sh &quot;rm test.bin || echo true&quot;
-/*
-      def content = &quot;&quot;
-      try{
-        copyArtifacts(projectName: &quot;${env.JOB_NAME}&quot; , selector: specific(&quot;${currentBuild.number - 1}&quot;))
-        content = readFile file: &apos;gnuplot.csv&apos;
-      } catch (err){
-        echo &quot;There is no gnuplot.cvs to unarchive&quot;
-        content = &quot;time,archive,unarchive&quot;
-      }
-
-      java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(&quot;yyyy/M/dd HH:mm:ss&quot;)
-      String date = sdf.format(new Date())
-      writeFile file: &apos;gnuplot.csv&apos;, text: &quot;${content}\n${date},${t2 - t1},${t4 - t3}&quot;
-      archiveArtifacts &apos;gnuplot.csv&apos;
-      */
     }
 }</script>
     <sandbox>true</sandbox>
