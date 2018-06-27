@@ -26,7 +26,6 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -96,7 +95,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     /**
      * field to fake S3 endpoint on test.
      */
-    static AwsClientBuilder.EndpointConfiguration endpointConfiguration;
+    static AwsClientBuilder.EndpointConfiguration ENDPOINT;
 
 
     /**

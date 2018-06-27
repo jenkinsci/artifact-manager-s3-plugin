@@ -7,7 +7,6 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
@@ -24,9 +23,6 @@ import static org.junit.Assert.fail;
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import io.findify.s3mock.S3Mock;
-import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 
 public class S3BlobStoreConfigTests {
 
@@ -114,9 +110,8 @@ public class S3BlobStoreConfigTests {
     @Test
     public void createS3Bucket() throws IOException {
         int port =  findFreePort();
-        String credentialsId = "my-fake-credentials";
         String serviceEndpoint = "http://127.0.0.1:" + port;
-        S3BlobStoreConfig.endpointConfiguration = new EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
+        S3BlobStoreConfig.ENDPOINT = new EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
         S3BlobStore provider = new S3BlobStore();
         S3BlobStoreConfig s3BlobStoreConfig = S3BlobStoreConfig.get();
         s3BlobStoreConfig.setContainer(CONTAINER_NAME);

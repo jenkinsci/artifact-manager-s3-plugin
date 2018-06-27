@@ -221,7 +221,7 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     private AWSSessionCredentials sessionCredentials() throws IOException {
         AWSSessionCredentials awsCredentials;
-        if(S3BlobStoreConfig.endpointConfiguration != null) {
+        if(S3BlobStoreConfig.ENDPOINT != null) {
             awsCredentials = new BasicSessionCredentials("FakeKey","FakeSecret", "FakeToken");
         } else if (hasCredentialsConfigured()) {
             awsCredentials = sessionCredentialsFromKeyAndSecret();
@@ -280,8 +280,8 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     private AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
         AmazonS3ClientBuilder ret = AmazonS3ClientBuilder.standard();
-        if(S3BlobStoreConfig.endpointConfiguration != null){
-            ret = ret.withPathStyleAccessEnabled(true).withEndpointConfiguration(S3BlobStoreConfig.endpointConfiguration);
+        if(S3BlobStoreConfig.ENDPOINT != null){
+            ret = ret.withPathStyleAccessEnabled(true).withEndpointConfiguration(S3BlobStoreConfig.ENDPOINT);
         } else if(StringUtils.isNotBlank(getRegion())) {
             ret = ret.withRegion(getRegion());
         } else {
