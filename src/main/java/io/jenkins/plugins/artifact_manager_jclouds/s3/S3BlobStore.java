@@ -311,7 +311,8 @@ public class S3BlobStore extends BlobStoreProvider {
      * create an S3 Bucket.
      * @param name name of the S3 Bucket.
      * @return return the Bucket created.
-     * @throws IOException in case of error.
+     * @throws IOException in case of error obtaining the credentials, in other kind of errors it will throw the
+     * runtime exceptions are thrown by createBucket method.
      */
     public Bucket createS3Bucket(String name) throws IOException {
         AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials());

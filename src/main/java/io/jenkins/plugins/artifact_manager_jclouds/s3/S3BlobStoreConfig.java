@@ -26,6 +26,7 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.Collections;
 import java.util.Optional;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -271,7 +272,6 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
-            LOGGER.finest(t.getMessage());
         }
         return ret;
     }
@@ -288,7 +288,6 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
-            LOGGER.finest(t.getMessage());
         }
         return ret;
     }
@@ -299,6 +298,8 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
      * @return the proper cause message.
      */
     private String processExceptionMessage(Throwable t) {
+        LOGGER.log(Level.FINEST, t.getMessage(), t);
+
         String msg = t.getMessage();
         String className = t.getClass().getSimpleName();
         Throwable cause = t.getCause();
