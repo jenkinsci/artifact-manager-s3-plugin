@@ -1,14 +1,111 @@
 ---
 packaging:
-  bom: bom.yml
+#  bom: bom.yml
   environment: aws
   archiveArtifacts: true
   cwpVersion: 0.1-alpha-9-SNAPSHOT
   config:
     bundle:
+      groupId: "io.jenkins.plugins"
+      artifactId: "artifact-manager-s3"
       vendor: "Jenkins project"
       title: "Jenkins WAR - Artifact Manager S3 Integration Tests"
       description: "Demo build, which includes Artifact Manager S3 and plugins using ArtifactManager API for testing"
+    buildSettings:
+      docker:
+        base: "jenkins/jenkins:2.121.1"
+        tag: "jenkins/artifact-manager-s3"
+        build: true
+    war:
+      groupId: "org.jenkins-ci.main"
+      artifactId: "jenkins-war"
+      source:
+        version: 2.121.1
+    plugins:     
+      - groupId: "org.jenkins-ci.plugins.workflow"
+        artifactId: "workflow-api"
+        source:
+          version:  2.28
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "copyartifact"
+        source:
+          version: 1.40-rc298.60da56cfabea
+      # Maven HPI Plugin improperly resolves dependency trees, needs upper bounds check
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "structs"
+        source:
+          version: 1.14
+      - groupId: "org.jenkins-ci.plugins.workflow"
+        artifactId: "workflow-step-api"
+        source:
+          version: 2.16-rc310.04f07c15faaf
+      - groupId: "org.jenkins-ci.plugins.workflow"
+        artifactId: "workflow-job"
+        source:
+          version: 2.21
+      - groupId: "org.jenkins-ci.plugins.workflow"
+        artifactId: "workflow-basic-steps"
+        source:
+          version: 2.9
+      - groupId: "org.jenkins-ci.plugins.workflow"
+        artifactId: "workflow-support"
+        source:
+          version: 2.19-rc289.691fb60f3fa6
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "junit"
+        source:
+          version: 1.24
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "mailer"
+        source:
+          version: 1.21
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "scm-api"
+        source:
+          version: 2.2.7
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "script-security"
+        source:
+          version: 1.44
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "aws-java-sdk"
+        source:
+          version: 1.11.329
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "aws-credentials"
+        source:
+          version: 1.23
+        # dependencies to run Pipeline jobs
+      - groupId: "org.jenkins-ci.plugins.workflow"
+        artifactId: "workflow-cps"
+        source:
+          version: 2.54-rc730.05bb1322341d
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "timestamper"
+        source:
+          version: 1.8.10
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "pipeline-utility-steps"
+        source:
+          version: 2.1.0            
+      - groupId: "org.jenkins-ci.plugins.workflow"
+        artifactId: "workflow-durable-task-step"
+        source:
+          version: 2.19 
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "pipeline-stage-step"
+        source:
+          version: 2.3
+    systemProperties: {
+      java.util.logging.config.file: /var/jenkins_home/log.properties,
+      jenkins.model.Jenkins.logStartupPerformance: true,
+      artifact-manager-s3.enabled: true,
+      io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteArtifacts: true,
+      io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes: true}
+#    casc:
+#      - id: "initScripts"
+#        source:
+#          dir: casc.yml
     groovyHooks:
       - type: "init"
         id: "initScripts"
