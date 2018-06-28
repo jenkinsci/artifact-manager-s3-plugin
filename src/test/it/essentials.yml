@@ -12,6 +12,7 @@ packaging:
       title: "Jenkins WAR - Artifact Manager S3 Integration Tests"
       description: "Demo build, which includes Artifact Manager S3 and plugins using ArtifactManager API for testing"
     buildSettings:
+      version: 2.121.1
       docker:
         base: "jenkins/jenkins:2.121.1"
         tag: "jenkins/artifact-manager-s3"
