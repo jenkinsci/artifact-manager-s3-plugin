@@ -214,7 +214,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     public ListBoxModel doFillRegionItems() {
         ListBoxModel regions = new ListBoxModel();
         regions.add("Auto", "");
-        for (String s : Region.DEFAULT_S3) {
+        for (String s : Region.DEFAULT_REGIONS) {
             regions.add(s);
         }
         return regions;
