@@ -97,6 +97,10 @@ packaging:
         artifactId: "pipeline-stage-step"
         source:
           version: 2.3
+      - groupId: "io.jenkins.plugins"
+        artifactId: "artifact-manager-s3"
+        source:
+          dir: ../../..
     systemProperties: {
       java.util.logging.config.file: /var/jenkins_home/log.properties,
       jenkins.model.Jenkins.logStartupPerformance: true,
