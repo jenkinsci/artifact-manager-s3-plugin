@@ -26,10 +26,11 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import org.apache.commons.lang.StringUtils;
@@ -91,6 +92,12 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
      * jenkins hosts.
      */
     private String credentialsId;
+
+    /**
+     * field to fake S3 endpoint on test.
+     */
+    static AwsClientBuilder.EndpointConfiguration ENDPOINT;
+
 
     /**
      * class to test configuration against Amazon S3 Bucket.
@@ -255,6 +262,21 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     @RequirePOST
+    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter String prefix,
+                                                   @QueryParameter String region, @QueryParameter String credentialsId){
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        FormValidation ret = FormValidation.ok("success");
+        try {
+            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region, credentialsId);
+            provider.createS3Bucket(container);
+        } catch (Throwable t){
+            String msg = processExceptionMessage(t);
+            ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
+        }
+        return ret;
+    }
+
+    @RequirePOST
     public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix,
                                                    @QueryParameter String region, @QueryParameter String credentialsId){
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
@@ -266,7 +288,6 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
-            LOGGER.finest(t.getMessage());
         }
         return ret;
     }
@@ -277,6 +298,8 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
      * @return the proper cause message.
      */
     private String processExceptionMessage(Throwable t) {
+        LOGGER.log(Level.FINEST, t.getMessage(), t);
+
         String msg = t.getMessage();
         String className = t.getClass().getSimpleName();
         Throwable cause = t.getCause();
