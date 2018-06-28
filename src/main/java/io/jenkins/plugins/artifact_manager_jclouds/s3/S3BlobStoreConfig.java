@@ -283,7 +283,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         FormValidation ret = FormValidation.ok("success");
         try {
             S3BlobStore provider = new S3BlobStoreTester(container, prefix, region, credentialsId);
-            JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, "");
+            JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix);
             jc.list();
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
