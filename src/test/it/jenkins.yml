@@ -18,7 +18,7 @@ spec:
       runAsUser: 1000
       allowPrivilegeEscalation: false
   - name: <NAME>
-    image: <DOCKER_REPO>/<NAME>:<BUILD_ID>
+    image: <DOCKER_IMAGE>
     tty: true
     env:
       - name: JAVA_OPTS
