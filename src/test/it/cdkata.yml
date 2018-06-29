@@ -17,9 +17,9 @@ packaging:
         base: "jenkins/jenkins:2.121.1"
         tag: "jenkins/artifact-manager-s3"
         build: true
-        push: true
-        registryURL: https://docker.cloudbees.com
-        credentialsId: 80ca7cb9-b576-43df-9f54-ac49882dd7a9
+#        push: true
+#        registryURL: https://docker.cloudbees.com
+#        credentialsId: 80ca7cb9-b576-43df-9f54-ac49882dd7a9
     war:
       groupId: "org.jenkins-ci.main"
       artifactId: "jenkins-war"
