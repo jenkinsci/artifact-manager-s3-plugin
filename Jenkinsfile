@@ -10,7 +10,7 @@ if (infra.isRunningOnJenkinsInfra()) {
     cdkata("cdkata.yml", "docker && highmem", "src/test/it")
     
     //build a custom docker image, finally deploy it in k8s and run some jobs.
-    buildAMOnS3RunK8s()
+    runAMOnS3K8s("src/test/it")
 } else {
     error 'Run tests manually.'
 }
