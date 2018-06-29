@@ -30,6 +30,7 @@ if(Jenkins.instance.getItem("big-file") == null) {
               deleteDir()
             }
           }
+        }
           ''',
         true // Sandbox
     )
@@ -59,6 +60,7 @@ if(Jenkins.instance.getItem("small-files") == null) {
             deleteDir()
           }
         }
+      }
       ''',
       true // Sandbox
     )
@@ -87,6 +89,7 @@ if(Jenkins.instance.getItem("stash") == null) {
             deleteDir()
           }
         }
+      }
       ''',
       true // Sandbox
     )
