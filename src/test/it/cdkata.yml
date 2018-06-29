@@ -133,7 +133,7 @@ ath:
   categories:
     - "org.jenkinsci.test.acceptance.junit.SmokeTest"
 pct:
-  disabled: true
+  disabled: false
   useLocalSnapshots: false
   jth:
     version: 2.38
