@@ -72,6 +72,7 @@ import org.jvnet.hudson.test.LoggerRule;
  * </ul>
  */
 @Issue("JENKINS-50597")
+@Ignore
 public class NetworkTest {
 
     @ClassRule
