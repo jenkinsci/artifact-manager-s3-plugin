@@ -35,6 +35,7 @@ import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -115,6 +116,9 @@ public class S3BlobStore extends BlobStoreProvider {
 
     @Override
     public BlobStoreContext getContext() throws IOException {
+        LogManager logManager = LogManager.getLogManager();
+        logManager.readConfiguration();
+        
         LOGGER.log(Level.FINEST, "Building context");
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
