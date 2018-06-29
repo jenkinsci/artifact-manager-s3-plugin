@@ -10,7 +10,7 @@ if (!Boolean.getBoolean("artifact-manager-s3.enabled")) {
 println("-- Creating Jobs")
 
 if(Jenkins.instance.getItem("big-file") == null) {
-    WorkflowJob project1 = Jenkins.instance.createProject(WorkflowJob.class, "ig-file")
+    WorkflowJob project1 = Jenkins.instance.createProject(WorkflowJob.class, "big-file")
     project1.definition = new CpsFlowDefinition(
         '''def name = 'test-s3-big-file'
         def file = 'test.bin' 
@@ -39,8 +39,7 @@ if(Jenkins.instance.getItem("big-file") == null) {
 if(Jenkins.instance.getItem("small-files") == null) {
     WorkflowJob project1 = Jenkins.instance.createProject(WorkflowJob.class, "small-files")
     project1.definition = new CpsFlowDefinition(
-      '''def name = 'test-s3-big-file'
-      def file = 'test.bin' 
+      '''def name = 'test-s3-small-files'
       timestamps {
        node() {
          try{
@@ -69,8 +68,7 @@ if(Jenkins.instance.getItem("small-files") == null) {
 if(Jenkins.instance.getItem("stash") == null) {
     WorkflowJob project1 = Jenkins.instance.createProject(WorkflowJob.class, "stash")
     project1.definition = new CpsFlowDefinition(
-      '''def name = 'test-s3-big-file'
-      def file = 'test.bin' 
+      '''def name = 'test-s3-stash'
       timestamps {
        node() {
          try{
