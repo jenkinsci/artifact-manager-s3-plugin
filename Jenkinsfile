@@ -7,7 +7,7 @@ if (infra.isRunningOnJenkinsInfra()) {
     buildArtifactManagerPluginOnAWS()
 
     // Integration tests with a standard Custom WAR Packager => ATH => PCT flow
-    cdkata(baseDir: "src/test/it")
+    cdkata("cdkata.yml", "docker && highmem", "src/test/it")
     
     //build a custom docker image, finally deploy it in k8s and run some jobs.
     buildAMOnS3RunK8s()
