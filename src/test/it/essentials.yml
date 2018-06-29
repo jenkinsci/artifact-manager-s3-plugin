@@ -12,11 +12,11 @@ packaging:
       title: "Jenkins WAR - Artifact Manager S3 Integration Tests"
       description: "Demo build, which includes Artifact Manager S3 and plugins using ArtifactManager API for testing"
     buildSettings:
+      version: 2.121.1
       docker:
         base: "jenkins/jenkins:2.121.1"
         tag: "jenkins/artifact-manager-s3"
         build: true
-      version: 2.121.1
     war:
       groupId: "org.jenkins-ci.main"
       artifactId: "jenkins-war"
@@ -100,6 +100,7 @@ packaging:
       - groupId: "io.jenkins.plugins"
         artifactId: "artifact-manager-s3"
         source:
+          type: filesystem
           dir: ../../..
     systemProperties: {
       java.util.logging.config.file: /var/jenkins_home/log.properties,
