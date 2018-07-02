@@ -13,3 +13,7 @@ work
 .settings
 .classpath
 .project
+
+.factorypath
+.stignore
+.vscode/
