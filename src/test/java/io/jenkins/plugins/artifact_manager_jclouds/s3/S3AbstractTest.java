@@ -24,28 +24,31 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
-import com.amazonaws.SdkClientException;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assume.*;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import static org.hamcrest.Matchers.*;
 
 import org.apache.commons.lang.RandomStringUtils;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.junit.After;
-import static org.junit.Assume.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+
+import com.amazonaws.SdkClientException;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
+import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 
 public abstract class S3AbstractTest {
 
@@ -103,10 +106,11 @@ public abstract class S3AbstractTest {
     @Before
     public void setupContext() throws Exception {
         provider = new S3BlobStore();
-        S3BlobStoreConfig s3BlobStoreConfig = S3BlobStoreConfig.get();
-        s3BlobStoreConfig.setContainer(S3_BUCKET);
-        s3BlobStoreConfig.setPrefix(S3_DIR);
-        s3BlobStoreConfig.setRegion(S3_REGION);
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        config.setContainer(S3_BUCKET);
+        config.setPrefix(S3_DIR);
+        CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
+        credentialsConfig.setRegion(S3_REGION);
 
         loggerRule.recordPackage(JCloudsVirtualFile.class, Level.FINE);
 

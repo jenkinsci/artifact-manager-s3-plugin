@@ -1,28 +1,29 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
+import static org.junit.Assert.*;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.logging.Logger;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.AnonymousAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+
 import hudson.model.Failure;
 import hudson.util.FormValidation;
-import jenkins.model.ArtifactManagerConfiguration;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import io.findify.s3mock.S3Mock;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
+import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import jenkins.model.ArtifactManagerConfiguration;
 
 public class S3BlobStoreConfigTests {
 
@@ -38,10 +39,11 @@ public class S3BlobStoreConfigTests {
     @Test
     public void checkConfigurationManually() throws Exception {
         S3BlobStore provider = new S3BlobStore();
-        S3BlobStoreConfig s3BlobStoreConfig = S3BlobStoreConfig.get();
-        s3BlobStoreConfig.setContainer(CONTAINER_NAME);
-        s3BlobStoreConfig.setPrefix(CONTAINER_PREFIX);
-        s3BlobStoreConfig.setRegion(CONTAINER_REGION);
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        config.setContainer(CONTAINER_NAME);
+        config.setPrefix(CONTAINER_PREFIX);
+        CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
+        credentialsConfig.setRegion(CONTAINER_REGION);
 
         JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(artifactManagerFactory);
@@ -49,17 +51,17 @@ public class S3BlobStoreConfigTests {
         LOGGER.info(artifactManagerFactory.getProvider().toString());
         BlobStoreProvider providerConfigured = artifactManagerFactory.getProvider();
         assertTrue(providerConfigured instanceof S3BlobStore);
-        checkFieldValues(((S3BlobStore)providerConfigured).getConfiguration());
+        checkFieldValues(config, credentialsConfig);
 
         //check configuration page submit
         j.configRoundtrip();
-        checkFieldValues(S3BlobStoreConfig.get());
+        checkFieldValues(config, credentialsConfig);
     }
 
-    private void checkFieldValues(S3BlobStoreConfig configuration) {
+    private void checkFieldValues(S3BlobStoreConfig configuration, CredentialsAwsGlobalConfiguration credentialsConfig) {
         assertEquals(configuration.getContainer(), CONTAINER_NAME);
         assertEquals(configuration.getPrefix(), CONTAINER_PREFIX);
-        assertEquals(configuration.getRegion(), CONTAINER_REGION);
+        assertEquals(credentialsConfig.getRegion(), CONTAINER_REGION);
     }
 
     @Test(expected = Failure.class)
@@ -101,7 +103,7 @@ public class S3BlobStoreConfigTests {
 
     @Test
     public void checkValidationsRegion() {
-        S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
+        CredentialsAwsGlobalConfiguration descriptor = CredentialsAwsGlobalConfiguration.get();
         assertEquals(descriptor.doCheckRegion("").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckRegion("us-west-1").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckRegion("no-valid").kind, FormValidation.Kind.ERROR);
@@ -113,15 +115,16 @@ public class S3BlobStoreConfigTests {
         String serviceEndpoint = "http://127.0.0.1:" + port;
         S3BlobStoreConfig.ENDPOINT = new EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
         S3BlobStore provider = new S3BlobStore();
-        S3BlobStoreConfig s3BlobStoreConfig = S3BlobStoreConfig.get();
-        s3BlobStoreConfig.setContainer(CONTAINER_NAME);
-        s3BlobStoreConfig.setPrefix(CONTAINER_PREFIX);
-        s3BlobStoreConfig.setRegion(CONTAINER_REGION);
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        config.setContainer(CONTAINER_NAME);
+        config.setPrefix(CONTAINER_PREFIX);
+        CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
+        credentialsConfig.setRegion(CONTAINER_REGION);
 
         S3Mock api = new S3Mock.Builder().withPort(port).withInMemoryBackend().build();
         api.start();
 
-        provider.createS3Bucket(CONTAINER_NAME);
+        config.createS3Bucket(CONTAINER_NAME);
 
         AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
         AmazonS3 client = AmazonS3ClientBuilder
