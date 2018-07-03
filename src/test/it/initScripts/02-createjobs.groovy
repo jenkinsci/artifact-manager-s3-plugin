@@ -35,6 +35,7 @@ if(Jenkins.instance.getItem("big-file") == null) {
         true // Sandbox
     )
     project1.save()
+    println("-- ${project1.name} Created")
 }
 
 if(Jenkins.instance.getItem("small-files") == null) {
@@ -65,6 +66,7 @@ if(Jenkins.instance.getItem("small-files") == null) {
       true // Sandbox
     )
     project1.save()
+    println("-- ${project1.name} Created")
 }
 
 if(Jenkins.instance.getItem("stash") == null) {
@@ -94,4 +96,5 @@ if(Jenkins.instance.getItem("stash") == null) {
       true // Sandbox
     )
     project1.save()
+    println("-- ${project1.name} Created")
 }

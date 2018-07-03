@@ -109,7 +109,8 @@ packaging:
       jenkins.model.Jenkins.logStartupPerformance: true,
       artifact-manager-s3.enabled: true,
       io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteArtifacts: true,
-      io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes: true}
+      io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes: true,
+      jenkins.install.runSetupWizard: false}
 #    casc:
 #      - id: "initScripts"
 #        source:

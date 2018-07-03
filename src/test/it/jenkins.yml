@@ -22,7 +22,7 @@ spec:
     tty: true
     env:
       - name: JAVA_OPTS
-        value: -Djava.awt.headless=true -Djenkins.install.runSetupWizard=false
+        value: -Djava.awt.headless=true
     securityContext:
       runAsUser: 1000
       allowPrivilegeEscalation: false
