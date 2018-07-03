@@ -103,6 +103,7 @@ packaging:
       - groupId: "io.jenkins.plugins"
         artifactId: "artifact-manager-s3"
         source:
+          version: 1.0
           dir: ../../..
     systemProperties: {
       java.util.logging.config.file: /var/jenkins_home/log.properties,

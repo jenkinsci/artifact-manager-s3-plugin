@@ -2,10 +2,10 @@ import jenkins.model.Jenkins
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition
 import org.jenkinsci.plugins.workflow.job.WorkflowJob
 
-if (!Boolean.getBoolean("artifact-manager-s3.enabled")) {
+//if (!Boolean.getBoolean("artifact-manager-s3.enabled")) {
     // Production mode, we do not configure the system
-    return
-}
+//    return
+//}
 
 println("-- Creating Jobs")
 
