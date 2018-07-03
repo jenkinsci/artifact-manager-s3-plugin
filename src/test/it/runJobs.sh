@@ -53,6 +53,8 @@ echo "Big-file - $(buildJob big-file)"
 echo "Small files - $(buildJob small-files)"
 echo "Stash - $(buildJob stash)"
 
+sleep 10
+
 echo "Waiting for jobs finished"
 waitFinishJob stash
 waitFinishJob small-files
