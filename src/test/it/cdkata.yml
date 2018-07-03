@@ -103,7 +103,7 @@ packaging:
       - groupId: "io.jenkins.plugins"
         artifactId: "artifact-manager-s3"
         source:
-          git: ../../../
+          git: https://github.com/jenkinsci/artifact-manager-s3-plugin.git
 
     systemProperties: {
       java.util.logging.config.file: /var/jenkins_home/log.properties,
