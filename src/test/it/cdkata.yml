@@ -6,8 +6,8 @@ packaging:
   cwpVersion: 0.1-alpha-8
   config:
     bundle:
-      groupId: "io.jenkins.plugins"
-      artifactId: "artifact-manager-s3"
+      groupId: "io.jenkins.plugins.war"
+      artifactId: "artifact-manager-s3-war"
       vendor: "Jenkins project"
       title: "Jenkins WAR - Artifact Manager S3 Integration Tests"
       description: "Demo build, which includes Artifact Manager S3 and plugins using ArtifactManager API for testing"
@@ -15,7 +15,7 @@ packaging:
       version: 2.121.1
       docker:
         base: "jenkins/jenkins:2.121.1"
-        tag: "jenkins/artifact-manager-s3"
+        tag: "jenkins/artifact-manager-s3-war"
         build: true
 #        push: true
 #        registryURL: https://docker.cloudbees.com
@@ -103,7 +103,7 @@ packaging:
       - groupId: "io.jenkins.plugins"
         artifactId: "artifact-manager-s3"
         source:
-          git: https://github.com/jenkinsci/artifact-manager-s3-plugin.git
+          dir: ../../..
     systemProperties: {
       java.util.logging.config.file: /var/jenkins_home/log.properties,
       jenkins.model.Jenkins.logStartupPerformance: true,
