@@ -2,11 +2,6 @@ import jenkins.model.Jenkins
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition
 import org.jenkinsci.plugins.workflow.job.WorkflowJob
 
-//if (!Boolean.getBoolean("artifact-manager-s3.enabled")) {
-    // Production mode, we do not configure the system
-//    return
-//}
-
 println("-- Creating Jobs")
 
 if(Jenkins.instance.getItem("big-file") == null) {

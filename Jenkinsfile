@@ -1,7 +1,6 @@
 if (infra.isRunningOnJenkinsInfra()) {
     // ci.jenkins.io
-    // NOOP on Jenkins infra right now
-    //buildPlugin(platforms: ['linux'])
+    buildPlugin(platforms: ['linux'])
 } else if (env.CHANGE_FORK == null) { // TODO pending JENKINS-45970
     // to run tests on S3
     buildArtifactManagerPluginOnAWS()
