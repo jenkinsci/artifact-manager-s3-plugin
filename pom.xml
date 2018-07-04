@@ -14,7 +14,7 @@
   <packaging>hpi</packaging>
 
   <properties>
-    <revision>1.0-beta-3</revision>
+    <revision>1.1</revision>
     <changelist>-SNAPSHOT</changelist>
     <jclouds.version>2.1.0</jclouds.version>
     <jenkins.version>2.121.1</jenkins.version>
@@ -123,7 +123,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-cps</artifactId>
-      <version>2.54-rc730.05bb1322341d</version> <!-- TODO pending release of https://github.com/jenkinsci/workflow-cps-plugin/pull/231 -->
+      <version>2.54</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -143,6 +143,22 @@
       <artifactId>metainf-services</artifactId>
       <version>1.7</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.findify</groupId>
+      <artifactId>s3mock_2.12</artifactId>
+      <version>0.2.5</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-s3</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
   <dependencyManagement>
@@ -176,13 +192,13 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins.workflow</groupId>
         <artifactId>workflow-step-api</artifactId>
-        <version>2.16-rc310.04f07c15faaf</version> <!-- TODO pending release of https://github.com/jenkinsci/workflow-step-api-plugin/pull/37 -->
+        <version>2.16</version>
         <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins.workflow</groupId>
         <artifactId>workflow-support</artifactId>
-        <version>2.19-rc289.691fb60f3fa6</version> <!-- TODO pending release of https://github.com/jenkinsci/workflow-support-plugin/pull/61 -->
+        <version>2.19</version>
         <scope>test</scope>
       </dependency>
       <dependency>

@@ -1,3 +1,4 @@
+.DS_Store
 target
 
 # mvn hpi:run
@@ -13,3 +14,7 @@ work
 .settings
 .classpath
 .project
+
+.factorypath
+.stignore
+.vscode/

@@ -41,6 +41,12 @@ import javax.annotation.Nonnull;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSSessionCredentials;
+<<<<<<< HEAD
+=======
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicSessionCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+>>>>>>> 6ea64b4021dd9d45d5b18e3ca16ecc2fb16719c7
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import org.apache.commons.lang.StringUtils;
@@ -60,6 +66,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
+<<<<<<< HEAD
+=======
+import com.amazonaws.services.s3.model.Bucket;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
+import com.amazonaws.services.securitytoken.model.GetSessionTokenRequest;
+import com.amazonaws.services.securitytoken.model.GetSessionTokenResult;
+>>>>>>> 6ea64b4021dd9d45d5b18e3ca16ecc2fb16719c7
 import com.google.common.base.Supplier;
 
 /**
@@ -153,6 +167,27 @@ public class S3BlobStore extends BlobStoreProvider {
         return () -> sessionCredentials;
     }
 
+<<<<<<< HEAD
+=======
+    /**
+     * Select the type of AWS credential that has to be created based on the configuration. If no AWS credential is
+     * provided, the IAM instance profile or user AWS configuration is used to create the AWS credentials.
+     * @return A n AWS session credential.
+     * @throws IOException in case of error.
+     */
+    private AWSSessionCredentials sessionCredentials() throws IOException {
+        AWSSessionCredentials awsCredentials;
+        if(S3BlobStoreConfig.ENDPOINT != null) {
+            awsCredentials = new BasicSessionCredentials("FakeKey","FakeSecret", "FakeToken");
+        } else if (hasCredentialsConfigured()) {
+            awsCredentials = sessionCredentialsFromKeyAndSecret();
+        } else {
+            awsCredentials = sessionCredentialsFromInstanceProfile();
+        }
+        return awsCredentials;
+    }
+
+>>>>>>> 6ea64b4021dd9d45d5b18e3ca16ecc2fb16719c7
     @Nonnull
     @Override
     public URI toURI(@NonNull String container, @NonNull String key) {
@@ -195,6 +230,29 @@ public class S3BlobStore extends BlobStoreProvider {
         return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
     }
 
+<<<<<<< HEAD
+=======
+    /**
+     *
+     * @return an AmazonS3ClientBuilder using the region or not, it depends if a region is configured or not.
+     */
+    private AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
+        AmazonS3ClientBuilder ret = AmazonS3ClientBuilder.standard();
+        if(S3BlobStoreConfig.ENDPOINT != null){
+            ret = ret.withPathStyleAccessEnabled(true).withEndpointConfiguration(S3BlobStoreConfig.ENDPOINT);
+        } else if(StringUtils.isNotBlank(getRegion())) {
+            ret = ret.withRegion(getRegion());
+        } else {
+            ret = ret.withForceGlobalBucketAccessEnabled(true);
+        }
+        return ret;
+    }
+
+    /**
+     *
+     * @return true if a container is configured.
+     */
+>>>>>>> 6ea64b4021dd9d45d5b18e3ca16ecc2fb16719c7
     public boolean isConfigured(){
         return StringUtils.isNotBlank(getContainer());
     }
@@ -206,6 +264,19 @@ public class S3BlobStore extends BlobStoreProvider {
         public String getDisplayName() {
             return "Amazon S3";
         }
+    }
+
+    /**
+     * create an S3 Bucket.
+     * @param name name of the S3 Bucket.
+     * @return return the Bucket created.
+     * @throws IOException in case of error obtaining the credentials, in other kind of errors it will throw the
+     * runtime exceptions are thrown by createBucket method.
+     */
+    public Bucket createS3Bucket(String name) throws IOException {
+        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials());
+        AmazonS3 client = getAmazonS3ClientBuilder().withCredentials(credentialsProvider).build();
+        return client.createBucket(name);
     }
 
     @Override
