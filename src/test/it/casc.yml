@@ -1,2 +1,9 @@
 jenkins:
   systemMessage: "CasC setup"
+unclassified:
+  s3blobstoreconfig:
+    # TODO: create through CloudFormation
+    container: "cloudbees-arch-us-west-2"
+    # FIXME: not a sensible default for everyone
+    region: "us-west-2"
+    prefix: "integration-tests/"

@@ -112,10 +112,10 @@ packaging:
       io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteArtifacts: true,
       io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes: true,
       jenkins.install.runSetupWizard: false}
-#    casc:
-#      - id: "initScripts"
-#        source:
-#          dir: casc.yml
+    casc:
+      - id: "initScripts"
+        source:
+          dir: casc.yml
     groovyHooks:
       - type: "init"
         id: "initScripts"
@@ -135,7 +135,7 @@ ath:
   categories:
     - "org.jenkinsci.test.acceptance.junit.SmokeTest"
 pct:
-  disabled: false
+  disabled: true
   useLocalSnapshots: false
   jth:
     version: 2.38
