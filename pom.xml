@@ -21,6 +21,7 @@
     <java.level>8</java.level>
     <workflow-api-plugin.version>2.28</workflow-api-plugin.version>
     <useBeta>true</useBeta>
+    <no-test-jar>false</no-test-jar>
   </properties>
 
   <name>Artifact Manager on S3 plugin</name>
