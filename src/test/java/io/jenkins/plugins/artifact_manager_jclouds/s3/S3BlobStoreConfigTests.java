@@ -2,27 +2,42 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
+import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
 import hudson.model.Failure;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
+import hudson.tasks.ArtifactArchiver;
 import hudson.util.FormValidation;
 import jenkins.model.ArtifactManagerConfiguration;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import io.findify.s3mock.S3Mock;
+import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.TestBuilder;
 
 public class S3BlobStoreConfigTests {
 
@@ -34,6 +49,9 @@ public class S3BlobStoreConfigTests {
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
+
+    @Rule
+    public LoggerRule httpLogging = new LoggerRule();
 
     @Test
     public void checkConfigurationManually() throws Exception {
@@ -131,7 +149,45 @@ public class S3BlobStoreConfigTests {
                 .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .build();
         client.putObject(CONTAINER_NAME, "file/name", "contents");
-        api.shutdown();
+        api.stop();
+    }
+
+    @Test
+    public void archiveArtifactMockFilesystem() throws Exception {
+        FileBlobStore provider = new FileBlobStore();
+
+        JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(artifactManagerFactory);
+
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.getBuildersList().add(new TestBuilder() {
+            @Override
+            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+                FilePath ws = build.getWorkspace();
+                for (int i = 0; i < 10; i++) {
+                    for (int j = 0; j < 10; j++) {
+                        ws.child(i + "/" + j + "/f").write(i + "-" + j, null);
+                    }
+                }
+                return true;
+            }
+        });
+        p.getPublishersList().add(new ArtifactArchiver("**"));
+        FreeStyleBuild b = j.buildAndAssertSuccess(p);
+        httpLogging.record(InvokeHttpMethod.class, Level.FINE);
+        httpLogging.capture(1000);
+        JenkinsRule.WebClient wc = j.createWebClient();
+        System.err.println("build root");
+        wc.getPage(b);
+        System.err.println("artifact root");
+        wc.getPage(b, "artifact/");
+        System.err.println("3 subdir");
+        wc.getPage(b, "artifact/3/");
+        System.err.println("3/4 subdir");
+        wc.getPage(b, "artifact/3/4/");
+        int httpCount = httpLogging.getRecords().size();
+        System.err.println("total count: " + httpCount);
+        assertThat(httpCount, lessThanOrEqualTo(11));
     }
 
     private Integer findFreePort() throws IOException {
