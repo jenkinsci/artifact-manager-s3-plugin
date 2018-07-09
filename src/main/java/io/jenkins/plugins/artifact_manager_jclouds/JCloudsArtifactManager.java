@@ -95,7 +95,9 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     @Override
     public void onLoad(Run<?, ?> build) {
-        this.key = String.format("%s/%s", build.getParent().getFullName(), build.getNumber());
+        if(build != null) {
+            this.key = String.format("%s/%s", build.getParent().getFullName(), build.getNumber());
+        }
     }
 
     private String getBlobPath(String path) {
