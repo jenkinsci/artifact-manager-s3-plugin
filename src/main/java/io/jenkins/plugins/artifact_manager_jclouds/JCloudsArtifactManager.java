@@ -36,6 +36,7 @@ import hudson.remoting.VirtualChannel;
 import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import io.jenkins.plugins.httpclient.RobustHTTPClient;
 import java.io.File;
@@ -81,7 +82,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     private transient String key; // e.g. myorg/myrepo/master/123
 
-    JCloudsArtifactManager(Run<?, ?> build, BlobStoreProvider provider) {
+    JCloudsArtifactManager(@NonNull  Run<?, ?> build, BlobStoreProvider provider) {
         this.provider = provider;
         onLoad(build);
     }
@@ -94,7 +95,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     }
 
     @Override
-    public void onLoad(Run<?, ?> build) {
+    public void onLoad(@NonNull Run<?, ?> build) {
         this.key = String.format("%s/%s", build.getParent().getFullName(), build.getNumber());
     }
 
