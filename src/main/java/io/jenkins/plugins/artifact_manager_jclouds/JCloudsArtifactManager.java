@@ -43,6 +43,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -176,33 +177,35 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         Blob blob = blobStore.blobBuilder(path).build();
         blob.getMetadata().setContainer(provider.getContainer());
         URL url = provider.toExternalURL(blob, HttpMethod.PUT);
-        int count = workspace.act(new Stash(url, includes, excludes, useDefaultExcludes, WorkspaceList.tempDir(workspace).getRemote(), listener));
-        if (count == 0 && !allowEmpty) {
-            throw new AbortException("No files included in stash");
-        }
-        listener.getLogger().printf("Stashed %d file(s) to %s%n", count, provider.toURI(provider.getContainer(), path));
+        workspace.act(new Stash(url, provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote(), listener));
     }
 
-    private static final class Stash extends MasterToSlaveFileCallable<Integer> {
+    private static final class Stash extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
         private final URL url;
+        private final URI uri;
         private final String includes, excludes;
         private final boolean useDefaultExcludes;
+        private final boolean allowEmpty;
         private final String tempDir;
         private final TaskListener listener;
         private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
-        Stash(URL url, String includes, String excludes, boolean useDefaultExcludes, String tempDir, TaskListener listener) throws IOException {
+        Stash(URL url, URI uri, String includes, String excludes, boolean useDefaultExcludes, boolean allowEmpty, String tempDir, TaskListener listener) throws IOException {
+            /** Actual destination as a presigned URL. */
             this.url = url;
+            /** Logical location for display purposes only. */
+            this.uri = uri;
             this.includes = includes;
             this.excludes = excludes;
             this.useDefaultExcludes = useDefaultExcludes;
+            this.allowEmpty = allowEmpty;
             this.tempDir = tempDir;
             this.listener = listener;
         }
 
         @Override
-        public Integer invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             // TODO use streaming upload rather than a temp file; is it necessary to set the content length in advance?
             // (we prefer not to upload individual files for stashes, so as to preserve symlinks & file permissions, as StashManager’s default does)
             Path tempDirP = Paths.get(tempDir);
@@ -215,10 +218,12 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 } catch (InvalidPathException e) {
                     throw new IOException(e);
                 }
-                if (count > 0) {
-                    client.uploadFile(tmp.toFile(), url, listener);
+                if (count == 0 && !allowEmpty) {
+                    throw new AbortException("No files included in stash");
                 }
-                return count;
+                client.uploadFile(tmp.toFile(), url, listener);
+                listener.getLogger().printf("Stashed %d file(s) to %s%n", count, uri);
+                return null;
             } finally {
                 Files.delete(tmp);
             }
