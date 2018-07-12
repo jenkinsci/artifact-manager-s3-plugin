@@ -25,9 +25,9 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.ArtifactManagerConfiguration;
 
-public class S3BlobStoreConfigTests {
+public class S3BlobStoreConfigTest {
 
-    private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfigTests.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfigTest.class.getName());
 
     public static final String CONTAINER_NAME = "container-name";
     public static final String CONTAINER_PREFIX = "container-prefix/";
