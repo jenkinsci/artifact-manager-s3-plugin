@@ -19,7 +19,7 @@
     <jclouds.version>2.1.0</jclouds.version>
     <jenkins.version>2.121.1</jenkins.version>
     <java.level>8</java.level>
-    <workflow-api-plugin.version>2.28</workflow-api-plugin.version>
+    <workflow-api-plugin.version>2.29-rc313.bb1f9f990cbc</workflow-api-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-api-plugin/pull/75 -->
     <git-plugin.version>4.0.0-beta3</git-plugin.version>
     <workflow-multibranch-plugin.version>2.20</workflow-multibranch-plugin.version>
     <useBeta>true</useBeta>
