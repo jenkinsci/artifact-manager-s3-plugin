@@ -10,12 +10,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.cloudbees.jenkins.plugins.awscredentials.BaseAmazonWebServicesCredentials;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.domains.Domain;
 
 import hudson.model.Failure;
 import hudson.util.FormValidation;
@@ -103,12 +109,13 @@ public class S3BlobStoreConfigTest {
         int port =  findFreePort();
         String serviceEndpoint = "http://127.0.0.1:" + port;
         S3BlobStoreConfig.ENDPOINT = new EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
-        S3BlobStore provider = new S3BlobStore();
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
         config.setPrefix(CONTAINER_PREFIX);
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(CONTAINER_REGION);
+        CredentialsProvider.lookupStores(j.jenkins).iterator().next().addCredentials(Domain.global(), new PhonySessionCredentials(CredentialsScope.GLOBAL, "phony", null));
+        credentialsConfig.setCredentialsId("phony");
 
         S3Mock api = new S3Mock.Builder().withPort(port).withInMemoryBackend().build();
         api.start();
@@ -124,6 +131,25 @@ public class S3BlobStoreConfigTest {
                 .build();
         client.putObject(CONTAINER_NAME, "file/name", "contents");
         api.shutdown();
+    }
+    private static final class PhonySessionCredentials extends BaseAmazonWebServicesCredentials {
+        PhonySessionCredentials(CredentialsScope scope, String id, String description) {
+            super(scope, id, description);
+        }
+        @Override
+        public AWSCredentials getCredentials() {
+            return new BasicSessionCredentials("FakeKey", "FakeSecret", "FakeToken");
+        }
+        @Override
+        public String getDisplayName() {
+            return "Phony";
+        }
+        @Override
+        public AWSCredentials getCredentials(String mfaToken) {
+            return getCredentials();
+        }
+        @Override
+        public void refresh() {}
     }
 
     private Integer findFreePort() throws IOException {
