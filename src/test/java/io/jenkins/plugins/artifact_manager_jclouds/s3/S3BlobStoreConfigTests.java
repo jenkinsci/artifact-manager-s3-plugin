@@ -42,8 +42,6 @@ public class S3BlobStoreConfigTests {
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
         config.setPrefix(CONTAINER_PREFIX);
-        CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
-        credentialsConfig.setRegion(CONTAINER_REGION);
 
         JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(artifactManagerFactory);
@@ -51,17 +49,16 @@ public class S3BlobStoreConfigTests {
         LOGGER.info(artifactManagerFactory.getProvider().toString());
         BlobStoreProvider providerConfigured = artifactManagerFactory.getProvider();
         assertTrue(providerConfigured instanceof S3BlobStore);
-        checkFieldValues(config, credentialsConfig);
+        checkFieldValues(config);
 
         //check configuration page submit
         j.configRoundtrip();
-        checkFieldValues(config, credentialsConfig);
+        checkFieldValues(config);
     }
 
-    private void checkFieldValues(S3BlobStoreConfig configuration, CredentialsAwsGlobalConfiguration credentialsConfig) {
+    private void checkFieldValues(S3BlobStoreConfig configuration) {
         assertEquals(configuration.getContainer(), CONTAINER_NAME);
         assertEquals(configuration.getPrefix(), CONTAINER_PREFIX);
-        assertEquals(credentialsConfig.getRegion(), CONTAINER_REGION);
     }
 
     @Test(expected = Failure.class)
@@ -99,14 +96,6 @@ public class S3BlobStoreConfigTests {
         assertEquals(descriptor.doCheckPrefix("").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckPrefix("folder/").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckPrefix("folder").kind, FormValidation.Kind.ERROR);
-    }
-
-    @Test
-    public void checkValidationsRegion() {
-        CredentialsAwsGlobalConfiguration descriptor = CredentialsAwsGlobalConfiguration.get();
-        assertEquals(descriptor.doCheckRegion("").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckRegion("us-west-1").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckRegion("no-valid").kind, FormValidation.Kind.ERROR);
     }
 
     @Test
