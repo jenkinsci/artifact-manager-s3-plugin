@@ -87,15 +87,11 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private static class S3BlobStoreTester extends S3BlobStore {
         private static final long serialVersionUID = -3645770416235883487L;
         private transient S3BlobStoreConfig config;
-        private transient CredentialsAwsGlobalConfiguration credentialsConfig;
 
-        public S3BlobStoreTester(String container, String prefix, String region,String credentialsId){
+        S3BlobStoreTester(String container, String prefix) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
-            credentialsConfig = new CredentialsAwsGlobalConfiguration();
-            credentialsConfig.setRegion(region);
-            credentialsConfig.setCredentialsId(credentialsId);
         }
 
         @Override
@@ -209,8 +205,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     @RequirePOST
-    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter String prefix,
-                                                   @QueryParameter String region, @QueryParameter String credentialsId){
+    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter String prefix) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
@@ -223,12 +218,11 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     @RequirePOST
-    public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix,
-                                                   @QueryParameter String region, @QueryParameter String credentialsId){
+    public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
-            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region, credentialsId);
+            S3BlobStore provider = new S3BlobStoreTester(container, prefix);
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix);
             jc.list();
         } catch (Throwable t){
