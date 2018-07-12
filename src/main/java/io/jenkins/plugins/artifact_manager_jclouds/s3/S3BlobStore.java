@@ -198,14 +198,6 @@ public class S3BlobStore extends BlobStoreProvider {
         return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
     }
 
-    /**
-     *
-     * @return true if a container is configured.
-     */
-    public boolean isConfigured(){
-        return StringUtils.isNotBlank(getContainer());
-    }
-
     @Extension
     public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
 
@@ -213,6 +205,15 @@ public class S3BlobStore extends BlobStoreProvider {
         public String getDisplayName() {
             return "Amazon S3";
         }
+
+        /**
+         *
+         * @return true if a container is configured.
+         */
+        public boolean isConfigured(){
+            return StringUtils.isNotBlank(S3BlobStoreConfig.get().getContainer());
+        }
+
     }
 
     @Override
