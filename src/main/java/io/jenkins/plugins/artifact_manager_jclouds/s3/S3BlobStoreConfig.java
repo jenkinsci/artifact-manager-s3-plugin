@@ -25,13 +25,11 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.io.IOException;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
 import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -63,17 +61,10 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private static final String BUCKET_REGEXP = "^([a-z]|(\\d(?!\\d{0,2}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})))([a-z\\d]|(\\.(?!(\\.|-)))|(-(?!\\.))){1,61}[a-z\\d\\.]$";
     private static final Pattern bucketPattern = Pattern.compile(BUCKET_REGEXP);
 
-    private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfig.class.getName());
-
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
-    /**
-     * Session token duration in seconds.
-     */
-    @SuppressWarnings("FieldMayBeFinal")
-    private static int SESSION_DURATION = Integer.getInteger(S3BlobStoreConfig.class.getName() + ".sessionDuration", 3600);
 
     /**
      * Name of the S3 Bucket.
@@ -113,7 +104,6 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
     }
 
-    @DataBoundConstructor
     public S3BlobStoreConfig() {
         load();
     }
