@@ -5,14 +5,8 @@
         <f:entry title="${%S3 Bucket Name}" field="container">
             <f:textbox/>
         </f:entry>
-        <f:entry title="${%S3 Bucket Region}" field="region">
-            <f:select/>
-        </f:entry>
         <f:entry title="${%Base Prefix}" field="prefix">
             <f:textbox/>
-        </f:entry>
-        <f:entry title="${%Amazon Credentials}" field="credentialsId">
-            <c:select />
         </f:entry>
         <f:entry title="${%Delete Artifacts}" field="deleteArtifacts">
             <f:checkbox readonly="true"/>
@@ -21,8 +15,8 @@
             <f:checkbox readonly="true"/>
         </f:entry>
         <f:validateButton title="Validate S3 Bucket configuration" progress="Validate..." method="validateS3BucketConfig"
-                          with="container,prefix,region,credentialsId"/>
+                          with="container,prefix"/>
         <f:validateButton title="Create S3 Bucket from configuration" progress="Creating S3 Bucket..." method="createS3Bucket"
-                          with="container,prefix,region,credentialsId"/>
+                          with="container,prefix"/>
     </f:section>
 </j:jelly>

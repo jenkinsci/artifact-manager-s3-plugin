@@ -45,14 +45,14 @@
 
   <dependencies>
     <dependency>
+      <groupId>io.jenkins.plugins</groupId>
+      <artifactId>aws-global-configuration</artifactId>
+      <version>1.0-rc17.9e6f9170b20d</version> <!-- TODO -->
+    </dependency>
+    <dependency>
       <groupId>org.apache.jclouds.provider</groupId>
       <artifactId>aws-s3</artifactId>
       <version>${jclouds.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>aws-java-sdk</artifactId>
-      <version>1.11.329</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
@@ -236,6 +236,11 @@
         <groupId>com.google.inject.extensions</groupId>
         <artifactId>guice-assistedinject</artifactId>
         <version>4.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>aws-java-sdk</artifactId>
+        <version>1.11.341</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
