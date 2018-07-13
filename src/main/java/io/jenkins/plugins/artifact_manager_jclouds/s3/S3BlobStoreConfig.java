@@ -43,6 +43,7 @@ import com.amazonaws.services.s3.model.Bucket;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
+import hudson.Util;
 import hudson.model.Failure;
 import hudson.util.FormValidation;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
@@ -74,6 +75,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
      * Prefix to use for files, use to be a folder.
      */
     private String prefix;
+    @Deprecated private transient String region, credentialsId;
 
     /**
      * field to fake S3 endpoint on test.
@@ -102,6 +104,13 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public S3BlobStoreConfig() {
         load();
+        if (Util.fixEmpty(region) != null || Util.fixEmpty(credentialsId) != null) {
+            CredentialsAwsGlobalConfiguration.get().setRegion(region);
+            CredentialsAwsGlobalConfiguration.get().setCredentialsId(credentialsId);
+            region = null;
+            credentialsId = null;
+            save();
+        }
     }
 
     public String getContainer() {
