@@ -62,6 +62,7 @@ import hudson.Extension;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import org.jenkinsci.Symbol;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -198,6 +199,7 @@ public class S3BlobStore extends BlobStoreProvider {
         return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
     }
 
+    @Symbol("s3")
     @Extension
     public static final class DescriptorImpl extends BlobStoreProviderDescriptor {
 

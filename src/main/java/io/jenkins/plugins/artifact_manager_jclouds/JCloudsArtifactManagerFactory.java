@@ -29,6 +29,7 @@ import hudson.model.Run;
 import jenkins.model.ArtifactManager;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.ArtifactManagerFactoryDescriptor;
+import org.jenkinsci.Symbol;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -65,6 +66,7 @@ public class JCloudsArtifactManagerFactory extends ArtifactManagerFactory {
         return new JCloudsArtifactManager(build, provider);
     }
 
+    @Symbol("jclouds")
     @Extension
     public static final class DescriptorImpl extends ArtifactManagerFactoryDescriptor {
 
