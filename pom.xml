@@ -47,7 +47,7 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>aws-global-configuration</artifactId>
-      <version>1.0-rc17.9e6f9170b20d</version> <!-- TODO -->
+      <version>1.0-rc20.980a9cfa0b14</version> <!-- TODO https://github.com/jenkinsci/aws-global-configuration-plugin/pull/4 -->
     </dependency>
     <dependency>
       <groupId>org.apache.jclouds.provider</groupId>

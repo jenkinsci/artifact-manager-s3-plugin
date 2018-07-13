@@ -33,6 +33,7 @@ import org.jenkinsci.plugins.casc.ConfigurationAsCode;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.Rule;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 public class ConfigAsCodeTest {
@@ -40,6 +41,7 @@ public class ConfigAsCodeTest {
     @Rule
     public JenkinsRule r = new JenkinsRule();
 
+    @Issue("JENKINS-52304")
     @Test
     public void smokes() throws Exception {
         ConfigurationAsCode.get().configure(ConfigAsCodeTest.class.getResource("configuration-as-code.yml").toString());

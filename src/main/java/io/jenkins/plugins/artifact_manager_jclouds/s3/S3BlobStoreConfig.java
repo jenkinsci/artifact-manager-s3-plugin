@@ -50,12 +50,14 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.AbstractAwsGlobalConfiguration;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.Jenkins;
+import org.jenkinsci.Symbol;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
  * the change of container does not affected to the Artifact functionality, you could change the container
  * and it would still work if both container contains the same data.
  */
+@Symbol("s3")
 @Extension
 public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
