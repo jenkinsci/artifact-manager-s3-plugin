@@ -3,7 +3,7 @@ packaging:
 #  bom: bom.yml
   environment: aws
   archiveArtifacts: true
-  cwpVersion: 0.1-alpha-8
+  cwpVersion: 1.0
   config:
     bundle:
       groupId: "io.jenkins.plugins.war"
