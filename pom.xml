@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>3.17</version>
+    <version>3.18</version>
     <relativePath />
   </parent>
   <groupId>io.jenkins.plugins</groupId>
@@ -19,7 +19,7 @@
     <jclouds.version>2.1.0</jclouds.version>
     <jenkins.version>2.121.1</jenkins.version>
     <java.level>8</java.level>
-    <workflow-api-plugin.version>2.29-rc313.bb1f9f990cbc</workflow-api-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-api-plugin/pull/75 -->
+    <workflow-api-plugin.version>2.28</workflow-api-plugin.version> <!-- TODO 2.29 once https://github.com/jenkinsci/workflow-api-plugin/pull/75 is released -->
     <git-plugin.version>4.0.0-beta3</git-plugin.version>
     <workflow-multibranch-plugin.version>2.20</workflow-multibranch-plugin.version>
     <useBeta>true</useBeta>
@@ -47,7 +47,7 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>aws-global-configuration</artifactId>
-      <version>1.0-rc20.980a9cfa0b14</version> <!-- TODO https://github.com/jenkinsci/aws-global-configuration-plugin/pull/4 -->
+      <version>1.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.jclouds.provider</groupId>
