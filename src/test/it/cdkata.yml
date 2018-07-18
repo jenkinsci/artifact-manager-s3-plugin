@@ -17,7 +17,7 @@ packaging:
         base: "jenkins/jenkins:2.121.1"
         tag: "jenkins/artifact-manager-s3-war"
         build: true
-        customSettings: {"pushDockerImage": true, "dockerRegistry": "https://docker.cloudbees.com", "dockerRegistryCredentialsId": "80ca7cb9-b576-43df-9f54-ac49882dd7a9", "dockerTag": "jenkins/artifact-manager-s3-war"}
+        customSettings: '{"pushDockerImage": true, "dockerRegistry": "https://docker.cloudbees.com", "dockerRegistryCredentialsId": "80ca7cb9-b576-43df-9f54-ac49882dd7a9", "dockerTag": "jenkins/artifact-manager-s3-war"}'
     war:
       groupId: "org.jenkins-ci.main"
       artifactId: "jenkins-war"
