@@ -98,7 +98,7 @@ packaging:
         artifactId: "pipeline-stage-step"
         source:
           version: 2.3
-      - groupId: "org.jenkins-ci.plugins"
+      - groupId: ">io.jenkins.plugins"
         artifactId: "aws-global-configuration"
         source:
           version: 1.0
