@@ -31,7 +31,7 @@ packaging:
       - groupId: "org.jenkins-ci.plugins"
         artifactId: "copyartifact"
         source:
-          version: 1.40-rc298.60da56cfabea
+          version: 1.41
       # Maven HPI Plugin improperly resolves dependency trees, needs upper bounds check
       - groupId: "org.jenkins-ci.plugins"
         artifactId: "structs"
@@ -40,11 +40,11 @@ packaging:
       - groupId: "org.jenkins-ci.plugins.workflow"
         artifactId: "workflow-step-api"
         source:
-          version: 2.16-rc310.04f07c15faaf
+          version: 2.16
       - groupId: "org.jenkins-ci.plugins.workflow"
         artifactId: "workflow-job"
         source:
-          version: 2.21
+          version: 2.23
       - groupId: "org.jenkins-ci.plugins.workflow"
         artifactId: "workflow-basic-steps"
         source:
@@ -52,7 +52,7 @@ packaging:
       - groupId: "org.jenkins-ci.plugins.workflow"
         artifactId: "workflow-support"
         source:
-          version: 2.19-rc289.691fb60f3fa6
+          version: 2.19
       - groupId: "org.jenkins-ci.plugins"
         artifactId: "junit"
         source:
@@ -72,7 +72,7 @@ packaging:
       - groupId: "org.jenkins-ci.plugins"
         artifactId: "aws-java-sdk"
         source:
-          version: 1.11.329
+          version: 1.11.341
       - groupId: "org.jenkins-ci.plugins"
         artifactId: "aws-credentials"
         source:
@@ -81,7 +81,7 @@ packaging:
       - groupId: "org.jenkins-ci.plugins.workflow"
         artifactId: "workflow-cps"
         source:
-          version: 2.54-rc730.05bb1322341d
+          version: 2.54
       - groupId: "org.jenkins-ci.plugins"
         artifactId: "timestamper"
         source:
@@ -98,10 +98,14 @@ packaging:
         artifactId: "pipeline-stage-step"
         source:
           version: 2.3
+      - groupId: "org.jenkins-ci.plugins"
+        artifactId: "aws-global-configuration"
+        source:
+          version: 1.0
       - groupId: "io.jenkins.plugins"
         artifactId: "artifact-manager-s3"
         source:
-          version: 1.0
+          version: 1.1
           dir: ../../..
     systemProperties: {
       java.util.logging.config.file: /var/jenkins_home/log.properties,
