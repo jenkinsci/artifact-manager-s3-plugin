@@ -6,18 +6,18 @@ buildJob(){
 
 waitFinishJob(){
   local job=${1:-?}
-  RUNNING="<building>true</building>"
-  while [ "${RUNNING}" = "<building>true</building>" ] 
+  RUNNING="true"
+  while [ "${RUNNING}" = "true" ]
   do
     sleep 10
-    RUNNING="$(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/building)"
+    RUNNING="$(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/building/text\(\))"
     echo -n "."
   done                     
 }
 
 getResultJob(){
   local job=${1:-?}
-  echo "$(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/result)"
+  echo "$(curl -sS http://127.0.0.1:8080/job/${job}/1/api/xml?xpath=/workflowRun/result/text\(\))"
 }
 
 getDurationJob(){
@@ -36,11 +36,11 @@ downloadArtifacts(){
 }
 
 waitForJenkinsUpAndRunning(){
-  local STATUS="$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)"
-  while [ "${STATUS}" != "<mode>NORMAL</mode>" ]
+  local STATUS="$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode/text\(\))"
+  while [ "${STATUS}" != "NORMAL" ]
   do
     sleep 10
-    STATUS="$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode)"
+    STATUS="$(curl -sS http://127.0.0.1:8080/api/xml?xpath=/hudson/mode/text\(\))"
     echo -n "."
   done
 }
@@ -68,9 +68,9 @@ echo "RESULT_SMALFILES=${RESULT_SMALFILES} - $(getDurationJob small-files)"
 echo "RETURL_STASH=${RETURL_STASH} - $(getDurationJob stash)"
 
 echo "Check results"
-[ "${RESULT_BIGFILE}" = "<result>SUCCESS</result>" ] || exit 1
-[ "${RESULT_SMALFILES}" = "<result>SUCCESS</result>" ] || exit 1
-[ "${RETURL_STASH}" = "<result>SUCCESS</result>" ] || exit 1
+[ "${RESULT_BIGFILE}" = "SUCCESS" ] || exit 1
+[ "${RESULT_SMALFILES}" = "SUCCESS" ] || exit 1
+[ "${RETURL_STASH}" = "SUCCESS" ] || exit 1
 
 echo "Download Artifact"
 RESULT_DOWNLOAD=$(downloadArtifacts small-files)
