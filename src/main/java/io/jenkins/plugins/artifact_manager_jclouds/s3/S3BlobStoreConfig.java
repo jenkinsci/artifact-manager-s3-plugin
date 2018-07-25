@@ -24,56 +24,50 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import java.util.Collections;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.io.IOException;
 import java.util.regex.Pattern;
+
 import javax.annotation.Nonnull;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
+
 import org.apache.commons.lang.StringUtils;
-import org.jclouds.aws.AWSResponseException;
-import org.jclouds.aws.domain.Region;
-import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.Bucket;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
+import hudson.Util;
 import hudson.model.Failure;
-import hudson.security.ACL;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
-import jenkins.model.GlobalConfiguration;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
+import io.jenkins.plugins.aws.global_configuration.AbstractAwsGlobalConfiguration;
+import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.Jenkins;
-import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
-import com.cloudbees.plugins.credentials.CredentialsMatchers;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
+import org.jenkinsci.Symbol;
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
  * the change of container does not affected to the Artifact functionality, you could change the container
  * and it would still work if both container contains the same data.
  */
+@Symbol("s3")
 @Extension
-public class S3BlobStoreConfig extends GlobalConfiguration {
+public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     private static final String BUCKET_REGEXP = "^([a-z]|(\\d(?!\\d{0,2}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})))([a-z\\d]|(\\.(?!(\\.|-)))|(-(?!\\.))){1,61}[a-z\\d\\.]$";
     private static final Pattern bucketPattern = Pattern.compile(BUCKET_REGEXP);
-
-    private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfig.class.getName());
 
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
-    /**
-     * Session token duration in seconds.
-     */
-    @SuppressWarnings("FieldMayBeFinal")
-    private static int SESSION_DURATION = Integer.getInteger(S3BlobStoreConfig.class.getName() + ".sessionDuration", 3600);
 
     /**
      * Name of the S3 Bucket.
@@ -83,15 +77,7 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
      * Prefix to use for files, use to be a folder.
      */
     private String prefix;
-    /**
-     * force the region to use for the URLs generated.
-     */
-    private String region;
-    /**
-     * AWS credentials to access to the S3 Bucket, if it is empty, it would use the IAM instance profile from the
-     * jenkins hosts.
-     */
-    private String credentialsId;
+    @Deprecated private transient String region, credentialsId;
 
     /**
      * field to fake S3 endpoint on test.
@@ -106,12 +92,10 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         private static final long serialVersionUID = -3645770416235883487L;
         private transient S3BlobStoreConfig config;
 
-        public S3BlobStoreTester(String container, String prefix, String region,String credentialsId){
+        S3BlobStoreTester(String container, String prefix) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
-            config.setRegion(region);
-            config.setCredentialsId(credentialsId);
         }
 
         @Override
@@ -120,9 +104,15 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         }
     }
 
-    @DataBoundConstructor
     public S3BlobStoreConfig() {
         load();
+        if (Util.fixEmpty(region) != null || Util.fixEmpty(credentialsId) != null) {
+            CredentialsAwsGlobalConfiguration.get().setRegion(region);
+            CredentialsAwsGlobalConfiguration.get().setCredentialsId(credentialsId);
+            region = null;
+            credentialsId = null;
+            save();
+        }
     }
 
     public String getContainer() {
@@ -147,41 +137,6 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         save();
     }
 
-    public String getRegion() {
-        return region;
-    }
-
-    @DataBoundSetter
-    public void setRegion(String region) {
-        this.region = region;
-        checkValue(doCheckRegion(region));
-        save();
-    }
-
-    public String getCredentialsId() {
-        return credentialsId;
-    }
-
-    @DataBoundSetter
-    public void setCredentialsId(String credentialsId) {
-        this.credentialsId = StringUtils.defaultIfBlank(credentialsId, null);
-        save();
-    }
-
-    public AmazonWebServicesCredentials getCredentials() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-        Optional<AmazonWebServicesCredentials> credential = CredentialsProvider.lookupCredentials(
-                AmazonWebServicesCredentials.class, Jenkins.get(),ACL.SYSTEM, Collections.emptyList())
-                                                                               .stream()
-                                                                               .filter(it -> it.getId().equals(credentialsId))
-                                                                               .findFirst();
-        if(credential.isPresent()){
-            return credential.get();
-        } else {
-            return null;
-        }
-    }
-
     private void checkValue(@NonNull FormValidation formValidation) {
         if (formValidation.kind == FormValidation.Kind.ERROR) {
             throw new Failure(formValidation.getMessage());
@@ -196,10 +151,6 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         return DELETE_STASHES;
     }
 
-    public int getSessionDuration(){
-        return SESSION_DURATION;
-    }
-
     @Nonnull
     @Override
     public String getDisplayName() {
@@ -211,25 +162,21 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         return ExtensionList.lookupSingleton(S3BlobStoreConfig.class);
     }
 
-    public ListBoxModel doFillRegionItems() {
-        ListBoxModel regions = new ListBoxModel();
-        regions.add("Auto", "");
-        for (String s : Region.DEFAULT_REGIONS) {
-            regions.add(s);
-        }
-        return regions;
-    }
-
-    @RequirePOST
-    public ListBoxModel doFillCredentialsIdItems() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-        ListBoxModel credentials = new ListBoxModel();
-        credentials.add("IAM instance Profile/user AWS configuration", "");
-        credentials.addAll(CredentialsProvider.listCredentials(AmazonWebServicesCredentials.class, Jenkins.get(),
-                                                               ACL.SYSTEM, Collections.emptyList(),
-                                                               CredentialsMatchers.instanceOf(AmazonWebServicesCredentials.class)));
-        return credentials;
-    }
+    /**
+    *
+    * @return an AmazonS3ClientBuilder using the region or not, it depends if a region is configured or not.
+    */
+    AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
+       AmazonS3ClientBuilder ret = AmazonS3ClientBuilder.standard();
+       if(S3BlobStoreConfig.ENDPOINT != null){
+           ret = ret.withPathStyleAccessEnabled(true).withEndpointConfiguration(S3BlobStoreConfig.ENDPOINT);
+       } else if(StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
+           ret = ret.withRegion(CredentialsAwsGlobalConfiguration.get().getRegion());
+       } else {
+           ret = ret.withForceGlobalBucketAccessEnabled(true);
+       }
+       return ret;
+   }
 
     public FormValidation doCheckContainer(@QueryParameter String container){
         FormValidation ret = FormValidation.ok();
@@ -253,22 +200,27 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         return ret;
     }
 
-    public FormValidation doCheckRegion(@QueryParameter String region){
-        FormValidation ret = FormValidation.ok();
-        if (StringUtils.isNotBlank(region) && !Region.DEFAULT_REGIONS.contains(region)){
-            ret = FormValidation.error("Region is not valid");
-        }
-        return ret;
+    /**
+     * create an S3 Bucket.
+     * @param name name of the S3 Bucket.
+     * @return return the Bucket created.
+     * @throws IOException in case of error obtaining the credentials, in other kind of errors it will throw the
+     * runtime exceptions are thrown by createBucket method.
+     */
+    public Bucket createS3Bucket(String name) throws IOException {
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder();
+        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
+                CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder));
+        AmazonS3 client = builder.withCredentials(credentialsProvider).build();
+        return client.createBucket(name);
     }
 
     @RequirePOST
-    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter String prefix,
-                                                   @QueryParameter String region, @QueryParameter String credentialsId){
+    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter String prefix) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
-            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region, credentialsId);
-            provider.createS3Bucket(container);
+            createS3Bucket(container);
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
@@ -277,12 +229,11 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
     }
 
     @RequirePOST
-    public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix,
-                                                   @QueryParameter String region, @QueryParameter String credentialsId){
+    public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
-            S3BlobStore provider = new S3BlobStoreTester(container, prefix, region, credentialsId);
+            S3BlobStore provider = new S3BlobStoreTester(container, prefix);
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix);
             jc.list();
         } catch (Throwable t){
@@ -292,21 +243,4 @@ public class S3BlobStoreConfig extends GlobalConfiguration {
         return ret;
     }
 
-    /**
-     * it retuns a different cause message based on exception type.
-     * @param t Throwable to process.
-     * @return the proper cause message.
-     */
-    private String processExceptionMessage(Throwable t) {
-        LOGGER.log(Level.FINEST, t.getMessage(), t);
-
-        String msg = t.getMessage();
-        String className = t.getClass().getSimpleName();
-        Throwable cause = t.getCause();
-        if(cause instanceof AWSResponseException){
-            className = cause.getClass().getSimpleName();
-            msg = ((AWSResponseException) cause).getError().getMessage();
-        }
-        return className + ":" + StringUtils.defaultIfBlank(msg, "Unknown error");
-    }
 }

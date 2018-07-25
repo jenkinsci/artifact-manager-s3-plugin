@@ -66,9 +66,14 @@ import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
 import java.net.URI;
 import java.net.URL;
+import java.util.Collections;
+import jenkins.branch.BranchSource;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
+import jenkins.plugins.git.GitSCMSource;
+import jenkins.plugins.git.GitSampleRepoRule;
+import jenkins.plugins.git.traits.BranchDiscoveryTrait;
 import jenkins.security.MasterToSlaveCallable;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -76,6 +81,9 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.Issue;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
+import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
+import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
+import org.junit.Ignore;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -96,6 +104,9 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
+
+    @Rule
+    public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
 
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
         return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
@@ -240,6 +251,35 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         } finally {
             S3BlobStore.BREAK_CREDS = false;
         }
+    }
+
+    @Ignore("TODO fails in unarchive, apparently due to JCLOUDS-1401")
+    @Issue("JENKINS-52151")
+    @Test
+    public void slashyBranches() throws Exception {
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(true, true));
+        sampleRepo.init();
+        sampleRepo.git("checkout", "-b", "dev/main");
+        sampleRepo.write("Jenkinsfile", "node {dir('src') {writeFile file: 'f', text: 'content'; archiveArtifacts 'f'; stash 'x'}; dir('dest') {unstash 'x'; unarchive mapping: ['f': 'f2']}}");
+        sampleRepo.git("add", "Jenkinsfile");
+        sampleRepo.git("commit", "--message=flow");
+        WorkflowMultiBranchProject mp = j.jenkins.createProject(WorkflowMultiBranchProject.class, "p");
+        GitSCMSource gitSCMSource = new GitSCMSource(sampleRepo.toString());
+        gitSCMSource.setTraits(Collections.singletonList(new BranchDiscoveryTrait()));
+        mp.getSourcesList().add(new BranchSource(gitSCMSource));
+        WorkflowJob p = WorkflowMultiBranchProjectTest.scheduleAndFindBranchProject(mp, "dev%2Fmain");
+        assertEquals(1, mp.getItems().size());
+        j.waitUntilNoActivity();
+        WorkflowRun b = p.getLastBuild();
+        assertEquals(1, b.getNumber());
+        j.assertBuildStatusSuccess(b);
+        URL url = b.getArtifactManager().root().child("f").toExternalURL();
+        System.out.println("Defined: " + url);
+        JenkinsRule.WebClient wc = j.createWebClient();
+        wc.getPage(b);
+        wc.getPage(b, "artifact/");
+        assertEquals("content", wc.goTo(b.getUrl() + "artifact/f", null).getWebResponse().getContentAsString());
+        b.deleteArtifacts();
     }
 
     //@Test
