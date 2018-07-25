@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: Pod
 metadata:
-#  annotations:
-#    iam.amazonaws.com/role: <IAM_ROLE>
+  annotations:
+    iam.amazonaws.com/role: <IAM_ROLE>
   generateName: <NAME>-
   labels:
     name: jnlp
@@ -23,6 +23,12 @@ spec:
     env:
       - name: JAVA_OPTS
         value: -Djava.awt.headless=true
+      - name: S3_REGION
+        value: <S3_REGION>
+      - name: S3_CONTAINER
+        value: <S3_CONTAINER>
+      - name: S3_PREFIX
+        value: <S3_PREFIX>
     securityContext:
       runAsUser: 1000
       allowPrivilegeEscalation: false

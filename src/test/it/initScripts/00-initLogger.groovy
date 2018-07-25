@@ -3,9 +3,6 @@ import java.util.logging.SimpleFormatter
 import java.util.logging.Logger
 import java.util.logging.Level
 
-Logger glogger= Logger.getLogger("global")
-glogger.setLevel(Level.INFO)
-
 Logger defaultlogger= Logger.getLogger("")
 defaultlogger.setLevel(Level.INFO)
 
