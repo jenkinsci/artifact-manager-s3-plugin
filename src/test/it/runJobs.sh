@@ -27,7 +27,7 @@ getDurationJob(){
 
 deleteJob(){
   local job=${1:-?}
-  echo "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/job/${job}/doDelete)"
+  echo "$(curl -X POST -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/job/${job}/doDelete)"
 }
 
 downloadArtifacts(){
