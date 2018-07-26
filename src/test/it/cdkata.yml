@@ -27,7 +27,7 @@ packaging:
       - groupId: "org.jenkins-ci.plugins.workflow"
         artifactId: "workflow-api"
         source:
-          version:  2.29
+          version:  2.2
       - groupId: "org.jenkins-ci.plugins"
         artifactId: "copyartifact"
         source:
@@ -154,4 +154,4 @@ flow:
     testPluginResolution:
       skipOnUnmetDependencies: true
 urr:
-  disabled: true
+  disabled: false
