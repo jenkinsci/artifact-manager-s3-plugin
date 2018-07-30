@@ -109,18 +109,20 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
 
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
-        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
+        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes, getAcceleratedEndpoint()));
     }
 
     private static final class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
         private final BlobStoreProvider delegate;
         private final String prefix;
         private final Boolean deleteArtifacts, deleteStashes;
-        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteArtifacts, Boolean deleteStashes) {
+        private final Boolean acceleratedEndpoint;
+        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteArtifacts, Boolean deleteStashes, Boolean acceleratedEndpoint) {
             this.delegate = delegate;
             this.prefix = prefix;
             this.deleteArtifacts = deleteArtifacts;
             this.deleteStashes = deleteStashes;
+            this.acceleratedEndpoint = acceleratedEndpoint;
         }
         @Override
         public String getPrefix() {
@@ -137,6 +139,10 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         @Override
         public boolean isDeleteStashes() {
             return deleteStashes != null ? deleteStashes : delegate.isDeleteStashes();
+        }
+        @Override
+        public Boolean getAcceleratedEndpoint() {
+            return acceleratedEndpoint;
         }
         @Override
         public BlobStoreContext getContext() throws IOException {

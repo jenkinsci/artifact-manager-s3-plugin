@@ -330,6 +330,7 @@
                               <AWS_REGION>${AWS_REGION}</AWS_REGION>
                               <S3_BUCKET>${S3_BUCKET}</S3_BUCKET>
                               <S3_DIR>${S3_DIR}</S3_DIR>
+                              <S3_ACCELERATED>${S3_ACCELERATED}</S3_ACCELERATED>
                           </environmentVariables>
                       </configuration>
                   </plugin>

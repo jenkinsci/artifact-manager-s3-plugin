@@ -55,6 +55,9 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     @NonNull
     public abstract String getPrefix();
 
+    /** A constant for the accelerated endpoint to use. */
+    public abstract Boolean getAcceleratedEndpoint();
+
     /** A constant for the blob container name to use. */
     @NonNull
     public abstract String getContainer();

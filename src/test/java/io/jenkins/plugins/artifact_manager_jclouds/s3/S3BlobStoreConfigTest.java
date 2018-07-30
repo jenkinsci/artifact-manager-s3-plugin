@@ -38,6 +38,7 @@ public class S3BlobStoreConfigTest {
     public static final String CONTAINER_NAME = "container-name";
     public static final String CONTAINER_PREFIX = "container-prefix/";
     public static final String CONTAINER_REGION = "us-west-1";
+    public static final Boolean CONTAINER_ACCELERATED_ENDPOINT = false;
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -48,6 +49,7 @@ public class S3BlobStoreConfigTest {
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
         config.setPrefix(CONTAINER_PREFIX);
+        config.setAcceleratedEndpoint(CONTAINER_ACCELERATED_ENDPOINT);
 
         JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(artifactManagerFactory);
@@ -65,6 +67,7 @@ public class S3BlobStoreConfigTest {
     private void checkFieldValues(S3BlobStoreConfig configuration) {
         assertEquals(configuration.getContainer(), CONTAINER_NAME);
         assertEquals(configuration.getPrefix(), CONTAINER_PREFIX);
+        assertEquals(configuration.getAcceleratedEndpoint(), CONTAINER_ACCELERATED_ENDPOINT);
     }
 
     @Test(expected = Failure.class)
@@ -112,6 +115,7 @@ public class S3BlobStoreConfigTest {
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
         config.setPrefix(CONTAINER_PREFIX);
+        config.setAcceleratedEndpoint(CONTAINER_ACCELERATED_ENDPOINT);
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(CONTAINER_REGION);
         CredentialsProvider.lookupStores(j.jenkins).iterator().next().addCredentials(Domain.global(), new PhonySessionCredentials(CredentialsScope.GLOBAL, "phony", null));

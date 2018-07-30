@@ -85,6 +85,11 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     @Override
+    public Boolean getAcceleratedEndpoint() {
+        return getConfiguration().getAcceleratedEndpoint();
+    }
+
+    @Override
     public String getContainer() {
         return getConfiguration().getContainer();
     }
@@ -161,7 +166,8 @@ public class S3BlobStore extends BlobStoreProvider {
         assert key != null;
         try {
             // TODO proper encoding
-            return new URI(String.format("https://%s.s3.amazonaws.com/%s", container,
+            return new URI(String.format("https://%s.s3%s.amazonaws.com/%s", container,
+                    getAcceleratedEndpoint() ? "-accelerate" : "",
                     URLEncoder.encode(key, "UTF-8").replaceAll("%2F", "/").replaceAll("%3A", ":")));
         } catch (URISyntaxException | UnsupportedEncodingException e) {
             throw new RuntimeException(e);
@@ -226,6 +232,7 @@ public class S3BlobStore extends BlobStoreProvider {
         sb.append(", region='").append(getRegion()).append('\'');
         sb.append(", deleteArtifacts='").append(isDeleteArtifacts()).append('\'');
         sb.append(", deleteStashes='").append(isDeleteStashes()).append('\'');
+        sb.append(", acceleratedEndpoint='").append(getAcceleratedEndpoint()).append('\'');
         sb.append('}');
         return sb.toString();
     }

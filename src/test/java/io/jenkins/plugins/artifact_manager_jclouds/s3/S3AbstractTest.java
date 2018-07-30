@@ -57,6 +57,7 @@ public abstract class S3AbstractTest {
     private static final String S3_BUCKET = System.getenv("S3_BUCKET");
     protected static final String S3_DIR = System.getenv("S3_DIR");
     private static final String S3_REGION = System.getenv("S3_REGION");
+    private static final boolean S3_ACCELERATED = "true".equalsIgnoreCase(System.getenv("S3_ACCELERATED"));
 
     protected BlobStoreProvider provider;
 
@@ -86,6 +87,7 @@ public abstract class S3AbstractTest {
     protected BlobStoreContext context;
     protected BlobStore blobStore;
     private String prefix;
+    private Boolean acceleratedEndpoint;
 
     public static String getContainer() {
         return S3_BUCKET;
@@ -103,12 +105,17 @@ public abstract class S3AbstractTest {
         return prefix;
     }
 
+    protected Boolean getAcceleratedEndpoint() {
+        return acceleratedEndpoint;
+    }
+
     @Before
     public void setupContext() throws Exception {
         provider = new S3BlobStore();
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(S3_BUCKET);
         config.setPrefix(S3_DIR);
+        config.setAcceleratedEndpoint(S3_ACCELERATED);
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(S3_REGION);
 

@@ -10,3 +10,4 @@ aws:
   s3:
     container: "${ARTIFACT_MANAGER_S3_BUCKET_NAME}"
     prefix: "jenkins_data/"
+    acceleratedEndpoint: false

@@ -80,6 +80,11 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     @Deprecated private transient String region, credentialsId;
 
     /**
+     * Flag to use accelerated endpoint.
+     */
+    private Boolean acceleratedEndpoint;
+
+    /**
      * field to fake S3 endpoint on test.
      */
     static AwsClientBuilder.EndpointConfiguration ENDPOINT;
@@ -92,10 +97,11 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         private static final long serialVersionUID = -3645770416235883487L;
         private transient S3BlobStoreConfig config;
 
-        S3BlobStoreTester(String container, String prefix) {
+        S3BlobStoreTester(String container, String prefix, Boolean acceleratedEndpoint) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
+            config.setAcceleratedEndpoint(acceleratedEndpoint);
         }
 
         @Override
@@ -137,6 +143,16 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         save();
     }
 
+    public Boolean getAcceleratedEndpoint() {
+        return acceleratedEndpoint;
+    }
+
+    @DataBoundSetter
+    public void setAcceleratedEndpoint(Boolean acceleratedEndpoint){
+        this.acceleratedEndpoint = acceleratedEndpoint;
+        save();
+    }
+
     private void checkValue(@NonNull FormValidation formValidation) {
         if (formValidation.kind == FormValidation.Kind.ERROR) {
             throw new Failure(formValidation.getMessage());
@@ -168,8 +184,14 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     */
     AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
        AmazonS3ClientBuilder ret = AmazonS3ClientBuilder.standard();
+       if (getAcceleratedEndpoint()) {
+           ret = ret.enableAccelerateMode();
+       }
        if(S3BlobStoreConfig.ENDPOINT != null){
-           ret = ret.withPathStyleAccessEnabled(true).withEndpointConfiguration(S3BlobStoreConfig.ENDPOINT);
+           if (!getAcceleratedEndpoint()) {
+               ret = ret.withPathStyleAccessEnabled(true);
+           }
+           ret = ret.withEndpointConfiguration(S3BlobStoreConfig.ENDPOINT);
        } else if(StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
            ret = ret.withRegion(CredentialsAwsGlobalConfiguration.get().getRegion());
        } else {
@@ -229,11 +251,11 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     @RequirePOST
-    public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix) {
+    public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix, @QueryParameter Boolean acceleratedEndpoint) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
-            S3BlobStore provider = new S3BlobStoreTester(container, prefix);
+            S3BlobStore provider = new S3BlobStoreTester(container, prefix, acceleratedEndpoint);
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix);
             jc.list();
         } catch (Throwable t){

@@ -68,6 +68,11 @@ public final class MockBlobStore extends BlobStoreProvider {
     }
 
     @Override
+    public Boolean getAcceleratedEndpoint() {
+        return false;
+    }
+
+    @Override
     public String getContainer() {
         return "container";
     }
