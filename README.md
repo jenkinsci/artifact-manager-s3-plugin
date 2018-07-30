@@ -115,7 +115,7 @@ See the [troubleshooting section](#troubleshooting) for more details about the r
 
 ![](images/validation-success.png)
 
-Finally the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exists 
+Finally the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist 
 and the AWS credentials configured have permission to create a S3 Bucket.
 
 # How to use  Artifact Manager on S3 plugin
