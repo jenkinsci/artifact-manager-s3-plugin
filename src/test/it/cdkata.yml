@@ -154,4 +154,4 @@ flow:
     testPluginResolution:
       skipOnUnmetDependencies: true
 urr:
-  disabled: false
+  disabled: true
