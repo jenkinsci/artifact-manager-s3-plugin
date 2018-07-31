@@ -84,11 +84,18 @@ the `Artifact Managment for Builds` section, there you have to select the Cloud 
 
 ![](images/cloud-provider-no-configured.png)
 
-Then you can configure the S3 Bucket settings on the section `Amazon S3 Bucket Access settings` in 
+Then you have to configure your credentials to access the AWS services, go to Manage Jenkins/Amazon Web Services Configuration,
+there you can configure the Region and the Amazon Credentials to use, you have to save or apply this setting before to continue.
+For more details check [AWS Credentials](#aws-credentials)
+
+![](images/configure-credentials.png)
+
+* S3 Bucket Region: Region to use to generate the URLs to get/put artifacts, by default it is autodetected.
+
+After that you can configure the S3 Bucket settings on Manage Jenkins/Amazon Web Services Configuration on the section `Amazon S3 Bucket Access settings` in 
 the same configuration page.
 
 * S3 Bucket Name: Name of the S3 Bucket to use to store artifacts.
-* S3 Bucket Region: Region to use to generate the URLs to get/put artifacts, by default it is autodetected.
 * Base Prefix: Prefix to use for files and folders inside the S3 Bucket, if the prefix is a folder should be end with `/`.
 
 ![](images/bucket-settings.png)
@@ -107,6 +114,9 @@ button. This button will test the bucket exists and the credentials used are val
 See the [troubleshooting section](#troubleshooting) for more details about the reported error. 
 
 ![](images/validation-success.png)
+
+Finally the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist 
+and the AWS credentials configured have permission to create a S3 Bucket.
 
 # How to use  Artifact Manager on S3 plugin
 
@@ -199,7 +209,7 @@ Artifact Manager on S3 plugin needs an AWS credentials in order to access to the
 configuration page. If you do not select any AWS credential and keep the "" dropdown on the option "IAM instance Profile/user AWS configuration"
 Artifact Manager on S3 plugin would try to use the IAM instance profile credentials of the Jenkins host, or user AWS configuration (~/.aws). 
 
-![](images/configue-credentials.png)
+![](images/configure-credentials.png)
 
 Every time you archive/unarchive or download an artifact, Jenkins will generate a temporary URL, it will be valid for an hour, 
 so if you try to reuse an artifact download URL one hour later was generated, it will not be valid, 
