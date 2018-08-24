@@ -35,7 +35,10 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Handler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -207,6 +210,21 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         }
         httpLogging.record(InvokeHttpMethod.class, Level.FINE);
         httpLogging.capture(1000);
+        Logger.getLogger(InvokeHttpMethod.class.getName()).addHandler(new Handler() {
+            {setLevel(Level.FINE);}
+            int count;
+            @Override public void publish(LogRecord record) {
+                if (record.getMessage().contains("invoking GetBucketLocation")) {
+                    if (count++ == 0) {
+                        Thread.dumpStack();
+                    } else {
+                        throw new IllegalStateException("should only ever have to call GetBucketLocation once");
+                    }
+                }
+            }
+            @Override public void flush() {}
+            @Override public void close() throws SecurityException {}
+        });
         // Default list page size for S3 is 1000 blobs; we have 1010 plus the two created for all tests, so should hit a second page.
         assertThat(subdir.list("sprawling/**/k3", null, true), iterableWithSize(100));
         assertEquals("calls GetBucketLocation then ListBucket, advance to …/sprawling/i9/j8/k8, ListBucket again", 3, httpLogging.getRecords().size());
