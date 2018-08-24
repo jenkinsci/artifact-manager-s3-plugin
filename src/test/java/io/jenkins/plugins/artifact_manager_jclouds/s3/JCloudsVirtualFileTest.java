@@ -215,9 +215,8 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
             int count;
             @Override public void publish(LogRecord record) {
                 if (record.getMessage().contains("invoking GetBucketLocation")) {
-                    if (count++ == 0) {
-                        Thread.dumpStack();
-                    } else {
+                    new Exception("calling GetBucketLocation #" + count++).printStackTrace();
+                    if (count > 1) {
                         throw new IllegalStateException("should only ever have to call GetBucketLocation once");
                     }
                 }
