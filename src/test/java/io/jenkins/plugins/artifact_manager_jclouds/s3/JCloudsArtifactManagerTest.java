@@ -175,22 +175,22 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Test
     public void artifactArchive() throws Exception {
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), /* TODO S3BlobStore.list does not seem to handle weird characters */false, image);
+        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true, image);
     }
 
     @Test
     public void artifactArchiveAndDelete() throws Exception {
-        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), false, image);
+        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true, image);
     }
 
     @Test
     public void artifactStash() throws Exception {
-        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), false, image);
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), /* TODO true → 400: Unsupported copy source parameter. */false, image);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
-        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), false, image);
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), /* TODO ditto */false, image);
     }
 
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
