@@ -48,7 +48,6 @@ import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -325,7 +324,6 @@ public class NetworkTest {
         r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
-    @Ignore("TODO JENKINS-51779 Iterators.skip linkage error since Guava 18 is in test classpath")
     @Test
     public void errorCleaningArtifacts() throws Exception {
         loggerRule.record(WorkflowRun.class, Level.WARNING).capture(10);
