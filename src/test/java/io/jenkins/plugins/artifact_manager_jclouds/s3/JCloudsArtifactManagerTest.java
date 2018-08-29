@@ -83,7 +83,6 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
-import org.junit.Ignore;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -253,7 +252,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
     }
 
-    @Ignore("TODO fails in unarchive, apparently due to JCLOUDS-1401")
     @Issue("JENKINS-52151")
     @Test
     public void slashyBranches() throws Exception {
