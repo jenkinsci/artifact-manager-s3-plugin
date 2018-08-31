@@ -46,7 +46,6 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.PageSet;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.rest.internal.InvokeHttpMethod;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -260,7 +259,6 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
                 newJCloudsBlobStore("xxx#?:$&'\"<>čॐ").toURI());
     }
 
-    @Ignore("blocked by jClouds issue")
     @Test
     @Issue({ "JENKINS-50591", "JCLOUDS-1401" })
     public void testAmpersand() throws Exception {
