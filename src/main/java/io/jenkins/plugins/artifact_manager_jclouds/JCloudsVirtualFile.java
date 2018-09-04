@@ -91,6 +91,11 @@ public class JCloudsVirtualFile extends VirtualFile {
         assert !key.endsWith("/");
     }
 
+    private JCloudsVirtualFile(@NonNull JCloudsVirtualFile related, @NonNull String key) {
+        this(related.provider, related.container, key);
+        context = related.context;
+    }
+
     /**
      * Build jclouds blob context that is the base for all operations
      */
@@ -146,7 +151,7 @@ public class JCloudsVirtualFile extends VirtualFile {
     @Override
     public VirtualFile getParent() {
         // undefined to go outside …/artifacts
-        return new JCloudsVirtualFile(provider, getContainer(), key.replaceFirst("/[^/]+$", ""));
+        return new JCloudsVirtualFile(this, key.replaceFirst("/[^/]+$", ""));
     }
 
     @Override
@@ -205,13 +210,13 @@ public class JCloudsVirtualFile extends VirtualFile {
                 filter(f -> f.startsWith(relSlash)). // those inside this dir
                 map(f -> f.substring(relSlash.length()).replaceFirst("/.+", "")). // just the file simple name, or direct subdir name
                 distinct(). // ignore duplicates if have multiple files under one direct subdir
-                map(simple -> new JCloudsVirtualFile(provider, container, keyS + simple)). // direct children
+                map(simple -> new JCloudsVirtualFile(this, keyS + simple)). // direct children
                 toArray(VirtualFile[]::new);
         }
         VirtualFile[] list;
         try {
             list = StreamSupport.stream(listStorageMetadata(false).spliterator(), false)
-                .map(meta -> new JCloudsVirtualFile(provider, getContainer(), meta.getName().replaceFirst("/$", "")))
+                .map(meta -> new JCloudsVirtualFile(this, meta.getName().replaceFirst("/$", "")))
                 .toArray(VirtualFile[]::new);
         } catch (RuntimeException x) {
             throw new IOException(x);
@@ -223,7 +228,7 @@ public class JCloudsVirtualFile extends VirtualFile {
 
     @Override
     public VirtualFile child(String name) {
-        return new JCloudsVirtualFile(provider, getContainer(), key + "/" + name);
+        return new JCloudsVirtualFile(this, key + "/" + name);
     }
 
     @Override
