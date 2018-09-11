@@ -186,7 +186,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void artifactStash() throws Exception {
-        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), /* TODO true → 400: Unsupported copy source parameter. */false, image);
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), /* TODO true → 400: Unsupported copy source parameter. Re-enable once JCLOUDS-1447 released. */false, image);
     }
 
     @Test
