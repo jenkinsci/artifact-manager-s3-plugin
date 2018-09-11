@@ -46,7 +46,6 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.PageSet;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.rest.internal.InvokeHttpMethod;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -196,7 +195,6 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         assertArrayEquals(new String[0], missing.list("**/**"));
     }
 
-    @Ignore("TODO fails in CI but not locally: S3HttpApiModule.bucketToRegion cache is not working")
     @Test
     public void pagedListing() throws Exception {
         for (int i = 0; i < 10; i++) {
