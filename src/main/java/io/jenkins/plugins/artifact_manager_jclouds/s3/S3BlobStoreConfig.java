@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
+import com.amazonaws.services.s3.model.AmazonS3Exception;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -228,6 +229,14 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
+    void checkGetBucketLocation(String container) throws IOException {
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder();
+        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
+                CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder));
+        AmazonS3 client = builder.withCredentials(credentialsProvider).build();
+        client.getBucketLocation(container);
+    }
+
     @RequirePOST
     public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
@@ -239,6 +248,11 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
+        }
+        try {
+            checkGetBucketLocation(container);
+        } catch (Throwable t){
+            ret = FormValidation.warning(t, "GetBucketLocation failed");
         }
         return ret;
     }
