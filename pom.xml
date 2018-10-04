@@ -282,7 +282,10 @@
             <groupId>org.jenkins-ci.tools</groupId>
             <artifactId>maven-hpi-plugin</artifactId>
             <configuration>
-              <!-- Also in artifact-manager-jclouds. Do we need it in both? -->
+              <!--
+              TODO without this we get: java.lang.LinkageError: loader constraint violation: when resolving method "org.jclouds.ContextBuilder.credentialsSupplier(Lcom/google/common/base/Supplier;)Lorg/jclouds/ContextBuilder;" the class loader (instance of hudson/ClassicPluginStrategy$AntClassLoader2) of the current class, io/jenkins/plugins/artifact_manager_jclouds/s3/S3BlobStore, and the class loader (instance of hudson/ClassicPluginStrategy$AntClassLoader2) for the method's defining class, org/jclouds/ContextBuilder, have different Class objects for the type com/google/common/base/Supplier used in the signature
+              but with this we get java.lang.NoClassDefFoundError: com/google/common/base/Supplier, NoClassDefFoundError:com/google/common/collect/ImmutableSet, etc.
+              -->
               <maskClasses>com.google.common.</maskClasses>
             </configuration>
           </plugin>
