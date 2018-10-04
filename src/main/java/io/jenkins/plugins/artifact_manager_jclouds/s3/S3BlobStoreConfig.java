@@ -29,7 +29,6 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
-import com.amazonaws.services.s3.model.AmazonS3Exception;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -47,10 +46,11 @@ import hudson.ExtensionList;
 import hudson.Util;
 import hudson.model.Failure;
 import hudson.util.FormValidation;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.AbstractAwsGlobalConfiguration;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.Jenkins;
+import org.jclouds.blobstore.BlobStores;
+import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.Symbol;
 
 /**
@@ -243,8 +243,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         FormValidation ret = FormValidation.ok("success");
         try {
             S3BlobStore provider = new S3BlobStoreTester(container, prefix);
-            JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix);
-            jc.list();
+            BlobStores.listAll(provider.getContext().getBlobStore(), getContainer(), ListContainerOptions.Builder.prefix(prefix + "/"));
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));

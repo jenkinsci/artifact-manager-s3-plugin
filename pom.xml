@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>3.20</version>
+    <version>3.24</version>
     <relativePath />
   </parent>
   <groupId>io.jenkins.plugins</groupId>
@@ -16,10 +16,9 @@
   <properties>
     <revision>1.2</revision>
     <changelist>-SNAPSHOT</changelist>
-    <jclouds.version>2.1.1</jclouds.version>
+    <jclouds.version>2.1.1</jclouds.version> <!-- synchronize with that of artifact-manager-jclouds -->
     <jenkins.version>2.121.3</jenkins.version>
     <java.level>8</java.level>
-    <workflow-api-plugin.version>2.29</workflow-api-plugin.version>
     <git-plugin.version>4.0.0-rc2883.3399537b3d44</git-plugin.version> <!-- TODO https://github.com/jenkinsci/git-plugin/pull/616 -->
     <workflow-multibranch-plugin.version>2.20</workflow-multibranch-plugin.version>
     <useBeta>true</useBeta>
@@ -46,6 +45,11 @@
   <dependencies>
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
+      <artifactId>artifact-manager-jclouds</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.plugins</groupId>
       <artifactId>aws-global-configuration</artifactId>
       <version>1.0</version>
     </dependency>
@@ -58,11 +62,6 @@
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
       <version>1.23</version>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>apache-httpcomponents-client-4-api</artifactId>
-      <version>4.5.5-3.0</version>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
@@ -84,12 +83,7 @@
     <dependency>
         <groupId>org.jenkins-ci.plugins.workflow</groupId>
         <artifactId>workflow-api</artifactId>
-        <version>${workflow-api-plugin.version}</version>
-    </dependency>
-    <dependency>
-        <groupId>org.jenkins-ci.plugins.workflow</groupId>
-        <artifactId>workflow-api</artifactId>
-        <version>${workflow-api-plugin.version}</version>
+        <version>2.29</version>
         <classifier>tests</classifier>
         <scope>test</scope>
     </dependency>
@@ -142,12 +136,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.kohsuke.metainf-services</groupId>
-      <artifactId>metainf-services</artifactId>
-      <version>1.7</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>io.findify</groupId>
       <artifactId>s3mock_2.12</artifactId>
       <version>0.2.5</version>
@@ -160,6 +148,10 @@
         <exclusion>
           <groupId>com.amazonaws</groupId>
           <artifactId>aws-java-sdk-s3</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -232,13 +224,13 @@
         <artifactId>jenkins-core</artifactId>
         <version>${jenkins-core.version}</version>
         <exclusions>
-          <exclusion> <!-- JENKINS-50520: pick up 18 from jclouds, which needs at least TypeToken (12+) -->
+          <exclusion> <!-- also in artifact-manager-jclouds -->
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
-      <dependency> <!-- JENKINS-50520: picked up from jclouds; to match the Guice version in core -->
+      <dependency> <!-- ditto -->
         <groupId>com.google.inject.extensions</groupId>
         <artifactId>guice-assistedinject</artifactId>
         <version>4.0</version>
@@ -290,11 +282,10 @@
             <groupId>org.jenkins-ci.tools</groupId>
             <artifactId>maven-hpi-plugin</artifactId>
             <configuration>
-              <!-- JENKINS-50520: since we need a custom version of Guava -->
+              <!-- Also in artifact-manager-jclouds. Do we need it in both? -->
               <maskClasses>com.google.common.</maskClasses>
             </configuration>
           </plugin>
-
       </plugins>
   </build>
 
