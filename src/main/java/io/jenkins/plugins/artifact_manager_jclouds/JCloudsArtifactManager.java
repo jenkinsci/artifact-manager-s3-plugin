@@ -223,6 +223,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 }
                 client.uploadFile(tmp.toFile(), url, listener);
                 listener.getLogger().printf("Stashed %d file(s) to %s%n", count, uri);
+                listener.getLogger().flush();
                 return null;
             } finally {
                 Files.delete(tmp);
