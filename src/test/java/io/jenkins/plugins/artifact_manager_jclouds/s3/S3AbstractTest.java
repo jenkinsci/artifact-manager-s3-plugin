@@ -119,7 +119,7 @@ public abstract class S3AbstractTest {
 
         context = provider.getContext();
 
-        blobStore = context.getBlobStore();
+        blobStore = provider.getBlobStore();
 
         setup();
     }

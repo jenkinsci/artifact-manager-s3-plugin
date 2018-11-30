@@ -79,6 +79,7 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.Issue;
+import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
@@ -140,6 +141,10 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         @Override
         public BlobStoreContext getContext() throws IOException {
             return delegate.getContext();
+        }
+        @Override
+        public BlobStore getBlobStore() throws IOException {
+            return delegate.getBlobStore();
         }
         @Override
         public URI toURI(String container, String key) {

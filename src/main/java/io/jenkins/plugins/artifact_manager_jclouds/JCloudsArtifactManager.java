@@ -116,7 +116,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
         Map<String, URL> artifactUrls = new HashMap<>();
-        BlobStore blobStore = getContext().getBlobStore();
+        BlobStore blobStore = getBlobStore();
 
         // Map artifacts to urls for upload
         for (Map.Entry<String, String> entry : artifacts.entrySet()) {
@@ -160,7 +160,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             LOGGER.log(Level.FINE, "Ignoring blob deletion: {0}", blobPath);
             return false;
         }
-        return JCloudsVirtualFile.delete(provider, getContext().getBlobStore(), blobPath);
+        return JCloudsVirtualFile.delete(provider, getBlobStore(), blobPath);
     }
 
     @Override
@@ -170,7 +170,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     @Override
     public void stash(String name, FilePath workspace, Launcher launcher, EnvVars env, TaskListener listener, String includes, String excludes, boolean useDefaultExcludes, boolean allowEmpty) throws IOException, InterruptedException {
-        BlobStore blobStore = getContext().getBlobStore();
+        BlobStore blobStore = getBlobStore();
 
         // Map stash to url for upload
         String path = getBlobPath("stashes/" + name + ".tgz");
@@ -233,7 +233,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     @Override
     public void unstash(String name, FilePath workspace, Launcher launcher, EnvVars env, TaskListener listener) throws IOException, InterruptedException {
-        BlobStore blobStore = getContext().getBlobStore();
+        BlobStore blobStore = getBlobStore();
 
         // Map stash to url for download
         String blobPath = getBlobPath("stashes/" + name + ".tgz");
@@ -279,7 +279,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             return;
         }
 
-        BlobStore blobStore = getContext().getBlobStore();
+        BlobStore blobStore = getBlobStore();
         int count = 0;
         try {
             for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive())) {
@@ -303,7 +303,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         }
         JCloudsArtifactManager dest = (JCloudsArtifactManager) am;
         String allPrefix = getBlobPath("");
-        BlobStore blobStore = getContext().getBlobStore();
+        BlobStore blobStore = getBlobStore();
         int count = 0;
         try {
             for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive())) {
@@ -320,8 +320,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         listener.getLogger().printf("Copied %d artifact(s)/stash(es) from %s to %s%n", count, provider.toURI(provider.getContainer(), allPrefix), provider.toURI(provider.getContainer(), dest.getBlobPath("")));
     }
 
-    private BlobStoreContext getContext() throws IOException {
-        return provider.getContext();
+    private BlobStore getBlobStore() throws IOException {
+        return provider.getBlobStore();
     }
 
 }

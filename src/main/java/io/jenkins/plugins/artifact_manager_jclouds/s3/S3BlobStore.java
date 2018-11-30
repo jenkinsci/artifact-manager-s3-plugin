@@ -43,6 +43,7 @@ import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
+import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
@@ -124,6 +125,11 @@ public class S3BlobStore extends BlobStoreProvider {
         } catch (NoSuchElementException x) {
             throw new IOException(x);
         }
+    }
+    
+    @Override
+    public BlobStore getBlobStore() throws IOException {
+    	return getContext().getBlobStore();
     }
 
     /**

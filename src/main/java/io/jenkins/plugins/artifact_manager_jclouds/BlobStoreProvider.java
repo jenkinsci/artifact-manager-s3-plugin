@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
 
+import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.kohsuke.accmod.Restricted;
@@ -68,6 +69,10 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     /** Creates the jclouds handle for working with blob. */
     @NonNull
     public abstract BlobStoreContext getContext() throws IOException;
+
+    /** Return the jclouds Blobstore for working with blob. */
+    @NonNull
+    public abstract BlobStore getBlobStore() throws IOException;
 
     /**
      * Get a provider-specific URI.
