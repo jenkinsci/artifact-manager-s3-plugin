@@ -85,7 +85,7 @@ public class NetworkTest {
     @Before
     public void configureManager() throws Exception {
         MockBlobStore mockBlobStore = new MockBlobStore();
-        mockBlobStore.getContext().getBlobStore().createContainerInLocation(null, mockBlobStore.getContainer());
+        mockBlobStore.getBlobStore().createContainerInLocation(null, mockBlobStore.getContainer());
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(new JCloudsArtifactManagerFactory(mockBlobStore));
     }
 
