@@ -72,7 +72,9 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
 
     /** Return the jclouds Blobstore for working with blob. */
     @NonNull
-    public abstract BlobStore getBlobStore() throws IOException;
+    public BlobStore getBlobStore() throws IOException {
+    	return getContext().getBlobStore();
+    }
 
     /**
      * Get a provider-specific URI.

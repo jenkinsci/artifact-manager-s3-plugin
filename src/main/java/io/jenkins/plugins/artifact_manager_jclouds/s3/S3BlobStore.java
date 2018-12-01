@@ -127,11 +127,6 @@ public class S3BlobStore extends BlobStoreProvider {
         }
     }
     
-    @Override
-    public BlobStore getBlobStore() throws IOException {
-    	return getContext().getBlobStore();
-    }
-
     /**
      * field only for tests.
      */
