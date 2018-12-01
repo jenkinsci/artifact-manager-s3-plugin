@@ -147,11 +147,6 @@ public final class MockBlobStore extends BlobStoreProvider {
     }
     
     @Override
-    public BlobStore getBlobStore() throws IOException {
-    	return getContext().getBlobStore();
-    }
-
-    @Override
     public URI toURI(String container, String key) {
         return URI.create("mock://" + container + "/" + key);
     }
