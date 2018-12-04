@@ -58,7 +58,6 @@ import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
 import org.apache.http.client.methods.HttpGet;
 import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.BlobStores;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
