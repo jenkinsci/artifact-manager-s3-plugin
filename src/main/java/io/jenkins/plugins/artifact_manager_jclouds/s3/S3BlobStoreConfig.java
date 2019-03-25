@@ -75,6 +75,8 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static long MULTIPART_SIZE = Long.getLong(S3BlobStoreConfig.class.getName() + ".multipartSize", 100 * 1024 * 1024);
 
     /**
      * Name of the S3 Bucket.
@@ -169,6 +171,10 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         if (formValidation.kind == FormValidation.Kind.ERROR) {
             throw new Failure(formValidation.getMessage());
         }
+    }
+
+    public long getMultipartSize() {
+        return MULTIPART_SIZE;
     }
 
     public boolean isDeleteArtifacts() {
