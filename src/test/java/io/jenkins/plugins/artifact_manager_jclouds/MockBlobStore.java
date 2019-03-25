@@ -24,21 +24,9 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URL;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.ConnectionClosedException;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
+import org.apache.http.*;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
@@ -49,6 +37,16 @@ import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A mock storage provider which keeps all blobs in memory.
@@ -154,6 +152,11 @@ public final class MockBlobStore extends BlobStoreProvider {
     @Override
     public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
         return new URL(baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName() + "?method=" + httpMethod);
+    }
+
+    @NonNull
+    public MultipartUploader initiateMultipartUpload(@NonNull Blob blob) {
+        throw new AssertionError("Not implemented yet");
     }
 
     @Override
