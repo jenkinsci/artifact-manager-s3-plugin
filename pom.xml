@@ -51,6 +51,11 @@
       <version>2.2.0</version>
     </dependency>
     <dependency>
+      <groupId>org.apache.jclouds.api</groupId>
+      <artifactId>openstack-swift</artifactId>
+      <version>${jclouds.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
       <version>1.28</version>
