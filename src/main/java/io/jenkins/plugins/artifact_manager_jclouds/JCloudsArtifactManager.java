@@ -38,6 +38,7 @@ import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Functions;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.Part;
 import io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig;
@@ -50,6 +51,28 @@ import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -131,9 +154,6 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         LOGGER.fine(() -> "guessing content types: " + contentTypes);
         Map<String, URL> artifactUrls = new HashMap<>();
         BlobStore blobStore = getContext().getBlobStore();
-        if (artifacts.isEmpty()) {
-            return;
-        }
 
         Map<String, Long> fileSizes = workspace.act(new RequestFileSizes(artifacts.values()));
 
