@@ -340,5 +340,22 @@
               </plugins>
           </build>
       </profile>
+      <profile>
+          <id>add-jaxb-api-pluginjdk-11</id>
+          <activation>
+              <property>
+                  <name>java.specification.version</name>
+                  <value>11</value>
+              </property>
+          </activation>
+          <dependencies>
+              <dependency>
+                  <groupId>io.jenkins.plugins</groupId>
+                  <artifactId>jaxb</artifactId>
+                  <version>2.3.0</version>
+                  <scope>test</scope>
+              </dependency>
+          </dependencies>
+      </profile>
   </profiles>
 </project>
