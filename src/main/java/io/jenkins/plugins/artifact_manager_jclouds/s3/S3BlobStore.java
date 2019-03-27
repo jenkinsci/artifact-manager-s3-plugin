@@ -24,17 +24,30 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import com.amazonaws.auth.AWSSessionCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
+
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.*;
-import com.google.common.base.Supplier;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.Extension;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
-import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
+import com.amazonaws.services.s3.model.PartETag;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
@@ -44,22 +57,21 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.osgi.ProviderRegistry;
-import org.jenkinsci.Symbol;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-import javax.annotation.Nonnull;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import com.amazonaws.auth.AWSSessionCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.google.common.base.Supplier;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.Extension;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
+import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import org.jenkinsci.Symbol;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -242,14 +254,14 @@ public class S3BlobStore extends BlobStoreProvider {
         String name = blob.getMetadata().getName();
         com.amazonaws.HttpMethod awsMethod;
         switch (httpMethod) {
-            case PUT:
-                awsMethod = com.amazonaws.HttpMethod.PUT;
-                break;
-            case GET:
-                awsMethod = com.amazonaws.HttpMethod.GET;
-                break;
-            default:
-                throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
+        case PUT:
+            awsMethod = com.amazonaws.HttpMethod.PUT;
+            break;
+        case GET:
+            awsMethod = com.amazonaws.HttpMethod.GET;
+            break;
+        default:
+            throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
         }
         GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(container, name, awsMethod);
         request.setExpiration(expiration);

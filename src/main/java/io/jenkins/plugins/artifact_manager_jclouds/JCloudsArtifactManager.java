@@ -24,8 +24,11 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.*;
+import hudson.AbortException;
+import hudson.EnvVars;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.Util;
 import hudson.model.BuildListener;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -33,9 +36,32 @@ import hudson.remoting.VirtualChannel;
 import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig;
 import io.jenkins.plugins.httpclient.RobustHTTPClient;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
@@ -52,17 +78,6 @@ import org.jenkinsci.plugins.workflow.flow.StashManager;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
-import java.io.*;
-import java.net.URI;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 /**
  * Jenkins artifact/stash implementation using any blob store supported by Apache jclouds.
  * To offer a new backend, implement {@link BlobStoreProvider}.
@@ -78,7 +93,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     private transient String key; // e.g. myorg/myrepo/master/123
 
-    JCloudsArtifactManager(@NonNull Run<?, ?> build, BlobStoreProvider provider) {
+    JCloudsArtifactManager(@NonNull  Run<?, ?> build, BlobStoreProvider provider) {
         this.provider = provider;
         onLoad(build);
     }
@@ -111,9 +126,6 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[]{workspace, artifacts});
         BlobStore blobStore = getContext().getBlobStore();
-        if (artifacts.isEmpty()) {
-            return;
-        }
 
         Map<String, Long> fileSizes = workspace.act(new RequestFileSizes(artifacts.values()));
 

@@ -4,7 +4,12 @@ import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.http.entity.AbstractHttpEntity;
 import org.apache.http.util.Args;
 
-import java.io.*;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class FilePartEntity extends AbstractHttpEntity implements Cloneable {
     protected final File file;

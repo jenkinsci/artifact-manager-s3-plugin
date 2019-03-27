@@ -24,21 +24,52 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.*;
+import static org.junit.Assume.*;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.logging.Level;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.NullOutputStream;
+import org.jclouds.rest.internal.InvokeHttpMethod;
+import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
+import org.jenkinsci.test.acceptance.docker.DockerImage;
+import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.TestBuilder;
+
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
-import edu.umd.cs.findbugs.annotations.NonNull;
+
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.*;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
+import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
 import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import java.net.URI;
+import java.net.URL;
+import java.util.Collections;
 import jenkins.branch.BranchSource;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
@@ -47,37 +78,15 @@ import jenkins.plugins.git.GitSCMSource;
 import jenkins.plugins.git.GitSampleRepoRule;
 import jenkins.plugins.git.traits.BranchDiscoveryTrait;
 import jenkins.security.MasterToSlaveCallable;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.output.NullOutputStream;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.rest.internal.InvokeHttpMethod;
-import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jvnet.hudson.test.Issue;
+import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
-import org.jenkinsci.test.acceptance.docker.DockerImage;
-import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.*;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.net.URL;
-import java.util.Collections;
-import java.util.logging.Level;
-
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.*;
-import static org.junit.Assume.assumeNotNull;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -110,54 +119,43 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         private final BlobStoreProvider delegate;
         private final String prefix;
         private final Boolean deleteArtifacts, deleteStashes;
-
         CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteArtifacts, Boolean deleteStashes) {
             this.delegate = delegate;
             this.prefix = prefix;
             this.deleteArtifacts = deleteArtifacts;
             this.deleteStashes = deleteStashes;
         }
-
         @Override
         public String getPrefix() {
             return prefix;
         }
-
         @Override
         public String getContainer() {
             return delegate.getContainer();
         }
-
         @Override
         public boolean isDeleteArtifacts() {
             return deleteArtifacts != null ? deleteArtifacts : delegate.isDeleteArtifacts();
         }
-
         @Override
         public boolean isDeleteStashes() {
             return deleteStashes != null ? deleteStashes : delegate.isDeleteStashes();
         }
-
         @Override
         public BlobStoreContext getContext() throws IOException {
             return delegate.getContext();
         }
-
         @Override
         public URI toURI(String container, String key) {
             return delegate.toURI(container, key);
         }
-
         @Override
         public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
             return delegate.toExternalURL(blob, httpMethod);
         }
-
-        @NonNull
-        public MultipartUploader initiateMultipartUpload(@NonNull Blob blob) throws IOException {
+        public MultipartUploader initiateMultipartUpload(Blob blob) throws IOException {
             return delegate.initiateMultipartUpload(blob);
         }
-
         @Override
         public BlobStoreProviderDescriptor getDescriptor() {
             return delegate.getDescriptor();
@@ -297,9 +295,9 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         Folder d = j.createProject(Folder.class, "d");
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
         j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-                grant(Jenkins.ADMINISTER).everywhere().to("admin").
-                grant(Jenkins.READ).everywhere().to("dev1", "dev2").
-                grant(Item.READ).onFolders(d).to("dev2"));
+            grant(Jenkins.ADMINISTER).everywhere().to("admin").
+            grant(Jenkins.READ).everywhere().to("dev1", "dev2").
+            grant(Item.READ).onFolders(d).to("dev2"));
         WorkflowJob p = d.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f.txt', text: ''; archiveArtifacts 'f.txt'}", true));
         WorkflowRun b = j.buildAndAssertSuccess(p);
