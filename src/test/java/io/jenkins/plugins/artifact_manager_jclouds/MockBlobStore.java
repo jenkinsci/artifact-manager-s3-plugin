@@ -145,7 +145,7 @@ public final class MockBlobStore extends BlobStoreProvider {
         }
         return context;
     }
-    
+
     @Override
     public URI toURI(String container, String key) {
         return URI.create("mock://" + container + "/" + key);

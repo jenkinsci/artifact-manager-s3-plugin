@@ -126,7 +126,7 @@ public class S3BlobStore extends BlobStoreProvider {
             throw new IOException(x);
         }
     }
-    
+
     /**
      * field only for tests.
      */
