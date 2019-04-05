@@ -153,6 +153,9 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
             return delegate.toExternalURL(blob, httpMethod);
         }
+        public MultipartUploader initiateMultipartUpload(Blob blob) throws IOException {
+            return delegate.initiateMultipartUpload(blob);
+        }
         @Override
         public BlobStoreProviderDescriptor getDescriptor() {
             return delegate.getDescriptor();

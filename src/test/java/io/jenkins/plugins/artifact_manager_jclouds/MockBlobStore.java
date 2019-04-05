@@ -156,6 +156,10 @@ public final class MockBlobStore extends BlobStoreProvider {
         return new URL(baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName() + "?method=" + httpMethod);
     }
 
+    public MultipartUploader initiateMultipartUpload(Blob blob) {
+        throw new AssertionError("Not implemented yet");
+    }
+
     @Override
     public boolean isDeleteArtifacts() {
         return true;
