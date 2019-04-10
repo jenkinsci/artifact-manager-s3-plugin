@@ -149,6 +149,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
                 client.uploadFile(new File(f, entry.getKey()), entry.getValue(), listener);
             }
+            listener.getLogger().flush();
             return null;
         }
     }
@@ -266,6 +267,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     // Note that this API currently offers no count of files in the tarball we could report.
                 }
             }, listener);
+            listener.getLogger().flush();
             return null;
         }
     }
