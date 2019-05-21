@@ -178,11 +178,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         Blob blob = blobStore.blobBuilder(path).build();
         blob.getMetadata().setContainer(provider.getContainer());
         URL url = provider.toExternalURL(blob, HttpMethod.PUT);
-        try {
-            workspace.act(new Stash(url, provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote(), listener));
-        } finally {
-            listener.getLogger().flush();
-        }
+        workspace.act(new Stash(url, provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote(), listener));
     }
 
     private static final class Stash extends MasterToSlaveFileCallable<Void> {
@@ -230,6 +226,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 listener.getLogger().printf("Stashed %d file(s) to %s%n", count, uri);
                 return null;
             } finally {
+                listener.getLogger().flush();
                 Files.delete(tmp);
             }
         }
@@ -247,12 +244,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
         }
         URL url = provider.toExternalURL(blob, HttpMethod.GET);
-        try {
-            workspace.act(new Unstash(url, listener));
-            listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
-        } finally {
-            listener.getLogger().flush();
-        }
+        workspace.act(new Unstash(url, listener));
+        listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
     }
 
     private static final class Unstash extends MasterToSlaveFileCallable<Void> {
@@ -268,12 +261,16 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            client.connect("download", "download " + RobustHTTPClient.sanitize(url) + " into " + f, c -> c.execute(new HttpGet(url.toString())), response -> {
-                try (InputStream is = response.getEntity().getContent()) {
-                    new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
-                    // Note that this API currently offers no count of files in the tarball we could report.
-                }
-            }, listener);
+            try {
+                client.connect("download", "download " + RobustHTTPClient.sanitize(url) + " into " + f, c -> c.execute(new HttpGet(url.toString())), response -> {
+                    try (InputStream is = response.getEntity().getContent()) {
+                        new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
+                        // Note that this API currently offers no count of files in the tarball we could report.
+                    }
+                }, listener);
+            } finally {
+                listener.getLogger().flush();
+            }
             return null;
         }
     }
