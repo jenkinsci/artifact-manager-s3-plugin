@@ -224,9 +224,9 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 }
                 client.uploadFile(tmp.toFile(), url, listener);
                 listener.getLogger().printf("Stashed %d file(s) to %s%n", count, uri);
-                listener.getLogger().flush();
                 return null;
             } finally {
+                listener.getLogger().flush();
                 Files.delete(tmp);
             }
         }
@@ -261,13 +261,16 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            client.connect("download", "download " + RobustHTTPClient.sanitize(url) + " into " + f, c -> c.execute(new HttpGet(url.toString())), response -> {
-                try (InputStream is = response.getEntity().getContent()) {
-                    new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
-                    // Note that this API currently offers no count of files in the tarball we could report.
-                }
-            }, listener);
-            listener.getLogger().flush();
+            try {
+                client.connect("download", "download " + RobustHTTPClient.sanitize(url) + " into " + f, c -> c.execute(new HttpGet(url.toString())), response -> {
+                    try (InputStream is = response.getEntity().getContent()) {
+                        new FilePath(f).untarFrom(is, FilePath.TarCompression.GZIP);
+                        // Note that this API currently offers no count of files in the tarball we could report.
+                    }
+                }, listener);
+            } finally {
+                listener.getLogger().flush();
+            }
             return null;
         }
     }
