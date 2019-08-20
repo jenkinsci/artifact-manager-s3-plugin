@@ -10,3 +10,8 @@ aws:
   s3:
     container: "${ARTIFACT_MANAGER_S3_BUCKET_NAME}"
     prefix: "jenkins_data/"
+    customEndpoint: "internal-s3.company.org"
+    customSigningRegion: "us-west-2"
+    usePathStyleUrl: true
+    useHttp: true
+    disableSessionToken: true

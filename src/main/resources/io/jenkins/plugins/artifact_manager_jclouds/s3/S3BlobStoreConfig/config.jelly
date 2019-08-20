@@ -14,9 +14,27 @@
         <f:entry title="${%Delete Stashes}" field="deleteStashes">
             <f:checkbox readonly="true"/>
         </f:entry>
+        <f:entry title="${%Custom Endpoint}" field="customEndpoint">
+            <f:textbox/>
+        </f:entry>
+        <f:entry title="${%Custom Signing Region}" field="customSigningRegion">
+            <f:textbox/>
+        </f:entry>
+        <f:entry title="${%Use Path Style URL}" field="usePathStyleUrl">
+            <f:checkbox readonly="false"/>
+        </f:entry>
+        <f:entry title="${%Use Insecure HTTP}" field="useHttp">
+            <f:checkbox readonly="false"/>
+        </f:entry>
+        <f:entry title="${%Disable Session Token}" field="disableSessionToken">
+            <f:checkbox readonly="false" />
+        </f:entry>
         <f:validateButton title="Validate S3 Bucket configuration" progress="Validate..." method="validateS3BucketConfig"
-                          with="container,prefix"/>
+                          with="container,prefix,useHttp,usePathStyleUrl,disableSessionToken,customEndpoint,customSigningRegion"/>
         <f:validateButton title="Create S3 Bucket from configuration" progress="Creating S3 Bucket..." method="createS3Bucket"
-                          with="container,prefix"/>
+                          with="container,prefix,useHttp,usePathStyleUrl,disableSessionToken,customEndpoint,customSigningRegion"/>
+        
+        
+         
     </f:section>
 </j:jelly>
