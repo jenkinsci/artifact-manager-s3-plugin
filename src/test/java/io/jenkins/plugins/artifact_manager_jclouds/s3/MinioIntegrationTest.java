@@ -30,10 +30,17 @@ import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import java.io.IOException;
 import java.time.Duration;
+import java.net.URI;
+import java.net.URL;
+import jenkins.model.ArtifactManagerFactory;
+import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
 import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
@@ -46,8 +53,8 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.springframework.test.util.ReflectionTestUtils;
 
 public class MinioIntegrationTest extends JavaContainer {
     private static final String ACCESS_KEY = "supersecure";
@@ -63,11 +70,22 @@ public class MinioIntegrationTest extends JavaContainer {
     private S3BlobStoreConfig config;
     private AmazonS3 client;    
     private S3BlobStore provider;
-    private JCloudsArtifactManagerFactory artifactManagerFactory;
+    private String prefix;
+    
+    protected String getPrefix() {
+        return prefix;
+    }
+    
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
     
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
     
+    protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
+        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
+    }
+
     @BeforeClass
     public static void setUpClass() throws Exception {
         int port = 9000;
@@ -115,7 +133,6 @@ public class MinioIntegrationTest extends JavaContainer {
         config.setUsePathStyleUrl(true);
         config.setDisableSessionToken(true);
         client = config.getAmazonS3ClientBuilderWithCredentials().build();
-        artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
     }
     
     private void createBucketWithAwsClient(String bucketName) {
@@ -134,38 +151,25 @@ public class MinioIntegrationTest extends JavaContainer {
     @Test
     public void artifactArchive() throws Exception {
         createBucketWithAwsClient("artifact-archive");
-        ArtifactManagerTest.artifactArchive(jenkinsRule, artifactManagerFactory, true, image);
+        ArtifactManagerTest.artifactArchive(jenkinsRule, getArtifactManagerFactory(null, null), true, image);
     }
 
     @Test
     public void artifactArchiveAndDelete() throws Exception {
         createBucketWithAwsClient("artifact-archive-and-delete");
-        ReflectionTestUtils.setField(config, "deleteArtifacts", true);
-        ArtifactManagerTest.artifactArchiveAndDelete(jenkinsRule, artifactManagerFactory, true, image);
+        ArtifactManagerTest.artifactArchiveAndDelete(jenkinsRule, getArtifactManagerFactory(true, null), true, image);
     }
     
-    @Test(expected = AssertionError.class)
-    public void artifactArchiveAndDeleteShouldFail() throws Exception {
-        createBucketWithAwsClient("artifact-archive-and-delete-should-fail");
-        ArtifactManagerTest.artifactArchiveAndDelete(jenkinsRule, artifactManagerFactory, true, image);
-    }
-
     @Test
     public void artifactStash() throws Exception {
         createBucketWithAwsClient("artifact-stash");
-        ArtifactManagerTest.artifactStash(jenkinsRule, artifactManagerFactory, /* TODO true → 400: Unsupported copy source parameter. Re-enable once JCLOUDS-1447 released. */false, image);
+        ArtifactManagerTest.artifactStash(jenkinsRule, getArtifactManagerFactory(null, null), /* TODO true → 400: Unsupported copy source parameter. Re-enable once JCLOUDS-1447 released. */false, image);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
         createBucketWithAwsClient("artifact-stash-and-delete");
-        ReflectionTestUtils.setField(config, "deleteStashes", true);
-        ArtifactManagerTest.artifactStashAndDelete(jenkinsRule, artifactManagerFactory, /* TODO ditto */false, image);
-    }
-    
-    @Test(expected = AssertionError.class)
-    public void artifactStashAndDeleteShouldFail() throws Exception {
-        createBucketWithAwsClient("artifact-stash-and-delete-should-fail");
-        ArtifactManagerTest.artifactStashAndDelete(jenkinsRule, artifactManagerFactory, /* TODO ditto */false, image);
+        ArtifactManagerTest.artifactStashAndDelete(jenkinsRule, getArtifactManagerFactory(null, true), /* TODO ditto */false, image);
     }
 }
+

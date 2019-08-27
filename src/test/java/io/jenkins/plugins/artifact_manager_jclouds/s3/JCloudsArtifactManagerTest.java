@@ -115,50 +115,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
     }
 
-    private static final class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
-        private final BlobStoreProvider delegate;
-        private final String prefix;
-        private final Boolean deleteArtifacts, deleteStashes;
-        CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteArtifacts, Boolean deleteStashes) {
-            this.delegate = delegate;
-            this.prefix = prefix;
-            this.deleteArtifacts = deleteArtifacts;
-            this.deleteStashes = deleteStashes;
-        }
-        @Override
-        public String getPrefix() {
-            return prefix;
-        }
-        @Override
-        public String getContainer() {
-            return delegate.getContainer();
-        }
-        @Override
-        public boolean isDeleteArtifacts() {
-            return deleteArtifacts != null ? deleteArtifacts : delegate.isDeleteArtifacts();
-        }
-        @Override
-        public boolean isDeleteStashes() {
-            return deleteStashes != null ? deleteStashes : delegate.isDeleteStashes();
-        }
-        @Override
-        public BlobStoreContext getContext() throws IOException {
-            return delegate.getContext();
-        }
-        @Override
-        public URI toURI(String container, String key) {
-            return delegate.toURI(container, key);
-        }
-        @Override
-        public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
-            return delegate.toExternalURL(blob, httpMethod);
-        }
-        @Override
-        public BlobStoreProviderDescriptor getDescriptor() {
-            return delegate.getDescriptor();
-        }
-    }
-
     @Test
     public void agentPermissions() throws Exception {
         assumeNotNull(image);

@@ -298,7 +298,6 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
         return ret;
     }
-    
     public FormValidation doCheckPrefix(@QueryParameter String prefix){
         FormValidation ret;
         if (StringUtils.isBlank(prefix)) {

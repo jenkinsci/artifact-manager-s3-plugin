@@ -237,14 +237,6 @@
       <artifactId>testcontainers</artifactId>
       <version>1.10.2</version>
       <scope>test</scope>
-      <type>jar</type>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-test</artifactId>
-      <version>5.0.0.RELEASE</version>
-      <scope>test</scope>
-      <type>jar</type>
     </dependency>
   </dependencies>
   <dependencyManagement>
@@ -365,3 +357,4 @@
       </profile>
   </profiles>
 </project>
+
