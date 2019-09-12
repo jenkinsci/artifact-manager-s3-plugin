@@ -53,6 +53,7 @@ import org.jvnet.hudson.test.TestBuilder;
 
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.cloudbees.hudson.plugins.folder.Folder;
 
 import hudson.FilePath;
 import hudson.Launcher;
@@ -60,10 +61,12 @@ import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
 import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
+import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
@@ -84,6 +87,7 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -283,6 +287,28 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         wc.getPage(b, "artifact/");
         assertEquals("content", wc.goTo(b.getUrl() + "artifact/f", null).getWebResponse().getContentAsString());
         b.deleteArtifacts();
+    }
+
+    @Issue("JENKINS-56004")
+    @Test
+    public void nonAdmin() throws Exception {
+        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
+        Folder d = j.createProject(Folder.class, "d");
+        j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
+        j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+            grant(Jenkins.ADMINISTER).everywhere().to("admin").
+            grant(Jenkins.READ).everywhere().to("dev1", "dev2").
+            grant(Item.READ).onFolders(d).to("dev2"));
+        WorkflowJob p = d.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f.txt', text: ''; archiveArtifacts 'f.txt'}", true));
+        WorkflowRun b = j.buildAndAssertSuccess(p);
+        String url = "job/d/job/p/1/api/json?tree=artifacts[relativePath]";
+        String jsonType = "application/json";
+        String snippet = "\"relativePath\":\"f.txt\"";
+        assertThat(j.createWebClient().withBasicCredentials("admin").goTo(url, jsonType).getWebResponse().getContentAsString(), containsString(snippet));
+        j.createWebClient().withBasicCredentials("dev1").assertFails(url, 404);
+        assertThat(j.createWebClient().withBasicCredentials("dev2").goTo(url, jsonType).getWebResponse().getContentAsString(), containsString(snippet));
     }
 
     //@Test
