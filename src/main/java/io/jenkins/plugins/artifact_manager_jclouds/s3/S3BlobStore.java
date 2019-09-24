@@ -160,11 +160,15 @@ public class S3BlobStore extends BlobStoreProvider {
         assert container != null;
         assert key != null;
         try {
-            // TODO proper encoding
-            return new URI(String.format("https://%s.s3.amazonaws.com/%s", container,
-                    URLEncoder.encode(key, "UTF-8").replaceAll("%2F", "/").replaceAll("%3A", ":")));
-        } catch (URISyntaxException | UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
+            AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
+            AWSSessionCredentials sessionCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
+            AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials);
+            builder = builder.withCredentials(credentialsProvider);
+            LOGGER.log(Level.FINE, "Generating URI for {0} / {1}",
+                  new Object[] { container, key });
+            return builder.build().getUrl(container, key).toURI();
+        } catch (IOException | URISyntaxException e) {
+            throw new IllegalStateException(e);
         }
     }
 
