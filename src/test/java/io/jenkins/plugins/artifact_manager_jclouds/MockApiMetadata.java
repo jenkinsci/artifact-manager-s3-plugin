@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.logging.Logger;
 import org.apache.commons.io.IOUtils;
 import org.jclouds.apis.ApiMetadata;
@@ -140,7 +141,7 @@ public final class MockApiMetadata extends BaseApiMetadata {
     /** Like {@link TransientStorageStrategy}. */
     public static final class MockStrategy implements LocalStorageStrategy {
 
-        private final Map<String, Map<String, Blob>> blobsByContainer = new HashMap<>();
+        private final Map<String, ConcurrentSkipListMap<String, Blob>> blobsByContainer = new HashMap<>();
 
         @Override
         public boolean containerExists(String container) {
@@ -154,7 +155,7 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
         @Override
         public boolean createContainerInLocation(String container, Location location, CreateContainerOptions options) {
-            return blobsByContainer.putIfAbsent(container, new HashMap<>()) == null;
+            return blobsByContainer.putIfAbsent(container, new ConcurrentSkipListMap<>()) == null;
         }
 
         @Override
@@ -193,12 +194,17 @@ public final class MockApiMetadata extends BaseApiMetadata {
         }
 
         @Override
-        public Iterable<String> getBlobKeysInsideContainer(String container) throws IOException {
+        public Iterable<String> getBlobKeysInsideContainer(String container, String prefix) throws IOException {
             GetBlobKeysInsideContainerHandler handler = getBlobKeysInsideContainerHandlers.remove(container);
             if (handler != null) {
                 return handler.run();
             }
-            return blobsByContainer.get(container).keySet();
+            ConcurrentSkipListMap<String, Blob> blobs = blobsByContainer.get(container);
+            if (prefix == null) {
+                return blobs.keySet();
+            }
+           String lastPrefix = prefix + (char) 65535;  // TODO: better sentinel?
+           return blobs.subMap(prefix, /*fromInclusive=*/ true, lastPrefix, /*toInclusive=*/ false).keySet();
         }
 
         @Override
