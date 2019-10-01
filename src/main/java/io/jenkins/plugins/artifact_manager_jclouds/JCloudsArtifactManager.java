@@ -45,6 +45,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -116,6 +117,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
         Map<String, URL> artifactUrls = new HashMap<>();
+        Map<String, String> contentTypes = new HashMap<>();
         BlobStore blobStore = getContext().getBlobStore();
 
         // Map artifacts to urls for upload
@@ -124,23 +126,55 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             String blobPath = getBlobPath(path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(provider.getContainer());
+            String contentType = workspace.act(new ContentTypeGuesser(entry.getKey()));
+            if (contentType != null) {
+                contentTypes.put(entry.getValue(), contentType);
+            }
+            blob.getMetadata().getContentMetadata().setContentType(contentType);
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
         }
 
-        workspace.act(new UploadToBlobStorage(artifactUrls, listener));
+        workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
+    }
+
+    private static class ContentTypeGuesser extends MasterToSlaveFileCallable<String> {
+        private static final long serialVersionUID = 5743824603401251506L;
+
+        private final String relPath;
+
+        ContentTypeGuesser(String relPath) {
+            this.relPath = relPath;
+        }
+
+        @Override
+        public String invoke(File f, VirtualChannel channel) {
+            File theFile = new File(f, relPath);
+            try {
+                String contentType = Files.probeContentType(theFile.toPath());
+                if (null == contentType) {
+                    contentType = URLConnection.guessContentTypeFromName(theFile.getName());
+                }
+                return contentType;
+            } catch (IOException e) {
+                LOGGER.log(Level.FINE, "Unable to determine content type for file: " + theFile, e);
+                return null;
+            }
+        }
     }
 
     private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
         private static final long serialVersionUID = 1L;
 
         private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
+        private final Map<String, String> contentTypes; // e.g. "target/x.zip, "application/zip"
         private final TaskListener listener;
         // Bind when constructed on the master side; on the agent side, deserialize the same configuration.
         private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
-        UploadToBlobStorage(Map<String, URL> artifactUrls, TaskListener listener) {
+        UploadToBlobStorage(Map<String, URL> artifactUrls, Map<String, String> contentTypes, TaskListener listener) {
             this.artifactUrls = artifactUrls;
+            this.contentTypes = contentTypes;
             this.listener = listener;
         }
 
@@ -148,7 +182,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             try {
                 for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
-                    client.uploadFile(new File(f, entry.getKey()), entry.getValue(), listener);
+                    client.uploadFile(new File(f, entry.getKey()), contentTypes.get(entry.getKey()), entry.getValue(), listener);
                 }
             } finally {
                 listener.getLogger().flush();
@@ -180,6 +214,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         String path = getBlobPath("stashes/" + name + ".tgz");
         Blob blob = blobStore.blobBuilder(path).build();
         blob.getMetadata().setContainer(provider.getContainer());
+        // We don't care about content-type when stashing files
+        blob.getMetadata().getContentMetadata().setContentType(null);
         URL url = provider.toExternalURL(blob, HttpMethod.PUT);
         workspace.act(new Stash(url, provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote(), listener));
     }

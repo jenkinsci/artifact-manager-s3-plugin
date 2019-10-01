@@ -54,6 +54,7 @@ import org.jvnet.hudson.test.TestBuilder;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
+import com.gargoylesoftware.htmlunit.WebResponse;
 
 import hudson.FilePath;
 import hudson.Launcher;
@@ -304,6 +305,85 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         assertThat(j.createWebClient().withBasicCredentials("admin").goTo(url, jsonType).getWebResponse().getContentAsString(), containsString(snippet));
         j.createWebClient().withBasicCredentials("dev1").assertFails(url, 404);
         assertThat(j.createWebClient().withBasicCredentials("dev2").goTo(url, jsonType).getWebResponse().getContentAsString(), containsString(snippet));
+    }
+
+    @Issue("JENKINS-50772")
+    @Test
+    public void contentTypeText() throws Exception {
+        final String expectedContents = "some regular text";
+        final String expectedContentType = "text/plain";
+
+        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
+
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f.txt', text: '" + expectedContents + "'; archiveArtifacts 'f.txt'}", true));
+        j.buildAndAssertSuccess(p);
+
+        String url = "job/p/1/artifact/f.txt";
+        WebResponse response = j.createWebClient().goTo(url, null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(expectedContents));
+        assertThat(response.getContentType(), equalTo(expectedContentType));
+    }
+
+    @Issue("JENKINS-50772")
+    @Test
+    public void contentTypeHtml() throws Exception {
+        final String expectedContents = "<html><header></header><body>Test file contents</body></html>";
+        final String expectedContentType = "text/html";
+
+        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
+
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f.html', text: '" + expectedContents + "'; archiveArtifacts 'f.html'}", true));
+        j.buildAndAssertSuccess(p);
+
+        String url = "job/p/1/artifact/f.html";
+        WebResponse response = j.createWebClient().goTo(url, null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(expectedContents));
+        assertThat(response.getContentType(), equalTo(expectedContentType));
+    }
+
+    @Issue("JENKINS-50772")
+    @Test
+    public void contentTypeUnknown() throws Exception {
+        final String expectedContents = "";
+        final String expectedContentType = "binary/octet-stream";
+
+        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
+
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f', text: '" + expectedContents + "'; archiveArtifacts 'f'}", true));
+        j.buildAndAssertSuccess(p);
+
+        String url = "job/p/1/artifact/f";
+        WebResponse response = j.createWebClient().goTo(url, null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(expectedContents));
+        assertThat(response.getContentType(), equalTo(expectedContentType));
+    }
+
+    @Issue("JENKINS-50772")
+    @Test
+    public void stashInS3() throws Exception {
+        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
+
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+            "node {" +
+            "  def expected = 'some text';" +
+            "  writeFile file: 'f.txt', text: expected;" +
+            "  stash name: 'test-stash', includes: 'f.txt';" +
+            "  sh 'rm f.txt';" +
+            "  if (fileExists('f.txt')) error 'File should not exist anymore';" +
+            "  unstash name: 'test-stash';" +
+            "  def actual = readFile file: 'f.txt';" +
+            "  if (actual != expected) error 'Stashed file has wrong contents';" +
+            "}",
+            true));
+        j.buildAndAssertSuccess(p);
     }
 
     //@Test
