@@ -1,0 +1,2 @@
+_extends: .github
+tag-template: artifact-manager-s3-$NEXT_MINOR_VERSION

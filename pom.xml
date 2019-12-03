@@ -28,7 +28,7 @@
 
   <name>Artifact Manager on S3 plugin</name>
   <description>A Jenkins plugin to keep artifacts and Pipeline stashes in Amazon S3.</description>
-  <url>https://wiki.jenkins.io/display/JENKINS/Artifact+Manager+S3+Plugin</url>
+  <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
   <licenses>
     <license>
       <name>MIT License</name>

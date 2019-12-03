@@ -25,7 +25,7 @@ Table of Contents
       * [Member must have length greater than or equal to 20](#member-must-have-length-greater-than-or-equal-to-20)
       * [User: arn:aws:iam::XXXXXX:user/people/myUser is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::XXXXXXX:role/my-role](#user-arnawsiamxxxxxxuserpeoplemyuser-is-not-authorized-to-perform-stsassumerole-on-resource-arnawsiamxxxxxxxrolemy-role)
       * [Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region.](#unable-to-find-a-region-via-the-region-provider-chain-must-provide-an-explicit-region-in-the-builder-or-setup-environment-to-supply-a-region)
-
+   * [Changelog](#changelog)
    
 # Artifact Manager on S3 plugin
 
@@ -773,3 +773,83 @@ java.lang.NullPointerException
 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
 	at java.lang.Thread.run(Thread.java:748)
 ```
+
+# Changelog
+
+## 1.7 and newer
+
+See [GitHub releases](https://github.com/jenkinsci/artifact-manager-s3-plugin/releases).
+
+## 1.6 (2019-05-23)
+
+-   Extend 1.5’s flush fix to some error-handling cases.
+
+## 1.5 (2019-05-06)
+
+-   Properly flush listeners from all remote callables
+    ([commit](https://github.com/jenkinsci/artifact-manager-s3-plugin/pull/92/commits/9da949541b8a9c5cb36a290fa8a4f91f92132b6f){.external-link})
+-   [PR
+    \#92](https://github.com/jenkinsci/artifact-manager-s3-plugin/pull/92){.external-link}
+    - Internal: Update dependencies to support testing of the plugin
+    with Java 11
+
+## 1.4 (2019-04-04)
+
+-   Following up metadata changes in 1.3 to make the plugin work on
+    Java 11. Now requires Jenkins 2.164.x or newer.
+
+## 1.3 (2019-03-27)
+
+-   Flush a message printed from the agent side, to work better
+    with [JEP-210](https://jenkins.io/jep/210){.external-link}.
+-   Metadata changes for `plugin-compat-tester`.
+
+## 1.2 (2018-11-06)
+
+-   [
+    JENKINS-50591](https://issues.jenkins-ci.org/browse/JENKINS-50591){.jira-issue-key}
+    - Getting issue details... STATUS  /  [
+    JENKINS-52151](https://issues.jenkins-ci.org/browse/JENKINS-52151){.jira-issue-key}
+    - Getting issue details... STATUS  Picking
+    up <https://jira.apache.org/jira/browse/JCLOUDS-1401> and <https://jira.apache.org/jira/browse/JCLOUDS-1433> to
+    address most problems with special characters in artifact names.
+-   Added form validation for bucket location.
+
+## 1.1 (2018 Jul 17)
+
+-   Using [AWS Global Configuration
+    Plugin](https://wiki.jenkins.io/display/JENKINS/AWS+Global+Configuration+Plugin)
+    for configuration.
+-   [
+    JENKINS-52304](https://issues.jenkins-ci.org/browse/JENKINS-52304){.jira-issue-key}
+    - Getting issue details... STATUS
+-   [
+    JENKINS-52361](https://issues.jenkins-ci.org/browse/JENKINS-52361){.jira-issue-key}
+    - Getting issue details... STATUS
+-   test for  [
+    JENKINS-52151](https://issues.jenkins-ci.org/browse/JENKINS-52151){.jira-issue-key}
+    - Getting issue details... STATUS  and [
+    JENKINS-50591](https://issues.jenkins-ci.org/browse/JENKINS-50591){.jira-issue-key}
+    - Getting issue details... STATUS ; actual fix is pending a new
+    jclouds release
+-   [
+    JENKINS-52254](https://issues.jenkins-ci.org/browse/JENKINS-52254){.jira-issue-key}
+    - Getting issue details... STATUS
+-   [
+    JENKINS-52250](https://issues.jenkins-ci.org/browse/JENKINS-52250){.jira-issue-key}
+    - Getting issue details... STATUS
+-   Ability to create the S3 bucket from the configuration page.
+
+## 1.0 (2018 Jun 26)
+
+No code changes since beta 2, only metadata.
+
+## 1.0-beta-2 (2018 Jun 21)
+
+-   [
+    JENKINS-51396](https://issues.jenkins-ci.org/browse/JENKINS-51396){.jira-issue-key}
+    - Getting issue details... STATUS
+
+## 1.0-beta-1 (2018 Jun 19)
+
+Initial release to experimental update center.
