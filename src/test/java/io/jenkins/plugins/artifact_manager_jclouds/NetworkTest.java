@@ -315,7 +315,6 @@ public class NetworkTest {
         MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {
             try {
                 Thread.sleep(Long.MAX_VALUE);
-                return null; // to satisfy compiler
             } catch (InterruptedException x) {
                 throw new RuntimeException(x);
             }
