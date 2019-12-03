@@ -55,6 +55,7 @@ import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
 
+import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -84,6 +85,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.Issue;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
+import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
@@ -256,7 +258,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
     }
 
-    @Issue("JENKINS-52151")
+    @Issue({"JENKINS-52151", "JENKINS-60040"})
     @Test
     public void slashyBranches() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(true, true));
@@ -281,6 +283,14 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         wc.getPage(b);
         wc.getPage(b, "artifact/");
         assertEquals("content", wc.goTo(b.getUrl() + "artifact/f", null).getWebResponse().getContentAsString());
+        sampleRepo.write("Jenkinsfile", "");
+        sampleRepo.git("add", "Jenkinsfile");
+        sampleRepo.git("commit", "--message=empty");
+        WorkflowRun b2 = j.buildAndAssertSuccess(p);
+        for (FlowCopier copier : ExtensionList.lookup(FlowCopier.class)) {
+            copier.copy(b.asFlowExecutionOwner(), b2.asFlowExecutionOwner());
+        }
+        assertTrue(b2.getArtifactManager().root().child("f").isFile());
         b.deleteArtifacts();
     }
 
