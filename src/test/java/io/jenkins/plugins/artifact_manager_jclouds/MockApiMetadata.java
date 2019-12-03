@@ -30,6 +30,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.io.IOUtils;
 import org.jclouds.apis.ApiMetadata;
@@ -196,7 +197,8 @@ public final class MockApiMetadata extends BaseApiMetadata {
                 handler.run();
                 throw new AssertionError("not supposed to get here");
             }
-            return () -> blobsByContainer.get(container).keySet().stream().filter(path -> path.startsWith(prefix)).iterator();
+            Set<String> keys = blobsByContainer.get(container).keySet();
+            return prefix == null ? keys : () -> keys.stream().filter(path -> path.startsWith(prefix)).iterator();
         }
 
         @Override
