@@ -54,6 +54,10 @@ import org.jvnet.hudson.test.TestBuilder;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 
 import hudson.ExtensionList;
 import hudson.FilePath;
@@ -166,7 +170,8 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         assumeNotNull(image);
         System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
         try (JavaContainer container = image.start(JavaContainer.class).start()) {
-            DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test", "test", "", ""));
+            SystemCredentialsProvider.getInstance().getDomainCredentialsMap().put(Domain.global(), Collections.singletonList(new UsernamePasswordCredentialsImpl(CredentialsScope.SYSTEM, "test", null, "test", "test")));
+            DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test"));
             Jenkins.get().addNode(agent);
             j.waitOnline(agent);
             try {
