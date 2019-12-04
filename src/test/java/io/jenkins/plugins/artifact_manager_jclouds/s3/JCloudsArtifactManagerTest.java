@@ -55,6 +55,7 @@ import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
 
+import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -84,6 +85,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.Issue;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
+import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
@@ -189,12 +191,12 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void artifactStash() throws Exception {
-        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), /* TODO true → 400: Unsupported copy source parameter. Re-enable once JCLOUDS-1447 released. */false, image);
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true, image);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
-        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), /* TODO ditto */false, image);
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true, image);
     }
 
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
@@ -256,7 +258,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
     }
 
-    @Issue("JENKINS-52151")
+    @Issue({"JENKINS-52151", "JENKINS-60040"})
     @Test
     public void slashyBranches() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(true, true));
@@ -281,6 +283,14 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         wc.getPage(b);
         wc.getPage(b, "artifact/");
         assertEquals("content", wc.goTo(b.getUrl() + "artifact/f", null).getWebResponse().getContentAsString());
+        sampleRepo.write("Jenkinsfile", "");
+        sampleRepo.git("add", "Jenkinsfile");
+        sampleRepo.git("commit", "--message=empty");
+        WorkflowRun b2 = j.buildAndAssertSuccess(p);
+        for (FlowCopier copier : ExtensionList.lookup(FlowCopier.class)) {
+            copier.copy(b.asFlowExecutionOwner(), b2.asFlowExecutionOwner());
+        }
+        assertTrue(b2.getArtifactManager().root().child("f").isFile());
         b.deleteArtifacts();
     }
 
