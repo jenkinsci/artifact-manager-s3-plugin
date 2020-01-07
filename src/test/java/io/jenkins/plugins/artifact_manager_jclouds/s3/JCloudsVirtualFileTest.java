@@ -25,6 +25,7 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
+import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import static org.hamcrest.Matchers.*;
 import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
 import static org.junit.Assert.*;
@@ -252,6 +253,9 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         // weird chars
         String stuff = "xxx#?:$&'\"<>čॐ";
         assertEquals(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), urlEncodeParts(stuff)), newJCloudsBlobStore(stuff).toURI().toString());
+        // region
+        CredentialsAwsGlobalConfiguration.get().setRegion("us-west-1");
+        assertEquals(String.format("https://%s.s3.us-west-1.amazonaws.com/what/ever", getContainer()), newJCloudsBlobStore("what/ever").toURI().toString());
     }
     private static String urlEncodeParts(String s) throws Exception {
         return URLEncoder.encode(s, "UTF-8").replaceAll("%2F", "/");
