@@ -378,27 +378,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         assertThat(response.getContentType(), equalTo(expectedContentType));
     }
 
-    @Issue("JENKINS-50772")
-    @Test
-    public void stashInS3() throws Exception {
-        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
-
-        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition(
-            "node {" +
-            "  def expected = 'some text';" +
-            "  writeFile file: 'f.txt', text: expected;" +
-            "  stash name: 'test-stash', includes: 'f.txt';" +
-            "  sh 'rm f.txt';" +
-            "  if (fileExists('f.txt')) error 'File should not exist anymore';" +
-            "  unstash name: 'test-stash';" +
-            "  def actual = readFile file: 'f.txt';" +
-            "  if (actual != expected) error 'Stashed file has wrong contents';" +
-            "}",
-            true));
-        j.buildAndAssertSuccess(p);
-    }
-
     //@Test
     public void archiveSingleLargeFile() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
