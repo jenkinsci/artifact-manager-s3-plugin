@@ -331,8 +331,10 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
 
+        j.createSlave("remote", null, null);
+
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f.txt', text: '" + text + "'; writeFile file: 'f.html', text: '" + html + "'; archiveArtifacts 'f.*'}", true));
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f.txt', text: '" + text + "'; writeFile file: 'f.html', text: '" + html + "'; archiveArtifacts 'f.*'}", true));
         j.buildAndAssertSuccess(p);
 
         WebResponse response = j.createWebClient().goTo("job/p/1/artifact/f.txt", null).getWebResponse();
