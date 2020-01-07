@@ -250,7 +250,7 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>aws-java-sdk</artifactId>
-        <version>1.11.457</version>
+        <version>1.11.636</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
