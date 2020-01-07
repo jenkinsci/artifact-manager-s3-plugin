@@ -325,38 +325,22 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Issue("JENKINS-50772")
     @Test
-    public void contentTypeText() throws Exception {
-        final String expectedContents = "some regular text";
-        final String expectedContentType = "text/plain";
+    public void contentType() throws Exception {
+        String text = "some regular text";
+        String html = "<html><header></header><body>Test file contents</body></html>";
 
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
 
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f.txt', text: '" + expectedContents + "'; archiveArtifacts 'f.txt'}", true));
+        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f.txt', text: '" + text + "'; writeFile file: 'f.html', text: '" + html + "'; archiveArtifacts 'f.*'}", true));
         j.buildAndAssertSuccess(p);
 
-        String url = "job/p/1/artifact/f.txt";
-        WebResponse response = j.createWebClient().goTo(url, null).getWebResponse();
-        assertThat(response.getContentAsString(), equalTo(expectedContents));
-        assertThat(response.getContentType(), equalTo(expectedContentType));
-    }
-
-    @Issue("JENKINS-50772")
-    @Test
-    public void contentTypeHtml() throws Exception {
-        final String expectedContents = "<html><header></header><body>Test file contents</body></html>";
-        final String expectedContentType = "text/html";
-
-        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
-
-        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f.html', text: '" + expectedContents + "'; archiveArtifacts 'f.html'}", true));
-        j.buildAndAssertSuccess(p);
-
-        String url = "job/p/1/artifact/f.html";
-        WebResponse response = j.createWebClient().goTo(url, null).getWebResponse();
-        assertThat(response.getContentAsString(), equalTo(expectedContents));
-        assertThat(response.getContentType(), equalTo(expectedContentType));
+        WebResponse response = j.createWebClient().goTo("job/p/1/artifact/f.txt", null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(text));
+        assertThat(response.getContentType(), equalTo("text/plain"));
+        response = j.createWebClient().goTo("job/p/1/artifact/f.html", null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(html));
+        assertThat(response.getContentType(), equalTo("text/html"));
     }
 
     @Ignore("TODO this returns text/plain for me on Linux; seems to be very sensitive to system; any way to mock this out?")
