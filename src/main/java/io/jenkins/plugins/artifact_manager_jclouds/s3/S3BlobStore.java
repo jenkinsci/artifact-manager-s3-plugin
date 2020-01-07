@@ -53,6 +53,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.google.common.base.Supplier;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -184,10 +185,13 @@ public class S3BlobStore extends BlobStoreProvider {
         String name = blob.getMetadata().getName();
         LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
                 new Object[] { container, name, httpMethod });
+        String contentType = null;
         com.amazonaws.HttpMethod awsMethod;
         switch (httpMethod) {
         case PUT:
             awsMethod = com.amazonaws.HttpMethod.PUT;
+            // Only set content type for upload URLs, so that the right S3 metadata gets set
+            contentType = blob.getMetadata().getContentMetadata().getContentType();
             break;
         case GET:
             awsMethod = com.amazonaws.HttpMethod.GET;
@@ -195,7 +199,13 @@ public class S3BlobStore extends BlobStoreProvider {
         default:
             throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
         }
-        return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
+
+        GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(container, name)
+            .withExpiration(expiration)
+            .withMethod(awsMethod)
+            .withContentType(contentType);
+
+        return builder.build().generatePresignedUrl(generatePresignedUrlRequest);
     }
 
     @Symbol("s3")
