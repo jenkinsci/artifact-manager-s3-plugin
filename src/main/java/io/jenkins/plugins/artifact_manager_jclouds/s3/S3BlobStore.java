@@ -159,13 +159,10 @@ public class S3BlobStore extends BlobStoreProvider {
         assert key != null;
         try {
             AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
-            AWSSessionCredentials sessionCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
-            AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials);
-            builder = builder.withCredentials(credentialsProvider);
             URI uri = builder.build().getUrl(container, key).toURI();
             LOGGER.fine(() -> container + " / " + key + " → " + uri);
             return uri;
-        } catch (IOException | URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new IllegalStateException(e);
         }
     }
