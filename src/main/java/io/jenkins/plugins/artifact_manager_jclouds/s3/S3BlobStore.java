@@ -25,11 +25,9 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.Properties;
@@ -164,9 +162,9 @@ public class S3BlobStore extends BlobStoreProvider {
             AWSSessionCredentials sessionCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
             AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials);
             builder = builder.withCredentials(credentialsProvider);
-            LOGGER.log(Level.FINE, "Generating URI for {0} / {1}",
-                  new Object[] { container, key });
-            return builder.build().getUrl(container, key).toURI();
+            URI uri = builder.build().getUrl(container, key).toURI();
+            LOGGER.fine(() -> container + " / " + key + " → " + uri);
+            return uri;
         } catch (IOException | URISyntaxException e) {
             throw new IllegalStateException(e);
         }
