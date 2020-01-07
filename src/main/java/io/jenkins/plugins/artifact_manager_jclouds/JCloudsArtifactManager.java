@@ -37,6 +37,7 @@ import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.Functions;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import io.jenkins.plugins.httpclient.RobustHTTPClient;
 import java.io.File;
@@ -50,6 +51,8 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -116,8 +119,9 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     public void archive(FilePath workspace, Launcher launcher, BuildListener listener, Map<String, String> artifacts)
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
+        Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.keySet()), listener));
+        LOGGER.fine(() -> "guessing content types: " + contentTypes);
         Map<String, URL> artifactUrls = new HashMap<>();
-        Map<String, String> contentTypes = new HashMap<>();
         BlobStore blobStore = getContext().getBlobStore();
 
         // Map artifacts to urls for upload
@@ -126,11 +130,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             String blobPath = getBlobPath(path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(provider.getContainer());
-            String contentType = workspace.act(new ContentTypeGuesser(entry.getKey()));
-            if (contentType != null) {
-                contentTypes.put(entry.getValue(), contentType);
-            }
-            blob.getMetadata().getContentMetadata().setContentType(contentType);
+            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getKey()));
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
         }
 
@@ -138,28 +138,33 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
 
-    private static class ContentTypeGuesser extends MasterToSlaveFileCallable<String> {
-        private static final long serialVersionUID = 5743824603401251506L;
+    private static class ContentTypeGuesser extends MasterToSlaveFileCallable<Map<String, String>> {
+        private static final long serialVersionUID = 1L;
 
-        private final String relPath;
+        private final Collection<String> relPaths;
+        private final TaskListener listener;
 
-        ContentTypeGuesser(String relPath) {
-            this.relPath = relPath;
+        ContentTypeGuesser(Collection<String> relPaths, TaskListener listener) {
+            this.relPaths = relPaths;
+            this.listener = listener;
         }
 
         @Override
-        public String invoke(File f, VirtualChannel channel) {
-            File theFile = new File(f, relPath);
-            try {
-                String contentType = Files.probeContentType(theFile.toPath());
-                if (null == contentType) {
-                    contentType = URLConnection.guessContentTypeFromName(theFile.getName());
+        public Map<String, String> invoke(File f, VirtualChannel channel) {
+            Map<String, String> contentTypes = new HashMap<>();
+            for (String relPath : relPaths) {
+                File theFile = new File(f, relPath);
+                try {
+                    String contentType = Files.probeContentType(theFile.toPath());
+                    if (contentType == null) {
+                        contentType = URLConnection.guessContentTypeFromName(theFile.getName());
+                    }
+                    contentTypes.put(relPath, contentType);
+                } catch (IOException e) {
+                    Functions.printStackTrace(e, listener.error("Unable to determine content type for file: " + theFile));
                 }
-                return contentType;
-            } catch (IOException e) {
-                LOGGER.log(Level.FINE, "Unable to determine content type for file: " + theFile, e);
-                return null;
             }
+            return contentTypes;
         }
     }
 
