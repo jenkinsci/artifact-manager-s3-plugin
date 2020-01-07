@@ -328,7 +328,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         final String expectedContents = "some regular text";
         final String expectedContentType = "text/plain";
 
-        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
 
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
@@ -347,7 +346,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         final String expectedContents = "<html><header></header><body>Test file contents</body></html>";
         final String expectedContentType = "text/html";
 
-        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
 
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
@@ -366,7 +364,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         final String expectedContents = "";
         final String expectedContentType = "binary/octet-stream";
 
-        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
 
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
@@ -382,7 +379,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Issue("JENKINS-50772")
     @Test
     public void stashInS3() throws Exception {
-        CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
 
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
