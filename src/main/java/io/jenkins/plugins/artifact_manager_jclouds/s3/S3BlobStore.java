@@ -25,11 +25,9 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.Properties;
@@ -160,11 +158,12 @@ public class S3BlobStore extends BlobStoreProvider {
         assert container != null;
         assert key != null;
         try {
-            // TODO proper encoding
-            return new URI(String.format("https://%s.s3.amazonaws.com/%s", container,
-                    URLEncoder.encode(key, "UTF-8").replaceAll("%2F", "/").replaceAll("%3A", ":")));
-        } catch (URISyntaxException | UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
+            AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
+            URI uri = builder.build().getUrl(container, key).toURI();
+            LOGGER.fine(() -> container + " / " + key + " → " + uri);
+            return uri;
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException(e);
         }
     }
 

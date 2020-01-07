@@ -25,6 +25,7 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
+import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import static org.hamcrest.Matchers.*;
 import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
 import static org.junit.Assert.*;
@@ -32,7 +33,7 @@ import static org.junit.Assert.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.net.URI;
+import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Handler;
@@ -247,15 +248,17 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
 
     @Test
     public void toURI() throws Exception {
-        assertEquals(new URI(
-                String.format("https://%s.s3.amazonaws.com/%s", getContainer(), getPrefix().replaceFirst("/$", ""))),
-                subdir.toURI());
-        assertEquals(new URI(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), filePath)), vf.toURI());
+        assertEquals(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), urlEncodeParts(getPrefix().replaceFirst("/$", ""))), subdir.toURI().toString());
+        assertEquals(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), urlEncodeParts(filePath)), vf.toURI().toString());
         // weird chars
-        assertEquals(
-                new URI(String.format("https://%s.s3.amazonaws.com/%s", getContainer(),
-                        "xxx%23%3F:%24%26%27%22%3C%3E%C4%8D%E0%A5%90")),
-                newJCloudsBlobStore("xxx#?:$&'\"<>čॐ").toURI());
+        String stuff = "xxx#?:$&'\"<>čॐ";
+        assertEquals(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), urlEncodeParts(stuff)), newJCloudsBlobStore(stuff).toURI().toString());
+        // region
+        CredentialsAwsGlobalConfiguration.get().setRegion("us-west-1");
+        assertEquals(String.format("https://%s.s3.us-west-1.amazonaws.com/what/ever", getContainer()), newJCloudsBlobStore("what/ever").toURI().toString());
+    }
+    private static String urlEncodeParts(String s) throws Exception {
+        return URLEncoder.encode(s, "UTF-8").replaceAll("%2F", "/");
     }
 
     @Test
