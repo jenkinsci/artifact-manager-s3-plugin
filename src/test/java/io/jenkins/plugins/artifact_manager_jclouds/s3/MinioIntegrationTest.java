@@ -43,11 +43,13 @@ import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import static org.junit.Assert.assertEquals;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.testcontainers.DockerClientFactory;
 
 public class MinioIntegrationTest {
     private static final String ACCESS_KEY = "supersecure";
@@ -81,6 +83,11 @@ public class MinioIntegrationTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
+        try {
+            DockerClientFactory.instance().client();
+        } catch (Exception x) {
+            Assume.assumeNoException("does not look like Docker is available", x);
+        }
         int port = 9000;
         minioServer = new GenericContainer("minio/minio")
                 .withEnv("MINIO_ACCESS_KEY", ACCESS_KEY)
