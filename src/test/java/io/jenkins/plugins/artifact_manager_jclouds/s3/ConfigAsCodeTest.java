@@ -51,6 +51,10 @@ public class ConfigAsCodeTest {
         assertEquals(S3BlobStore.class, mgr.getProvider().getClass());
         assertEquals("us-east-1", CredentialsAwsGlobalConfiguration.get().getRegion());
         assertEquals("jenkins_data/", S3BlobStoreConfig.get().getPrefix());
+        assertEquals("internal-s3.company.org", S3BlobStoreConfig.get().getCustomEndpoint());
+        assertEquals("us-west-2", S3BlobStoreConfig.get().getCustomSigningRegion());
+        assertEquals(true, S3BlobStoreConfig.get().getUsePathStyleUrl());
+        assertEquals(true, S3BlobStoreConfig.get().getUseHttp());
+        assertEquals(true, S3BlobStoreConfig.get().getDisableSessionToken());
     }
-
 }

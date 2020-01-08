@@ -97,6 +97,13 @@ the same configuration page.
 
 * S3 Bucket Name: Name of the S3 Bucket to use to store artifacts.
 * Base Prefix: Prefix to use for files and folders inside the S3 Bucket, if the prefix is a folder should be end with `/`.
+* Delete Artifacts: Delete artifacts from S3 when a build is deleted, this option is controlled by a java property see [Delete Artifacts](#delete-artifacts)
+* Delete Stashes: Delete stashes from S3 when a build is deleted, this option is controlled by a java property see [Delete Stash](#delete-stash)
+* Custom Endpoint: Custom host and port (e.g. minio.myorg.org:9000) for the S3 client to connect to. This is typically used when using an S3 compatible provider (e.g. Azure, Google Cloud, minio) and not AWS S3.
+* Custom Signing Region: Only used when a Custom Endpoint is specified ('us-east-1' is used if it is blank).
+* Use Path Style URL: When this option is enabled URLs are formatted https://endpoint/bucket/key (path style) and when this option is disabled URLs are formatted as https://bucket.endpoint/key (virtual hosting style).
+* Use Insecure HTTP: Use URLs with the http protocol instead of the https protocol.
+* Disable Session Token: When this option is enabled the plugin won't contact AWS for a session token and will just use the access key and secret key as configured by the Amazon Credentials plugin.
 
 ![](images/bucket-settings.png)
 
@@ -114,6 +121,10 @@ button. This button will test the bucket exists and the credentials used are val
 See the [troubleshooting section](#troubleshooting) for more details about the reported error. 
 
 ![](images/validation-success.png)
+
+If you're using a non AWS S3 service, you will need to use a custom endpoint, use path style URLs and disable session tokens.  We recommond you consult the documentation of the service for the requirements
+
+![](images/custom-s3-service-configuration.png)
 
 Finally the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist 
 and the AWS credentials configured have permission to create a S3 Bucket.

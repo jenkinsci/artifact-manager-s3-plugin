@@ -15,7 +15,6 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.jenkins.plugins.awscredentials.BaseAmazonWebServicesCredentials;
@@ -38,6 +37,11 @@ public class S3BlobStoreConfigTest {
     public static final String CONTAINER_NAME = "container-name";
     public static final String CONTAINER_PREFIX = "container-prefix/";
     public static final String CONTAINER_REGION = "us-west-1";
+    public static final String CUSTOM_ENDPOINT = "internal-s3.company.org:9000";
+    public static final String CUSTOM_ENDPOINT_SIGNING_REGION = "us-west-2";
+    public static final boolean USE_PATH_STYLE = true;
+    public static final boolean USE_HTTP = true;
+    public static final boolean DISABLE_SESSION_TOKEN = true;
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -48,6 +52,11 @@ public class S3BlobStoreConfigTest {
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
         config.setPrefix(CONTAINER_PREFIX);
+        config.setCustomEndpoint(CUSTOM_ENDPOINT);
+        config.setCustomSigningRegion(CUSTOM_ENDPOINT_SIGNING_REGION);
+        config.setUsePathStyleUrl(USE_PATH_STYLE);
+        config.setUseHttp(USE_HTTP);
+        config.setDisableSessionToken(DISABLE_SESSION_TOKEN);
 
         JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(artifactManagerFactory);
@@ -63,8 +72,13 @@ public class S3BlobStoreConfigTest {
     }
 
     private void checkFieldValues(S3BlobStoreConfig configuration) {
-        assertEquals(configuration.getContainer(), CONTAINER_NAME);
-        assertEquals(configuration.getPrefix(), CONTAINER_PREFIX);
+        assertEquals(CONTAINER_NAME, configuration.getContainer());
+        assertEquals(CONTAINER_PREFIX, configuration.getPrefix());
+        assertEquals(CUSTOM_ENDPOINT, S3BlobStoreConfig.get().getCustomEndpoint());
+        assertEquals(CUSTOM_ENDPOINT_SIGNING_REGION, S3BlobStoreConfig.get().getCustomSigningRegion());
+        assertEquals(USE_PATH_STYLE, S3BlobStoreConfig.get().getUsePathStyleUrl());
+        assertEquals(USE_HTTP, S3BlobStoreConfig.get().getUseHttp());
+        assertEquals(DISABLE_SESSION_TOKEN, S3BlobStoreConfig.get().getDisableSessionToken());
     }
 
     @Test(expected = Failure.class)
@@ -103,15 +117,41 @@ public class S3BlobStoreConfigTest {
         assertEquals(descriptor.doCheckPrefix("folder/").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckPrefix("folder").kind, FormValidation.Kind.ERROR);
     }
-
+    
+    @Test
+    public void checkValidationCustomEndPoint() {
+        S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
+        assertEquals(descriptor.doCheckCustomEndPoint("").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndPoint("server").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndPoint("server.organisation.tld").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndPoint("server:8080").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndPoint("server.organisation.tld:8080").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndPoint("s3-server.organisation.tld").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndPoint("-server.organisation.tld").kind, FormValidation.Kind.ERROR);
+        assertEquals(descriptor.doCheckCustomEndPoint(".server.organisation.tld").kind, FormValidation.Kind.ERROR);
+    }
+    
+    @Test
+    public void checkValidationCustomSigningRegion() {
+        S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
+        assertEquals(descriptor.doCheckCustomSigningRegion("anystring").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomSigningRegion("").kind, FormValidation.Kind.OK);
+        descriptor.setCustomEndpoint("server");
+        assertTrue(descriptor.doCheckCustomSigningRegion("").getMessage().contains("us-east-1"));
+    }
+    
     @Test
     public void createS3Bucket() throws IOException {
         int port =  findFreePort();
-        String serviceEndpoint = "http://127.0.0.1:" + port;
-        S3BlobStoreConfig.ENDPOINT = new EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
+        String serviceEndpoint = "127.0.0.1:" + port;
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
         config.setPrefix(CONTAINER_PREFIX);
+        config.setCustomEndpoint(serviceEndpoint);
+        config.setCustomSigningRegion(CONTAINER_REGION);
+        config.setUseHttp(true);
+        config.setUsePathStyleUrl(true);
+        
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(CONTAINER_REGION);
         CredentialsProvider.lookupStores(j.jenkins).iterator().next().addCredentials(Domain.global(), new PhonySessionCredentials(CredentialsScope.GLOBAL, "phony", null));
@@ -122,7 +162,7 @@ public class S3BlobStoreConfigTest {
 
         config.createS3Bucket(CONTAINER_NAME);
 
-        AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, CONTAINER_REGION);
+        AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(config.getResolvedCustomEndpoint(), CONTAINER_REGION);
         AmazonS3 client = AmazonS3ClientBuilder
                 .standard()
                 .withPathStyleAccessEnabled(true)
