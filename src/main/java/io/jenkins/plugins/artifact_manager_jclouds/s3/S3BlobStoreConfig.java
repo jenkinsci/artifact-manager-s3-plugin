@@ -52,6 +52,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.AbstractAwsGlobalConfiguration;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.Jenkins;
+import org.jclouds.s3.reference.S3Constants;
 import org.jenkinsci.Symbol;
 
 /**
@@ -180,7 +181,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     @DataBoundSetter
     public void setUsePathStyleUrl(boolean usePathStyleUrl){
         this.usePathStyleUrl = usePathStyleUrl;
-        System.setProperty("jclouds.s3.virtual-host-buckets", Boolean.toString(!usePathStyleUrl));
+        System.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, Boolean.toString(!usePathStyleUrl));
         save();
     }
     

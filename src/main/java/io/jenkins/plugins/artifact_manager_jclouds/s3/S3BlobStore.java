@@ -48,6 +48,7 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.osgi.ProviderRegistry;
+import org.jclouds.s3.reference.S3Constants;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -124,7 +125,7 @@ public class S3BlobStore extends BlobStoreProvider {
                 // will still use s3.amazonaws.com
                 props.setProperty(LocationConstants.ENDPOINT, getConfiguration().getResolvedCustomEndpoint());
             }
-            props.setProperty("jclouds.s3.virtual-host-buckets", Boolean.toString(!getConfiguration().getUsePathStyleUrl()));
+            props.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, Boolean.toString(!getConfiguration().getUsePathStyleUrl()));
             
             ContextBuilder builder = ContextBuilder.newBuilder("aws-s3")
                     .credentialsSupplier(getCredentialsSupplier())
