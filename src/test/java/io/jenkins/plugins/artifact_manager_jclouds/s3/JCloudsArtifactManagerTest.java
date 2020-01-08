@@ -58,6 +58,7 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
+import com.gargoylesoftware.htmlunit.WebResponse;
 
 import hudson.ExtensionList;
 import hudson.FilePath;
@@ -319,6 +320,31 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         assertThat(j.createWebClient().withBasicCredentials("admin").goTo(url, jsonType).getWebResponse().getContentAsString(), containsString(snippet));
         j.createWebClient().withBasicCredentials("dev1").assertFails(url, 404);
         assertThat(j.createWebClient().withBasicCredentials("dev2").goTo(url, jsonType).getWebResponse().getContentAsString(), containsString(snippet));
+    }
+
+    @Issue("JENKINS-50772")
+    @Test
+    public void contentType() throws Exception {
+        String text = "some regular text";
+        String html = "<html><header></header><body>Test file contents</body></html>";
+
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
+
+        j.createSlave("remote", null, null);
+
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f.txt', text: '" + text + "'; writeFile file: 'f.html', text: '" + html + "'; writeFile file: 'f', text: '\\u0000'; archiveArtifacts 'f*'}", true));
+        j.buildAndAssertSuccess(p);
+
+        WebResponse response = j.createWebClient().goTo("job/p/1/artifact/f.txt", null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(text));
+        assertThat(response.getContentType(), equalTo("text/plain"));
+        response = j.createWebClient().goTo("job/p/1/artifact/f.html", null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(html));
+        assertThat(response.getContentType(), equalTo("text/html"));
+        response = j.createWebClient().goTo("job/p/1/artifact/f", null).getWebResponse();
+        assertThat(response.getContentLength(), equalTo(1L));
+        assertThat(response.getContentType(), containsString("/octet-stream"));
     }
 
     //@Test
