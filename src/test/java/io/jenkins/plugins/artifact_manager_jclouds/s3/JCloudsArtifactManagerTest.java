@@ -344,7 +344,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         assertThat(response.getContentType(), equalTo("text/html"));
         response = j.createWebClient().goTo("job/p/1/artifact/f", null).getWebResponse();
         assertThat(response.getContentLength(), equalTo(1L));
-        assertThat(response.getContentType(), equalTo("application/octet-stream"));
+        assertThat(response.getContentType(), containsString("/octet-stream"));
     }
 
     //@Test
