@@ -30,20 +30,13 @@ import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import java.io.IOException;
 import java.time.Duration;
-import java.net.URI;
-import java.net.URL;
 import jenkins.model.ArtifactManagerFactory;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
-import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.testcontainers.Testcontainers;
@@ -56,7 +49,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.jvnet.hudson.test.JenkinsRule;
 
-public class MinioIntegrationTest extends JavaContainer {
+public class MinioIntegrationTest {
     private static final String ACCESS_KEY = "supersecure";
     private static final String SECRET_KEY = "donttell";
     private static final String CONTAINER_NAME = "jenkins";
