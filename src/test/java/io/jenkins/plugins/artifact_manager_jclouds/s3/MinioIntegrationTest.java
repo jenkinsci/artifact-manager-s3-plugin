@@ -47,7 +47,6 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.testcontainers.DockerClientFactory;
 
@@ -70,9 +69,6 @@ public class MinioIntegrationTest {
     protected String getPrefix() {
         return prefix;
     }
-    
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
     
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
