@@ -165,10 +165,5 @@ public final class MockBlobStore extends BlobStoreProvider {
     public boolean isDeleteStashes() {
         return true;
     }
-/*
-    @Override
-    public boolean isVirtualHosting() {
-        return true;
-    }
-*/
+
 }
