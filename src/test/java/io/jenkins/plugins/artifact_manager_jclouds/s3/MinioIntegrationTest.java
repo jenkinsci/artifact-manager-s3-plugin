@@ -34,6 +34,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.logging.Level;
 import jenkins.model.ArtifactManagerFactory;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
@@ -48,6 +49,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LoggerRule;
 import org.testcontainers.DockerClientFactory;
 
 public class MinioIntegrationTest {
@@ -73,6 +75,9 @@ public class MinioIntegrationTest {
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
     
+    @Rule
+    public LoggerRule loggerRule = new LoggerRule().recordPackage(JCloudsArtifactManagerFactory.class, Level.FINE);
+
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
         return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
     }

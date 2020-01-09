@@ -197,9 +197,11 @@ public class S3BlobStore extends BlobStoreProvider {
                 if (StringUtils.isBlank(endpoint)) {
                     endpoint = "s3.amazonaws.com";
                 }
-                return new URI(String.format("%s://%s/%s/%s",
+                URI uri = new URI(String.format("%s://%s/%s/%s",
                         protocol, endpoint, container,
                         URLEncoder.encode(key, "UTF-8").replaceAll("%2F", "/").replaceAll("%3A", ":")));
+                LOGGER.fine(() -> container + " / " + key + " → " + uri);
+                return uri;
 
             }
             AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
