@@ -24,7 +24,7 @@
 package io.jenkins.plugins.artifact_manager_jclouds;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
-import com.google.common.base.Throwables;
+import hudson.Functions;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.tasks.LogRotator;
@@ -332,8 +332,8 @@ public class NetworkTest {
         p.setBuildDiscarder(new LogRotator(-1, -1, -1, 0));
         MockApiMetadata.handleRemoveBlob("container", "p/1/artifacts/f", () -> {throw new ContainerNotFoundException("container", "sorry about your artifacts");});
         r.buildAndAssertSuccess(p);
-        assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Throwables::getRootCause).map(Throwable::getMessage).collect(Collectors.toSet()),
-            containsInAnyOrder("container not found: sorry about your artifacts"));
+        assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).collect(Collectors.joining("\n")),
+            containsString("container not found: sorry about your artifacts"));
     }
 
     @Test
@@ -343,8 +343,8 @@ public class NetworkTest {
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'stuff'}", true));
         MockApiMetadata.handleRemoveBlob("container", "p/1/stashes/stuff.tgz", () -> {throw new ContainerNotFoundException("container", "sorry about your stashes");});
         r.buildAndAssertSuccess(p);
-        assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Throwables::getRootCause).map(Throwable::getMessage).collect(Collectors.toSet()),
-            containsInAnyOrder("container not found: sorry about your stashes"));
+        assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).collect(Collectors.joining("\n")),
+            containsString("container not found: sorry about your stashes"));
     }
 
     // Interrupts probably never delivered during HTTP requests (maybe depends on servlet container?).
@@ -360,8 +360,8 @@ public class NetworkTest {
             System.err.println("build root");
             loggerRule.record(Run.class, Level.WARNING).capture(10);
             wc.getPage(b);
-            assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Throwables::getRootCause).map(Throwable::getMessage).collect(Collectors.toSet()),
-                containsInAnyOrder("container not found: sorry"));
+            assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).collect(Collectors.joining("\n")),
+                containsString("container not found: sorry"));
         }
         {
             System.err.println("artifact root");
