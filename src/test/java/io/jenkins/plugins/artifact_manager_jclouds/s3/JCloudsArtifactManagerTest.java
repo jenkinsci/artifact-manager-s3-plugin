@@ -119,7 +119,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
 
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
-        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
+        return new JCloudsArtifactManagerFactory(new CustomBehaviorBlobStoreProvider(provider, deleteArtifacts, deleteStashes));
     }
 
     @Test

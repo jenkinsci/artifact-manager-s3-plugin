@@ -66,11 +66,6 @@ public class MinioIntegrationTest {
     private S3BlobStoreConfig config;
     private AmazonS3 client;    
     private S3BlobStore provider;
-    private String prefix;
-    
-    protected String getPrefix() {
-        return prefix;
-    }
     
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
@@ -79,7 +74,7 @@ public class MinioIntegrationTest {
     public LoggerRule loggerRule = new LoggerRule().recordPackage(JCloudsArtifactManagerFactory.class, Level.FINE);
 
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
-        return new JCloudsArtifactManagerFactory(new CustomPrefixBlobStoreProvider(provider, getPrefix(), deleteArtifacts, deleteStashes));
+        return new JCloudsArtifactManagerFactory(new CustomBehaviorBlobStoreProvider(provider, deleteArtifacts, deleteStashes));
     }
 
     @BeforeClass

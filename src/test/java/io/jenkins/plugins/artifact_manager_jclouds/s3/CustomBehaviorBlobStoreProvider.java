@@ -31,20 +31,18 @@ import java.net.URL;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 
-public class CustomPrefixBlobStoreProvider extends BlobStoreProvider {
+public class CustomBehaviorBlobStoreProvider extends BlobStoreProvider {
     
     private final BlobStoreProvider delegate;
-    private final String prefix;
     private final Boolean deleteArtifacts, deleteStashes;
-    CustomPrefixBlobStoreProvider(BlobStoreProvider delegate, String prefix, Boolean deleteArtifacts, Boolean deleteStashes) {
+    CustomBehaviorBlobStoreProvider(BlobStoreProvider delegate, Boolean deleteArtifacts, Boolean deleteStashes) {
         this.delegate = delegate;
-        this.prefix = prefix;
         this.deleteArtifacts = deleteArtifacts;
         this.deleteStashes = deleteStashes;
     }
     @Override
     public String getPrefix() {
-        return prefix;
+        return delegate.getPrefix();
     }
     @Override
     public String getContainer() {
