@@ -46,14 +46,15 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.osgi.ProviderRegistry;
+import org.jclouds.s3.reference.S3Constants;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.auth.AWSSessionCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.google.common.base.Supplier;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -112,14 +113,27 @@ public class S3BlobStore extends BlobStoreProvider {
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
             Properties props = new Properties();
+            boolean hasCustomEndpoint = StringUtils.isNotBlank(getConfiguration().getResolvedCustomEndpoint());
 
             if(StringUtils.isNotBlank(getRegion())) {
                 props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
             }
+            if (hasCustomEndpoint) {
+                // We need to set the endpoint here and in the builder or listing
+                // will still use s3.amazonaws.com
+                props.setProperty(LocationConstants.ENDPOINT, getConfiguration().getResolvedCustomEndpoint());
+            }
+            props.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, Boolean.toString(!getConfiguration().getUsePathStyleUrl()));
 
-            return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
-                    .overrides(props)
-                    .buildView(BlobStoreContext.class);
+            ContextBuilder builder = ContextBuilder.newBuilder("aws-s3")
+                    .credentialsSupplier(getCredentialsSupplier())
+                    .overrides(props);
+
+            if (hasCustomEndpoint) {
+                builder = builder.endpoint(getConfiguration().getResolvedCustomEndpoint());
+            }
+
+            return builder.buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
         }
@@ -137,17 +151,32 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     private Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
-        AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
-        AWSSessionCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
-        String sessionToken = awsCredentials.getSessionToken();
+        String accessKeyId;
+        String secretKey;
+        String sessionToken;
+        
+        if (getConfiguration().getDisableSessionToken()) {
+            AmazonWebServicesCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
+            accessKeyId = awsCredentials.getCredentials().getAWSAccessKeyId();
+            secretKey = awsCredentials.getCredentials().getAWSSecretKey();
+            sessionToken = "";
+        } else {
+            AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
+            AWSSessionCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
+
+            accessKeyId = awsCredentials.getAWSAccessKeyId();
+            secretKey = awsCredentials.getAWSSecretKey();
+            sessionToken = awsCredentials.getSessionToken();
+        }
+        
         if (BREAK_CREDS) {
             sessionToken = "<broken>";
         }
 
         SessionCredentials sessionCredentials = SessionCredentials.builder()
-                .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
-                .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(sessionToken) //
+                .accessKeyId(accessKeyId)
+                .secretAccessKey(secretKey)
+                .sessionToken(sessionToken)
                 .build();
 
         return () -> sessionCredentials;
@@ -176,10 +205,8 @@ public class S3BlobStore extends BlobStoreProvider {
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
         assert blob != null;
         assert httpMethod != null;
-        AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
-        AWSSessionCredentials sessionCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
-        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials);
-        builder = builder.withCredentials(credentialsProvider);
+        AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilderWithCredentials();
+        
         Date expiration = new Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
