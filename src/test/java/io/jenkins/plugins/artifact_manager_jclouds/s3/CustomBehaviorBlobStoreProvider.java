@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
@@ -32,44 +33,54 @@ import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 
 public class CustomBehaviorBlobStoreProvider extends BlobStoreProvider {
-    
+
     private final BlobStoreProvider delegate;
     private final Boolean deleteArtifacts, deleteStashes;
+
     CustomBehaviorBlobStoreProvider(BlobStoreProvider delegate, Boolean deleteArtifacts, Boolean deleteStashes) {
         this.delegate = delegate;
         this.deleteArtifacts = deleteArtifacts;
         this.deleteStashes = deleteStashes;
     }
+
     @Override
     public String getPrefix() {
         return delegate.getPrefix();
     }
+
     @Override
     public String getContainer() {
         return delegate.getContainer();
     }
+
     @Override
     public boolean isDeleteArtifacts() {
         return deleteArtifacts != null ? deleteArtifacts : delegate.isDeleteArtifacts();
     }
+
     @Override
     public boolean isDeleteStashes() {
         return deleteStashes != null ? deleteStashes : delegate.isDeleteStashes();
     }
+
     @Override
     public BlobStoreContext getContext() throws IOException {
         return delegate.getContext();
     }
+
     @Override
     public URI toURI(String container, String key) {
         return delegate.toURI(container, key);
     }
+
     @Override
     public URL toExternalURL(Blob blob, BlobStoreProvider.HttpMethod httpMethod) throws IOException {
         return delegate.toExternalURL(blob, httpMethod);
     }
+
     @Override
     public BlobStoreProviderDescriptor getDescriptor() {
         return delegate.getDescriptor();
     }
+
 }

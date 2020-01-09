@@ -117,7 +117,7 @@ public class S3BlobStoreConfigTest {
         assertEquals(descriptor.doCheckPrefix("folder/").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckPrefix("folder").kind, FormValidation.Kind.ERROR);
     }
-    
+
     @Test
     public void checkValidationCustomEndPoint() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
@@ -130,7 +130,7 @@ public class S3BlobStoreConfigTest {
         assertEquals(descriptor.doCheckCustomEndPoint("-server.organisation.tld").kind, FormValidation.Kind.ERROR);
         assertEquals(descriptor.doCheckCustomEndPoint(".server.organisation.tld").kind, FormValidation.Kind.ERROR);
     }
-    
+
     @Test
     public void checkValidationCustomSigningRegion() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
@@ -139,7 +139,7 @@ public class S3BlobStoreConfigTest {
         descriptor.setCustomEndpoint("server");
         assertTrue(descriptor.doCheckCustomSigningRegion("").getMessage().contains("us-east-1"));
     }
-    
+
     @Test
     public void createS3Bucket() throws IOException {
         int port =  findFreePort();
@@ -151,7 +151,7 @@ public class S3BlobStoreConfigTest {
         config.setCustomSigningRegion(CONTAINER_REGION);
         config.setUseHttp(true);
         config.setUsePathStyleUrl(true);
-        
+
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(CONTAINER_REGION);
         CredentialsProvider.lookupStores(j.jenkins).iterator().next().addCredentials(Domain.global(), new PhonySessionCredentials(CredentialsScope.GLOBAL, "phony", null));

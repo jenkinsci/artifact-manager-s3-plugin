@@ -33,8 +33,5 @@
                           with="container,prefix,useHttp,usePathStyleUrl,disableSessionToken,customEndpoint,customSigningRegion"/>
         <f:validateButton title="Create S3 Bucket from configuration" progress="Creating S3 Bucket..." method="createS3Bucket"
                           with="container,prefix,useHttp,usePathStyleUrl,disableSessionToken,customEndpoint,customSigningRegion"/>
-        
-        
-         
     </f:section>
 </j:jelly>

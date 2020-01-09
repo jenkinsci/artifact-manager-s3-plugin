@@ -298,6 +298,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
         return ret;
     }
+
     public FormValidation doCheckPrefix(@QueryParameter String prefix){
         FormValidation ret;
         if (StringUtils.isBlank(prefix)) {
@@ -309,7 +310,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
         return ret;
     }
-    
+
     public FormValidation doCheckCustomSigningRegion(@QueryParameter String customSigningRegion) {
         FormValidation ret;
         if (StringUtils.isBlank(customSigningRegion) && StringUtils.isNotBlank(customEndpoint)) {
@@ -319,7 +320,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
         return ret;
     }
-    
+
     public FormValidation doCheckCustomEndPoint(@QueryParameter String customEndpoint) {
         FormValidation ret = FormValidation.ok();
         if (!StringUtils.isBlank(customEndpoint) && !endPointPattern.matcher(customEndpoint).matches()) {
@@ -327,8 +328,6 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
         return ret;
     }
-    
-    
 
     /**
      * create an S3 Bucket.
@@ -392,4 +391,5 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
         return ret;
     }
+
 }

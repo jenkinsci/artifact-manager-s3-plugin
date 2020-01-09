@@ -57,4 +57,5 @@ public class ConfigAsCodeTest {
         assertEquals(true, S3BlobStoreConfig.get().getUseHttp());
         assertEquals(true, S3BlobStoreConfig.get().getDisableSessionToken());
     }
+
 }

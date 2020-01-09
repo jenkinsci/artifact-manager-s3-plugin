@@ -172,7 +172,7 @@ public class S3BlobStore extends BlobStoreProvider {
         if (BREAK_CREDS) {
             sessionToken = "<broken>";
         }
-        
+
         SessionCredentials sessionCredentials = SessionCredentials.builder()
                 .accessKeyId(accessKeyId)
                 .secretAccessKey(secretKey)
