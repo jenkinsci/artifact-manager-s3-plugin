@@ -209,8 +209,8 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     
     @DataBoundSetter
     public void setCustomEndpoint(String customEndpoint){
+        checkValue(doCheckCustomEndpoint(customEndpoint));
         this.customEndpoint = customEndpoint;
-        checkValue(doCheckCustomEndPoint(this.customEndpoint));
         save();
     }
     
@@ -321,7 +321,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
-    public FormValidation doCheckCustomEndPoint(@QueryParameter String customEndpoint) {
+    public FormValidation doCheckCustomEndpoint(@QueryParameter String customEndpoint) {
         FormValidation ret = FormValidation.ok();
         if (!StringUtils.isBlank(customEndpoint) && !endPointPattern.matcher(customEndpoint).matches()) {
             ret = FormValidation.error("Custom Endpoint may not be valid.");

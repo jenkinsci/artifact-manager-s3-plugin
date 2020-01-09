@@ -121,14 +121,14 @@ public class S3BlobStoreConfigTest {
     @Test
     public void checkValidationCustomEndPoint() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        assertEquals(descriptor.doCheckCustomEndPoint("").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndPoint("server").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndPoint("server.organisation.tld").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndPoint("server:8080").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndPoint("server.organisation.tld:8080").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndPoint("s3-server.organisation.tld").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndPoint("-server.organisation.tld").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckCustomEndPoint(".server.organisation.tld").kind, FormValidation.Kind.ERROR);
+        assertEquals(descriptor.doCheckCustomEndpoint("").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndpoint("server").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndpoint("server.organisation.tld").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndpoint("server:8080").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndpoint("server.organisation.tld:8080").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndpoint("s3-server.organisation.tld").kind, FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckCustomEndpoint("-server.organisation.tld").kind, FormValidation.Kind.ERROR);
+        assertEquals(descriptor.doCheckCustomEndpoint(".server.organisation.tld").kind, FormValidation.Kind.ERROR);
     }
 
     @Test
