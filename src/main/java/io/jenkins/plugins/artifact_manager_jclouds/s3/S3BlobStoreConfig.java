@@ -268,6 +268,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             ret = ret.withForceGlobalBucketAccessEnabled(true);
         }
 
+        // TODO the client would automatically use path-style URLs under certain conditions; is it really necessary to override?
         ret = ret.withPathStyleAccessEnabled(getUsePathStyleUrl());
 
         if(getUseHttp()) {

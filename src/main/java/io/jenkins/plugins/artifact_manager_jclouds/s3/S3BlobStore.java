@@ -25,11 +25,9 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.Properties;
@@ -190,25 +188,11 @@ public class S3BlobStore extends BlobStoreProvider {
         assert container != null;
         assert key != null;
         try {
-            if (getConfiguration().getUsePathStyleUrl()) {
-                // TODO try to use the client as per https://stackoverflow.com/a/24012996/12916
-                String protocol = getConfiguration().getUseHttp() ? "http" : "https";
-                String endpoint = getConfiguration().getCustomEndpoint();
-                if (StringUtils.isBlank(endpoint)) {
-                    endpoint = "s3.amazonaws.com";
-                }
-                URI uri = new URI(String.format("%s://%s/%s/%s",
-                        protocol, endpoint, container,
-                        URLEncoder.encode(key, "UTF-8").replaceAll("%2F", "/").replaceAll("%3A", ":")));
-                LOGGER.fine(() -> container + " / " + key + " → " + uri);
-                return uri;
-
-            }
             AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
             URI uri = builder.build().getUrl(container, key).toURI();
             LOGGER.fine(() -> container + " / " + key + " → " + uri);
             return uri;
-        } catch (URISyntaxException | UnsupportedEncodingException e) {
+        } catch (URISyntaxException e) {
             throw new IllegalStateException(e);
         }
     }
