@@ -105,7 +105,7 @@ public class MinioIntegrationTest {
     
     @AfterClass
     public static void shutDownClass() {
-        if (minioServer.isRunning()) {
+        if (minioServer != null && minioServer.isRunning()) {
             minioServer.stop();
         }
     }
