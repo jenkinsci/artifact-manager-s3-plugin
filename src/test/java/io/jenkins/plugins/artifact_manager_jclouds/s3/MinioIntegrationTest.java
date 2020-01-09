@@ -159,13 +159,13 @@ public class MinioIntegrationTest {
     @Test
     public void artifactStash() throws Exception {
         createBucketWithAwsClient("artifact-stash");
-        ArtifactManagerTest.artifactStash(jenkinsRule, getArtifactManagerFactory(null, null), /* TODO true → 400: Unsupported copy source parameter. Re-enable once JCLOUDS-1447 released. */false, image);
+        ArtifactManagerTest.artifactStash(jenkinsRule, getArtifactManagerFactory(null, null), true, image);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
         createBucketWithAwsClient("artifact-stash-and-delete");
-        ArtifactManagerTest.artifactStashAndDelete(jenkinsRule, getArtifactManagerFactory(null, true), /* TODO ditto */false, image);
+        ArtifactManagerTest.artifactStashAndDelete(jenkinsRule, getArtifactManagerFactory(null, true), true, image);
     }
 }
 
