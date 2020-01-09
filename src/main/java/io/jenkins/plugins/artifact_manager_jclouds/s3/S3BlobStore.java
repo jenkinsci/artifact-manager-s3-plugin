@@ -114,25 +114,25 @@ public class S3BlobStore extends BlobStoreProvider {
         try {
             Properties props = new Properties();
             boolean hasCustomEndpoint = StringUtils.isNotBlank(getConfiguration().getResolvedCustomEndpoint());
-            
+
             if(StringUtils.isNotBlank(getRegion())) {
                 props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
             }
-            if(hasCustomEndpoint) {
+            if (hasCustomEndpoint) {
                 // We need to set the endpoint here and in the builder or listing
                 // will still use s3.amazonaws.com
                 props.setProperty(LocationConstants.ENDPOINT, getConfiguration().getResolvedCustomEndpoint());
             }
             props.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, Boolean.toString(!getConfiguration().getUsePathStyleUrl()));
-            
+
             ContextBuilder builder = ContextBuilder.newBuilder("aws-s3")
                     .credentialsSupplier(getCredentialsSupplier())
                     .overrides(props);
-            
-            if(hasCustomEndpoint) {
+
+            if (hasCustomEndpoint) {
                 builder = builder.endpoint(getConfiguration().getResolvedCustomEndpoint());
             }
-            
+
             return builder.buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
@@ -155,7 +155,7 @@ public class S3BlobStore extends BlobStoreProvider {
         String secretKey;
         String sessionToken;
         
-        if(getConfiguration().getDisableSessionToken()) {
+        if (getConfiguration().getDisableSessionToken()) {
             AmazonWebServicesCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
             accessKeyId = awsCredentials.getCredentials().getAWSAccessKeyId();
             secretKey = awsCredentials.getCredentials().getAWSSecretKey();
@@ -163,7 +163,7 @@ public class S3BlobStore extends BlobStoreProvider {
         } else {
             AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
             AWSSessionCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
-            
+
             accessKeyId = awsCredentials.getAWSAccessKeyId();
             secretKey = awsCredentials.getAWSSecretKey();
             sessionToken = awsCredentials.getSessionToken();

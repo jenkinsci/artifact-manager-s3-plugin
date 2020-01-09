@@ -255,14 +255,14 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     */
     AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
         AmazonS3ClientBuilder ret = AmazonS3ClientBuilder.standard();
-       
-        if(StringUtils.isNotBlank(customEndpoint)) {
+
+        if (StringUtils.isNotBlank(customEndpoint)) {
             String resolvedCustomSigningRegion = customSigningRegion;
-            if(StringUtils.isBlank(resolvedCustomSigningRegion)) {
+            if (StringUtils.isBlank(resolvedCustomSigningRegion)) {
                 resolvedCustomSigningRegion = "us-east-1";
-            }                
+            }
             ret = ret.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(customEndpoint, resolvedCustomSigningRegion));
-        } else if(StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
+        } else if (StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
             ret = ret.withRegion(CredentialsAwsGlobalConfiguration.get().getRegion());
         } else {
             ret = ret.withForceGlobalBucketAccessEnabled(true);
@@ -271,7 +271,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         // TODO the client would automatically use path-style URLs under certain conditions; is it really necessary to override?
         ret = ret.withPathStyleAccessEnabled(getUsePathStyleUrl());
 
-        if(getUseHttp()) {
+        if (getUseHttp()) {
             ret = ret.withClientConfiguration(new ClientConfiguration().withProtocol(Protocol.HTTP));
         }
         return ret;
