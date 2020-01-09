@@ -275,6 +275,16 @@ then:
 mvn hpi:run
 ```
 
+Alternately, you can test against MinIO:
+
+```bash
+docker run --rm -e MINIO_ACCESS_KEY=dummy -e MINIO_SECRET_KEY=dummydummy -p 127.0.0.1:9000:9000 minio/minio server /data
+```
+
+creating AWS credentials with that access & secret key,
+and enabling the `usePathStyleUrl`, `useHttp`, and `disableSessionToken` options,
+and using `localhost:9000` as the `customEndpoint`.
+
 An example pipeline for testing:
 
 ```
