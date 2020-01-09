@@ -278,8 +278,12 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     AmazonS3ClientBuilder getAmazonS3ClientBuilderWithCredentials() throws IOException {
+        return getAmazonS3ClientBuilderWithCredentials(getDisableSessionToken());
+    }
+
+    private AmazonS3ClientBuilder getAmazonS3ClientBuilderWithCredentials(boolean disableSessionToken) throws IOException {
         AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder();
-        if(getDisableSessionToken()) {
+        if (disableSessionToken) {
             builder = builder.withCredentials(CredentialsAwsGlobalConfiguration.get().getCredentials());
         } else {
             AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
@@ -337,17 +341,21 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
      * runtime exceptions are thrown by createBucket method.
      */
     public Bucket createS3Bucket(String name) throws IOException {
-        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials();
+        return createS3Bucket(name, getDisableSessionToken());
+    }
+
+    private Bucket createS3Bucket(String name, boolean disableSessionToken) throws IOException {
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
         AmazonS3 client = builder.build();
         return client.createBucket(name);
     }
 
     @RequirePOST
-    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter String prefix) {
+    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter boolean disableSessionToken) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
-            createS3Bucket(container);
+            createS3Bucket(container, disableSessionToken);
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
@@ -355,8 +363,8 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
-    void checkGetBucketLocation(String container) throws IOException {
-        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials();
+    void checkGetBucketLocation(String container, boolean disableSessionToken) throws IOException {
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
         AmazonS3 client = builder.build();
         client.getBucketLocation(container);
     }
@@ -385,7 +393,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
         }
         try {
-            provider.getConfiguration().checkGetBucketLocation(container);
+            provider.getConfiguration().checkGetBucketLocation(container, disableSessionToken);
         } catch (Throwable t){
             ret = FormValidation.warning(t, "GetBucketLocation failed");
         }
