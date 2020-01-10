@@ -24,12 +24,13 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.Protocol;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
-import com.amazonaws.services.s3.model.AmazonS3Exception;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -65,6 +66,9 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private static final String BUCKET_REGEXP = "^([a-z]|(\\d(?!\\d{0,2}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})))([a-z\\d]|(\\.(?!(\\.|-)))|(-(?!\\.))){1,61}[a-z\\d\\.]$";
     private static final Pattern bucketPattern = Pattern.compile(BUCKET_REGEXP);
 
+    private static final String ENDPOINT_REGEXP = "^[a-z0-9][a-z0-9-.]{0,}(?::[0-9]{1,5})?$";
+    private static final Pattern endPointPattern = Pattern.compile(ENDPOINT_REGEXP, Pattern.CASE_INSENSITIVE);
+    
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
@@ -80,12 +84,20 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private String prefix;
     @Deprecated private transient String region, credentialsId;
 
-    /**
-     * field to fake S3 endpoint on test.
-     */
-    static AwsClientBuilder.EndpointConfiguration ENDPOINT;
-
-
+    private boolean usePathStyleUrl;
+    
+    private boolean useHttp;
+    
+    private boolean disableSessionToken;
+    
+    private String customEndpoint;
+    
+    private String customSigningRegion;
+    
+    private final boolean deleteArtifacts;
+    
+    private final boolean deleteStashes;
+    
     /**
      * class to test configuration against Amazon S3 Bucket.
      */
@@ -93,10 +105,17 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         private static final long serialVersionUID = -3645770416235883487L;
         private transient S3BlobStoreConfig config;
 
-        S3BlobStoreTester(String container, String prefix) {
+        S3BlobStoreTester(String container, String prefix, boolean useHttp,
+            boolean usePathStyleUrl, boolean disableSessionToken, 
+            String customEndpoint, String customSigningRegion) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
+            config.setCustomEndpoint(customEndpoint);
+            config.setCustomSigningRegion(customSigningRegion);
+            config.setUseHttp(useHttp);
+            config.setUsePathStyleUrl(usePathStyleUrl);
+            config.setDisableSessionToken(disableSessionToken);
         }
 
         @Override
@@ -114,6 +133,8 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             credentialsId = null;
             save();
         }
+        deleteArtifacts = DELETE_ARTIFACTS;
+        deleteStashes = DELETE_STASHES;
     }
 
     public String getContainer() {
@@ -145,13 +166,78 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     public boolean isDeleteArtifacts() {
-        return DELETE_ARTIFACTS;
+        return deleteArtifacts;
     }
 
     public boolean isDeleteStashes() {
-        return DELETE_STASHES;
+        return deleteStashes;
+    }
+    
+    public boolean getUsePathStyleUrl() {
+        return usePathStyleUrl;
+    }
+    
+    @DataBoundSetter
+    public void setUsePathStyleUrl(boolean usePathStyleUrl){
+        this.usePathStyleUrl = usePathStyleUrl;
+        save();
+    }
+    
+    public boolean getUseHttp() {
+        return useHttp;
     }
 
+    @DataBoundSetter
+    public void setUseHttp(boolean useHttp){
+        this.useHttp = useHttp;
+        save();
+    }
+    
+    public boolean getDisableSessionToken() {
+        return disableSessionToken;
+    }
+
+    @DataBoundSetter
+    public void setDisableSessionToken(boolean disableSessionToken){
+        this.disableSessionToken = disableSessionToken;
+        save();
+    }
+    
+    public String getCustomEndpoint() {
+        return customEndpoint;
+    }
+    
+    @DataBoundSetter
+    public void setCustomEndpoint(String customEndpoint){
+        checkValue(doCheckCustomEndpoint(customEndpoint));
+        this.customEndpoint = customEndpoint;
+        save();
+    }
+    
+    public String getResolvedCustomEndpoint() {
+        if(StringUtils.isNotBlank(customEndpoint)) {
+            String protocol;
+            if(getUseHttp()) {
+                protocol = "http";
+            } else {
+                protocol = "https";
+            }
+            return protocol + "://" + customEndpoint;
+        }
+        return null;
+    }
+    
+    public String getCustomSigningRegion() {
+        return customSigningRegion;
+    }
+    
+    @DataBoundSetter
+    public void setCustomSigningRegion(String customSigningRegion){
+        this.customSigningRegion = customSigningRegion;
+        checkValue(doCheckCustomSigningRegion(this.customSigningRegion));
+        save();
+    }
+    
     @Nonnull
     @Override
     public String getDisplayName() {
@@ -168,17 +254,45 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     * @return an AmazonS3ClientBuilder using the region or not, it depends if a region is configured or not.
     */
     AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
-       AmazonS3ClientBuilder ret = AmazonS3ClientBuilder.standard();
-       if(S3BlobStoreConfig.ENDPOINT != null){
-           ret = ret.withPathStyleAccessEnabled(true).withEndpointConfiguration(S3BlobStoreConfig.ENDPOINT);
-       } else if(StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
-           ret = ret.withRegion(CredentialsAwsGlobalConfiguration.get().getRegion());
-       } else {
-           ret = ret.withForceGlobalBucketAccessEnabled(true);
-       }
-       return ret;
-   }
+        AmazonS3ClientBuilder ret = AmazonS3ClientBuilder.standard();
 
+        if (StringUtils.isNotBlank(customEndpoint)) {
+            String resolvedCustomSigningRegion = customSigningRegion;
+            if (StringUtils.isBlank(resolvedCustomSigningRegion)) {
+                resolvedCustomSigningRegion = "us-east-1";
+            }
+            ret = ret.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(customEndpoint, resolvedCustomSigningRegion));
+        } else if (StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
+            ret = ret.withRegion(CredentialsAwsGlobalConfiguration.get().getRegion());
+        } else {
+            ret = ret.withForceGlobalBucketAccessEnabled(true);
+        }
+
+        // TODO the client would automatically use path-style URLs under certain conditions; is it really necessary to override?
+        ret = ret.withPathStyleAccessEnabled(getUsePathStyleUrl());
+
+        if (getUseHttp()) {
+            ret = ret.withClientConfiguration(new ClientConfiguration().withProtocol(Protocol.HTTP));
+        }
+        return ret;
+    }
+
+    AmazonS3ClientBuilder getAmazonS3ClientBuilderWithCredentials() throws IOException {
+        return getAmazonS3ClientBuilderWithCredentials(getDisableSessionToken());
+    }
+
+    private AmazonS3ClientBuilder getAmazonS3ClientBuilderWithCredentials(boolean disableSessionToken) throws IOException {
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder();
+        if (disableSessionToken) {
+            builder = builder.withCredentials(CredentialsAwsGlobalConfiguration.get().getCredentials());
+        } else {
+            AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
+            CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder));
+            builder = builder.withCredentials(credentialsProvider);
+        }
+        return builder;
+    }
+    
     public FormValidation doCheckContainer(@QueryParameter String container){
         FormValidation ret = FormValidation.ok();
         if (StringUtils.isBlank(container)){
@@ -201,6 +315,24 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
+    public FormValidation doCheckCustomSigningRegion(@QueryParameter String customSigningRegion) {
+        FormValidation ret;
+        if (StringUtils.isBlank(customSigningRegion) && StringUtils.isNotBlank(customEndpoint)) {
+            ret = FormValidation.ok("'us-east-1' will be used when a custom endpoint is configured and custom signing region is blank.");
+        } else {
+            ret = FormValidation.ok();
+        }
+        return ret;
+    }
+
+    public FormValidation doCheckCustomEndpoint(@QueryParameter String customEndpoint) {
+        FormValidation ret = FormValidation.ok();
+        if (!StringUtils.isBlank(customEndpoint) && !endPointPattern.matcher(customEndpoint).matches()) {
+            ret = FormValidation.error("Custom Endpoint may not be valid.");
+        }
+        return ret;
+    }
+
     /**
      * create an S3 Bucket.
      * @param name name of the S3 Bucket.
@@ -209,19 +341,21 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
      * runtime exceptions are thrown by createBucket method.
      */
     public Bucket createS3Bucket(String name) throws IOException {
-        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder();
-        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
-                CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder));
-        AmazonS3 client = builder.withCredentials(credentialsProvider).build();
+        return createS3Bucket(name, getDisableSessionToken());
+    }
+
+    private Bucket createS3Bucket(String name, boolean disableSessionToken) throws IOException {
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
+        AmazonS3 client = builder.build();
         return client.createBucket(name);
     }
 
     @RequirePOST
-    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter String prefix) {
+    public FormValidation doCreateS3Bucket(@QueryParameter String container, @QueryParameter boolean disableSessionToken) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
         try {
-            createS3Bucket(container);
+            createS3Bucket(container, disableSessionToken);
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
@@ -229,20 +363,29 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
-    void checkGetBucketLocation(String container) throws IOException {
-        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder();
-        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
-                CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder));
-        AmazonS3 client = builder.withCredentials(credentialsProvider).build();
+    void checkGetBucketLocation(String container, boolean disableSessionToken) throws IOException {
+        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
+        AmazonS3 client = builder.build();
         client.getBucketLocation(container);
     }
 
     @RequirePOST
-    public FormValidation doValidateS3BucketConfig(@QueryParameter String container, @QueryParameter String prefix) {
+    public FormValidation doValidateS3BucketConfig(
+            @QueryParameter String container, 
+            @QueryParameter String prefix,
+            @QueryParameter boolean useHttp,
+            @QueryParameter boolean usePathStyleUrl,
+            @QueryParameter boolean disableSessionToken, 
+            @QueryParameter String customEndpoint,
+            @QueryParameter String customSigningRegion) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         FormValidation ret = FormValidation.ok("success");
+        
+        S3BlobStore provider = new S3BlobStoreTester(container, prefix, 
+                useHttp, usePathStyleUrl, disableSessionToken, customEndpoint, 
+                customSigningRegion);
+        
         try {
-            S3BlobStore provider = new S3BlobStoreTester(container, prefix);
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix);
             jc.list();
         } catch (Throwable t){
@@ -250,7 +393,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
         }
         try {
-            checkGetBucketLocation(container);
+            provider.getConfiguration().checkGetBucketLocation(container, disableSessionToken);
         } catch (Throwable t){
             ret = FormValidation.warning(t, "GetBucketLocation failed");
         }

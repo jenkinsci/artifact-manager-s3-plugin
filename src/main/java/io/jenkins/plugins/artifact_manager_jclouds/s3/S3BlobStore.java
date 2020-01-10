@@ -25,11 +25,9 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.Properties;
@@ -48,13 +46,15 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
 import org.jclouds.location.reference.LocationConstants;
 import org.jclouds.osgi.ProviderRegistry;
+import org.jclouds.s3.reference.S3Constants;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.auth.AWSSessionCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.google.common.base.Supplier;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -113,14 +113,27 @@ public class S3BlobStore extends BlobStoreProvider {
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
             Properties props = new Properties();
+            boolean hasCustomEndpoint = StringUtils.isNotBlank(getConfiguration().getResolvedCustomEndpoint());
 
             if(StringUtils.isNotBlank(getRegion())) {
                 props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
             }
+            if (hasCustomEndpoint) {
+                // We need to set the endpoint here and in the builder or listing
+                // will still use s3.amazonaws.com
+                props.setProperty(LocationConstants.ENDPOINT, getConfiguration().getResolvedCustomEndpoint());
+            }
+            props.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, Boolean.toString(!getConfiguration().getUsePathStyleUrl()));
 
-            return ContextBuilder.newBuilder("aws-s3").credentialsSupplier(getCredentialsSupplier())
-                    .overrides(props)
-                    .buildView(BlobStoreContext.class);
+            ContextBuilder builder = ContextBuilder.newBuilder("aws-s3")
+                    .credentialsSupplier(getCredentialsSupplier())
+                    .overrides(props);
+
+            if (hasCustomEndpoint) {
+                builder = builder.endpoint(getConfiguration().getResolvedCustomEndpoint());
+            }
+
+            return builder.buildView(BlobStoreContext.class);
         } catch (NoSuchElementException x) {
             throw new IOException(x);
         }
@@ -138,17 +151,32 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     private Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
-        AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
-        AWSSessionCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
-        String sessionToken = awsCredentials.getSessionToken();
+        String accessKeyId;
+        String secretKey;
+        String sessionToken;
+        
+        if (getConfiguration().getDisableSessionToken()) {
+            AmazonWebServicesCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
+            accessKeyId = awsCredentials.getCredentials().getAWSAccessKeyId();
+            secretKey = awsCredentials.getCredentials().getAWSSecretKey();
+            sessionToken = "";
+        } else {
+            AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
+            AWSSessionCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
+
+            accessKeyId = awsCredentials.getAWSAccessKeyId();
+            secretKey = awsCredentials.getAWSSecretKey();
+            sessionToken = awsCredentials.getSessionToken();
+        }
+        
         if (BREAK_CREDS) {
             sessionToken = "<broken>";
         }
 
         SessionCredentials sessionCredentials = SessionCredentials.builder()
-                .accessKeyId(awsCredentials.getAWSAccessKeyId()) //
-                .secretAccessKey(awsCredentials.getAWSSecretKey()) //
-                .sessionToken(sessionToken) //
+                .accessKeyId(accessKeyId)
+                .secretAccessKey(secretKey)
+                .sessionToken(sessionToken)
                 .build();
 
         return () -> sessionCredentials;
@@ -160,11 +188,12 @@ public class S3BlobStore extends BlobStoreProvider {
         assert container != null;
         assert key != null;
         try {
-            // TODO proper encoding
-            return new URI(String.format("https://%s.s3.amazonaws.com/%s", container,
-                    URLEncoder.encode(key, "UTF-8").replaceAll("%2F", "/").replaceAll("%3A", ":")));
-        } catch (URISyntaxException | UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
+            AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
+            URI uri = builder.build().getUrl(container, key).toURI();
+            LOGGER.fine(() -> container + " / " + key + " → " + uri);
+            return uri;
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException(e);
         }
     }
 
@@ -176,19 +205,20 @@ public class S3BlobStore extends BlobStoreProvider {
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
         assert blob != null;
         assert httpMethod != null;
-        AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
-        AWSSessionCredentials sessionCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
-        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials);
-        builder = builder.withCredentials(credentialsProvider);
+        AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilderWithCredentials();
+        
         Date expiration = new Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
         LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
                 new Object[] { container, name, httpMethod });
+        String contentType = null;
         com.amazonaws.HttpMethod awsMethod;
         switch (httpMethod) {
         case PUT:
             awsMethod = com.amazonaws.HttpMethod.PUT;
+            // Only set content type for upload URLs, so that the right S3 metadata gets set
+            contentType = blob.getMetadata().getContentMetadata().getContentType();
             break;
         case GET:
             awsMethod = com.amazonaws.HttpMethod.GET;
@@ -196,7 +226,13 @@ public class S3BlobStore extends BlobStoreProvider {
         default:
             throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
         }
-        return builder.build().generatePresignedUrl(container, name, expiration, awsMethod);
+
+        GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(container, name)
+            .withExpiration(expiration)
+            .withMethod(awsMethod)
+            .withContentType(contentType);
+
+        return builder.build().generatePresignedUrl(generatePresignedUrlRequest);
     }
 
     @Symbol("s3")

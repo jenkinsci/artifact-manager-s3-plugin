@@ -108,7 +108,6 @@ public abstract class S3AbstractTest {
         provider = new S3BlobStore();
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(S3_BUCKET);
-        config.setPrefix(S3_DIR);
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(S3_REGION);
 
@@ -116,6 +115,7 @@ public abstract class S3AbstractTest {
 
         // run each test under its own dir
         prefix = generateUniquePrefix();
+        config.setPrefix(prefix);
 
         context = provider.getContext();
 

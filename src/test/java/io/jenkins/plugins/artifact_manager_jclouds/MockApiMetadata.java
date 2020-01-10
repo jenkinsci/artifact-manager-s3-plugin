@@ -30,8 +30,8 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 import org.apache.commons.io.IOUtils;
 import org.jclouds.apis.ApiMetadata;
 import org.jclouds.apis.internal.BaseApiMetadata;
@@ -64,8 +64,6 @@ import org.kohsuke.MetaInfServices;
  */
 @MetaInfServices(ApiMetadata.class)
 public final class MockApiMetadata extends BaseApiMetadata {
-
-    private static final Logger LOGGER = Logger.getLogger(MockApiMetadata.class.getName());
 
     public MockApiMetadata() {
         this(new Builder());
@@ -122,7 +120,7 @@ public final class MockApiMetadata extends BaseApiMetadata {
 
     @FunctionalInterface
     interface GetBlobKeysInsideContainerHandler {
-        Iterable<String> run() throws IOException;
+        void run() throws IOException;
     }
 
     private static final Map<String, GetBlobKeysInsideContainerHandler> getBlobKeysInsideContainerHandlers = new ConcurrentHashMap<>();
@@ -193,12 +191,14 @@ public final class MockApiMetadata extends BaseApiMetadata {
         }
 
         @Override
-        public Iterable<String> getBlobKeysInsideContainer(String container) throws IOException {
+        public Iterable<String> getBlobKeysInsideContainer(String container, String prefix) throws IOException {
             GetBlobKeysInsideContainerHandler handler = getBlobKeysInsideContainerHandlers.remove(container);
             if (handler != null) {
-                return handler.run();
+                handler.run();
+                throw new AssertionError("not supposed to get here");
             }
-            return blobsByContainer.get(container).keySet();
+            Set<String> keys = blobsByContainer.get(container).keySet();
+            return prefix == null ? keys : () -> keys.stream().filter(path -> path.startsWith(prefix)).iterator();
         }
 
         @Override
