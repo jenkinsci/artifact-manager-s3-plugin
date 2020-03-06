@@ -24,8 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.Protocol;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
@@ -261,7 +259,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             if (StringUtils.isBlank(resolvedCustomSigningRegion)) {
                 resolvedCustomSigningRegion = "us-east-1";
             }
-            ret = ret.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(customEndpoint, resolvedCustomSigningRegion));
+            ret = ret.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(getResolvedCustomEndpoint(), resolvedCustomSigningRegion));
         } else if (StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
             ret = ret.withRegion(CredentialsAwsGlobalConfiguration.get().getRegion());
         } else {
@@ -271,9 +269,6 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         // TODO the client would automatically use path-style URLs under certain conditions; is it really necessary to override?
         ret = ret.withPathStyleAccessEnabled(getUsePathStyleUrl());
 
-        if (getUseHttp()) {
-            ret = ret.withClientConfiguration(new ClientConfiguration().withProtocol(Protocol.HTTP));
-        }
         return ret;
     }
 
