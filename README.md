@@ -210,7 +210,7 @@ In order to delete artifacts on the S3 Bucket, you would have to add the propert
 
 ## Delete Stash
 
-In order to delete artifacts on the S3 Bucket, you would have to add the property 
+In order to delete stashes on the S3 Bucket, you would have to add the property 
 `-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes=true`  to your Jenkins JVM properties
 , if it is not set the stash will not be deleted from S3 when the corresponding build is deleted.
 
