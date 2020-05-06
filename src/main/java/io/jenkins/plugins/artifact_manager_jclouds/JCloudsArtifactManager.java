@@ -136,7 +136,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             }
             catch (Exception e) {
                 // at the very least you want to log the exception, otherwise debugging will be difficult
-                listener.getLogger().printf("ERROR in artifacts:  %s artifact \n", e);
+                listener.getLogger().printf("ERROR in artifacts:  %s artifact %n", e);
               }
         });
         workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
@@ -195,7 +195,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 client.uploadFile(new File(f, entry.getKey()), contentTypes.get(entry.getKey()), entry.getValue(), listener);
               } catch (Exception e) {
                 // at the very least you want to log the exception, otherwise debugging will be hard
-                  listener.getLogger().printf("ERROR in invoke (upload):  %s artifact \n", e);
+                  listener.getLogger().printf("ERROR in invoke (upload):  %s artifact %n", e);
               }
             });
             listener.getLogger().flush();
