@@ -25,6 +25,7 @@ package io.jenkins.plugins.artifact_manager_jclouds;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import hudson.Functions;
+import hudson.init.impl.InstallUncaughtExceptionHandler;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.tasks.LogRotator;
@@ -365,13 +366,19 @@ public class NetworkTest {
         }
         {
             System.err.println("artifact root");
-            MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "sorry");});
+            MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "really sorry");});
             try {
+                loggerRule.record(InstallUncaughtExceptionHandler.class, Level.WARNING).capture(10);
                 wc.getPage(b, "artifact/");
                 fail("Currently DirectoryBrowserSupport throws up storage exceptions.");
             } catch (FailingHttpStatusCodeException x) {
                 assertEquals(500, x.getStatusCode());
-                assertThat(x.getResponse().getContentAsString(), containsString("container not found: sorry"));
+                String responseText = x.getResponse().getContentAsString();
+                String expectedError = "container not found: really sorry";
+                if (!responseText.contains(expectedError)) { // Jenkins 2.224+
+                    assertThat(responseText, loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).collect(Collectors.joining("\n")),
+                            containsString(expectedError));
+                }
             }
         }
     }
