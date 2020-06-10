@@ -44,7 +44,6 @@ import java.util.logging.Logger;
 import java.util.stream.StreamSupport;
 
 import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.BlobStores;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.MutableBlobMetadata;
@@ -80,7 +79,7 @@ public class JCloudsVirtualFile extends VirtualFile {
     @CheckForNull
     private transient Blob blob;
     @CheckForNull
-    private transient BlobStoreContext context;
+    private transient BlobStore blobStore;
 
     public JCloudsVirtualFile(@NonNull BlobStoreProvider provider, @NonNull String container, @NonNull String key) {
         this.provider = provider;
@@ -93,18 +92,18 @@ public class JCloudsVirtualFile extends VirtualFile {
 
     private JCloudsVirtualFile(@NonNull JCloudsVirtualFile related, @NonNull String key) {
         this(related.provider, related.container, key);
-        context = related.context;
+        blobStore = related.blobStore;
     }
 
     /**
-     * Build jclouds blob context that is the base for all operations
+     * Build jclouds blobstore that is the base for all operations
      */
     @Restricted(NoExternalUse.class) // testing only
-    BlobStoreContext getContext() throws IOException {
-        if (context == null) {
-            context = provider.getContext();
+    BlobStore getBlobStore() throws IOException {
+        if (blobStore == null) {
+        	blobStore = provider.getBlobStore();
         }
-        return context;
+        return blobStore;
     }
 
     private String getContainer() {
@@ -129,9 +128,9 @@ public class JCloudsVirtualFile extends VirtualFile {
     private Blob getBlob() throws IOException {
         if (blob == null) {
             LOGGER.log(Level.FINE, "checking for existence of blob {0} / {1}", new Object[] {container, key});
-            blob = getContext().getBlobStore().getBlob(getContainer(), getKey());
+            blob = getBlobStore().getBlob(getContainer(), getKey());
             if (blob == null) {
-                blob = getContext().getBlobStore().blobBuilder(getKey()).build();
+                blob = getBlobStore().blobBuilder(getKey()).build();
                 blob.getMetadata().setContainer(getContainer());
             }
         }
@@ -164,7 +163,7 @@ public class JCloudsVirtualFile extends VirtualFile {
             return frame.children.keySet().stream().anyMatch(f -> f.startsWith(relSlash));
         }
         LOGGER.log(Level.FINE, "checking directory status {0} / {1}", new Object[] {container, key});
-        return !getContext().getBlobStore().list(getContainer(), prefix(key + "/")).isEmpty();
+        return !getBlobStore().list(getContainer(), prefix(key + "/")).isEmpty();
     }
 
     @Override
@@ -196,7 +195,7 @@ public class JCloudsVirtualFile extends VirtualFile {
         if (recursive) {
             options.recursive();
         }
-        return BlobStores.listAll(getContext().getBlobStore(), getContainer(), options);
+        return BlobStores.listAll(getBlobStore(), getContainer(), options);
     }
 
     @Override
