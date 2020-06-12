@@ -254,7 +254,7 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>aws-java-sdk</artifactId>
-        <version>1.11.723</version>
+        <version>1.11.791</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
