@@ -249,7 +249,7 @@
       <dependency> <!-- JENKINS-50520: picked up from jclouds; to match the Guice version in core -->
         <groupId>com.google.inject.extensions</groupId>
         <artifactId>guice-assistedinject</artifactId>
-        <version>4.0</version>
+        <version>4.2.3</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
