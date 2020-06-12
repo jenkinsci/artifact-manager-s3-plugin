@@ -8,3 +8,5 @@ update_configs:
     ignored_updates:
       - match:
           dependency_name: com.google.guava:guava
+      - match:
+          dependency_name: com.google.inject.extensions:guice-assistedinject
