@@ -5,3 +5,6 @@ update_configs:
     update_schedule: weekly
     default_reviewers:
       - jglick
+    ignored_updates:
+      - match:
+          dependency_name: com.google.guava:guava
