@@ -244,7 +244,7 @@
       <dependency>
         <groupId>org.jenkins-ci.main</groupId>
         <artifactId>jenkins-core</artifactId>
-        <version>${jenkins-core.version}</version>
+        <version>${jenkins.version}</version>
         <exclusions>
           <exclusion> <!-- JENKINS-50520: pick up 18 from jclouds, which needs at least TypeToken (12+) -->
             <groupId>com.google.guava</groupId>
