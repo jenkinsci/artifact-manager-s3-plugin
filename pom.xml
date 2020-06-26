@@ -231,6 +231,11 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency> <!-- see maskClasses config -->
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>20.0</version>
+    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>
@@ -240,17 +245,6 @@
         <version>11</version>
         <scope>import</scope>
         <type>pom</type>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.main</groupId>
-        <artifactId>jenkins-core</artifactId>
-        <version>${jenkins.version}</version>
-        <exclusions>
-          <exclusion> <!-- JENKINS-50520: pick up 18 from jclouds, which needs at least TypeToken (12+) -->
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
       <dependency> <!-- JENKINS-50520: picked up from jclouds; to match the Guice version in core -->
         <groupId>com.google.inject.extensions</groupId>
@@ -271,11 +265,6 @@
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
         <version>2.10.6</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>20.0</version>
       </dependency>
       <dependency>
         <groupId>com.google.errorprone</groupId>
