@@ -54,7 +54,6 @@ import org.jvnet.hudson.test.TestBuilder;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
-
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
@@ -88,9 +87,6 @@ import jenkins.security.MasterToSlaveCallable;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jvnet.hudson.test.Issue;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
 import org.jvnet.hudson.test.Issue;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
