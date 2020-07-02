@@ -124,6 +124,7 @@ public final class MockBlobStore extends BlobStoreProvider {
                             }
                             blobStore.putBlob(container, blob);
                             response.setStatusCode(204);
+                            response.addHeader("ETag", "abcdef");
                             LOGGER.log(Level.INFO, "Uploaded {0} bytes to {1}:{2}", new Object[] {data.length, container, key});
                             return;
                         } default: {
