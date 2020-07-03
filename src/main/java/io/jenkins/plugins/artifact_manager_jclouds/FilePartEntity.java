@@ -32,8 +32,14 @@ public class FilePartEntity extends AbstractHttpEntity implements Cloneable {
 
     public InputStream getContent() throws IOException {
         FileInputStream stream = new FileInputStream(this.file);
-        if (stream.skip(this.offset) != this.offset) {
-            throw new EOFException(this.file.getPath());
+        long skip = -1;
+        try {
+            skip = stream.skip(this.offset);
+        } finally {
+            if ( skip != this.offset) {
+                stream.close();
+                throw new EOFException(this.file.getPath());
+            }
         }
         return new BoundedInputStream(stream, this.limit);
     }

@@ -432,7 +432,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             File tmp = new File(f, fileName);
-            tmp.delete();
+            Files.delete(tmp.toPath());
 
             return null;
         }
