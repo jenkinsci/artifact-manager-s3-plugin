@@ -325,7 +325,7 @@ public class NetworkTest {
 
     @Test
     public void errorCleaningArtifacts() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING).capture(10);
+        loggerRule.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).capture(10);
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         r.buildAndAssertSuccess(p);
@@ -337,7 +337,7 @@ public class NetworkTest {
 
     @Test
     public void errorCleaningStashes() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING).capture(10);
+        loggerRule.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).capture(10);
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'stuff'}", true));
         MockApiMetadata.handleRemoveBlob("container", "p/1/stashes/stuff.tgz", () -> {throw new ContainerNotFoundException("container", "sorry about your stashes");});
