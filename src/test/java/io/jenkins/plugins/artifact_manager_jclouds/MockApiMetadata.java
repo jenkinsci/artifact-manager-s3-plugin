@@ -204,7 +204,7 @@ public final class MockApiMetadata extends BaseApiMetadata {
         @Override
         public Blob getBlob(String containerName, String blobName) {
             Blob blob = blobsByContainer.get(containerName).get(blobName);
-            assert containerName.equals(blob.getMetadata().getContainer()) : blob;
+            assert blob == null || containerName.equals(blob.getMetadata().getContainer()) : blob;
             return blob;
         }
 
