@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
+import java.util.List;
 
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
@@ -49,6 +50,31 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
 
     public enum HttpMethod {
         GET, PUT;
+    }
+
+    public static final class Part implements Serializable {
+        private final int partNumber;
+        private final String eTag;
+
+        public Part(int partNumber, String eTag) {
+            this.partNumber = partNumber;
+            this.eTag = eTag;
+        }
+
+        public int getPartNumber() {
+            return partNumber;
+        }
+
+        public String getETag() {
+            return eTag;
+        }
+    }
+
+    public interface MultipartUploader extends AutoCloseable {
+        @NonNull
+        URL toExternalURL(int partNumber) throws IOException;
+
+        void complete(@NonNull List<Part> parts) throws IOException;
     }
 
     /** A constant for the blob path prefix to use. */
@@ -93,6 +119,9 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
      */
     @NonNull
     public abstract URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException;
+
+    @NonNull
+    public abstract MultipartUploader initiateMultipartUpload(@NonNull Blob blob) throws IOException;
 
     @Override
     public BlobStoreProviderDescriptor getDescriptor() {

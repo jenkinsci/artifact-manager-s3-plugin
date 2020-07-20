@@ -124,6 +124,7 @@ public final class MockBlobStore extends BlobStoreProvider {
                             }
                             blobStore.putBlob(container, blob);
                             response.setStatusCode(204);
+                            response.addHeader("ETag", "abcdef");
                             LOGGER.log(Level.INFO, "Uploaded {0} bytes to {1}:{2}", new Object[] {data.length, container, key});
                             return;
                         } default: {
@@ -154,6 +155,10 @@ public final class MockBlobStore extends BlobStoreProvider {
     @Override
     public URL toExternalURL(Blob blob, HttpMethod httpMethod) throws IOException {
         return new URL(baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName() + "?method=" + httpMethod);
+    }
+
+    public MultipartUploader initiateMultipartUpload(Blob blob) {
+        throw new AssertionError("Not implemented yet");
     }
 
     @Override

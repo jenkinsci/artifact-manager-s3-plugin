@@ -34,6 +34,8 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.List;
+import java.util.ArrayList;
 
 import javax.annotation.Nonnull;
 
@@ -52,8 +54,17 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.auth.AWSSessionCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PartETag;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.google.common.base.Supplier;
 
@@ -74,6 +85,55 @@ public class S3BlobStore extends BlobStoreProvider {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
 
     private static final long serialVersionUID = -8864075675579867370L;
+
+    private class S3MultipartUploader implements MultipartUploader, AutoCloseable {
+        private final String uploadID;
+        private Blob blob;
+
+        private S3MultipartUploader(Blob blob, String uploadID) {
+            this.blob = blob;
+            this.uploadID = uploadID;
+        }
+
+        @NonNull
+        @Override
+        public URL toExternalURL(int partNumber) throws IOException {
+            return buildExternalURL(blob, HttpMethod.PUT, partNumber, uploadID);
+        }
+
+        @Override
+        public void complete(List<Part> etags) throws IOException {
+            if (blob == null) {
+                return;
+            }
+            String container = blob.getMetadata().getContainer();
+            String name = blob.getMetadata().getName();
+
+            List<PartETag> partETags = new ArrayList<>();
+            for (Part part : etags) {
+                partETags.add(new PartETag(part.getPartNumber(), part.getETag()));
+            }
+
+            CompleteMultipartUploadRequest request = new CompleteMultipartUploadRequest();
+            request.setBucketName(container);
+            request.setKey(name);
+            request.setUploadId(uploadID);
+            request.setPartETags(partETags);
+            client().completeMultipartUpload(request);
+            blob = null;
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (blob == null) {
+                return;
+            }
+            String container = blob.getMetadata().getContainer();
+            String name = blob.getMetadata().getName();
+            client().abortMultipartUpload(new AbortMultipartUploadRequest(container, name, uploadID));
+            blob = null;
+        }
+    }
 
     @DataBoundConstructor
     public S3BlobStore() {
@@ -154,7 +214,7 @@ public class S3BlobStore extends BlobStoreProvider {
         String accessKeyId;
         String secretKey;
         String sessionToken;
-        
+
         if (getConfiguration().getDisableSessionToken()) {
             AmazonWebServicesCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
             accessKeyId = awsCredentials.getCredentials().getAWSAccessKeyId();
@@ -168,7 +228,7 @@ public class S3BlobStore extends BlobStoreProvider {
             secretKey = awsCredentials.getAWSSecretKey();
             sessionToken = awsCredentials.getSessionToken();
         }
-        
+
         if (BREAK_CREDS) {
             sessionToken = "<broken>";
         }
@@ -197,16 +257,30 @@ public class S3BlobStore extends BlobStoreProvider {
         }
     }
 
+    @NonNull
+    private AmazonS3 client() throws IOException {
+        AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
+        AWSSessionCredentials sessionCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
+        AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials);
+        return builder.withCredentials(credentialsProvider).build();
+    }
+
     /**
      * @see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURLJavaSDK.html">Generate a
      *      Pre-signed Object URL using AWS SDK for Java</a>
      */
     @Override
+    @NonNull
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
+        return buildExternalURL(blob, httpMethod, 0, null);
+    }
+
+    @NonNull
+    private URL buildExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, int partNumber, String uploadID) throws IOException {
         assert blob != null;
         assert httpMethod != null;
         AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilderWithCredentials();
-        
+
         Date expiration = new Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
@@ -232,7 +306,43 @@ public class S3BlobStore extends BlobStoreProvider {
             .withMethod(awsMethod)
             .withContentType(contentType);
 
+        if (StringUtils.isNotEmpty(uploadID)) {
+            generatePresignedUrlRequest
+                .addRequestParameter("partNumber", Integer.toString(partNumber));
+            generatePresignedUrlRequest.addRequestParameter("uploadId", uploadID);
+            LOGGER
+                .log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2} (part {3})",
+                    new Object[]{container, name, httpMethod, partNumber});
+        } else {
+            LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
+                new Object[]{container, name, httpMethod});
+        }
+
         return builder.build().generatePresignedUrl(generatePresignedUrlRequest);
+    }
+
+
+    @NonNull
+    public MultipartUploader initiateMultipartUpload(@NonNull Blob blob) throws IOException {
+        assert blob != null;
+
+        String container = blob.getMetadata().getContainer();
+        String name = blob.getMetadata().getName();
+        LOGGER.log(Level.FINE, "Initiate multipart upload for {0} / {1}",
+            new Object[]{container, name});
+
+        String contentType = blob.getMetadata().getContentMetadata().getContentType();
+
+        if (contentType == null)
+            contentType = "application/octet-stream";
+
+        ObjectMetadata objectMetadata = new ObjectMetadata();
+        objectMetadata.setContentType(contentType);
+
+        InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(container, name, objectMetadata);
+
+        InitiateMultipartUploadResult result = client().initiateMultipartUpload(request);
+        return new S3MultipartUploader(blob, result.getUploadId());
     }
 
     @Symbol("s3")

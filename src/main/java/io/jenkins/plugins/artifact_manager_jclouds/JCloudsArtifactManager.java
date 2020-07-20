@@ -39,11 +39,13 @@ import hudson.util.io.ArchiverFactory;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Functions;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig;
 import io.jenkins.plugins.httpclient.RobustHTTPClient;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
@@ -54,13 +56,18 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPut;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.BlobStores;
@@ -121,21 +128,59 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
         Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.keySet()), listener));
         LOGGER.fine(() -> "guessing content types: " + contentTypes);
-        Map<String, URL> artifactUrls = new HashMap<>();
         BlobStore blobStore = getContext().getBlobStore();
 
-        // Map artifacts to urls for upload
-        for (Map.Entry<String, String> entry : artifacts.entrySet()) {
-            String path = "artifacts/" + entry.getKey();
-            String blobPath = getBlobPath(path);
-            Blob blob = blobStore.blobBuilder(blobPath).build();
-            blob.getMetadata().setContainer(provider.getContainer());
-            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getKey()));
-            artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
-        }
+        Map<String, Long> fileSizes = workspace.act(new RequestFileSizes(artifacts.values()));
 
-        workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
-        listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
+        long multipartSize = S3BlobStoreConfig.get().getMultipartSize();
+
+        Map<String, BlobStoreProvider.MultipartUploader> multipartUploads = new HashMap<>();
+        try {
+            // Map artifacts to urls for upload
+            List<UploadPartTask> uploadTasks = new ArrayList<>();
+            for (Map.Entry<String, String> entry : artifacts.entrySet()) {
+                String path = "artifacts/" + entry.getKey();
+                String blobPath = getBlobPath(path);
+                Blob blob = blobStore.blobBuilder(blobPath).build();
+                blob.getMetadata().setContainer(provider.getContainer());
+                blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getKey()));
+                long fileSize = fileSizes.get(entry.getValue());
+                if (fileSize > multipartSize) {
+                    BlobStoreProvider.MultipartUploader uploader = provider.initiateMultipartUpload(blob);
+
+                    long parts = (fileSize + multipartSize - 1) / multipartSize;
+                    for (int part = 0; part < parts; part++) {
+                        long offset = part * multipartSize;
+                        long limit = Math.min(multipartSize, fileSize - offset);
+
+                        URL url = uploader.toExternalURL(part + 1);
+                        uploadTasks.add(new UploadPartTask(url, entry.getValue(), offset, limit, part + 1));
+                    }
+                    multipartUploads.put(entry.getValue(), uploader);
+                } else {
+                    URL url = provider.toExternalURL(blob, HttpMethod.PUT);
+                    uploadTasks.add(new UploadPartTask(url, entry.getValue(), 0, fileSize, 0));
+                }
+            }
+
+            Map<String, List<BlobStoreProvider.Part>> uploadResult = workspace.act(new UploadPartToBlobStorage(uploadTasks, contentTypes, listener));
+            for (Map.Entry<String, List<BlobStoreProvider.Part>> entry : uploadResult.entrySet()) {
+                BlobStoreProvider.MultipartUploader uploader = multipartUploads.remove(entry.getKey());
+                if (uploader == null) {
+                    continue;
+                }
+                uploader.complete(entry.getValue());
+            }
+            listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", uploadResult.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
+        } finally {
+            for (BlobStoreProvider.MultipartUploader uploader : multipartUploads.values()) {
+                try {
+                    uploader.close();
+                } catch (Exception e) {
+                    listener.getLogger().printf("Can't abort multipart upload: %s", e.getMessage());
+                }
+            }
+        }
     }
 
     private static class ContentTypeGuesser extends MasterToSlaveFileCallable<Map<String, String>> {
@@ -168,31 +213,84 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         }
     }
 
-    private static class UploadToBlobStorage extends MasterToSlaveFileCallable<Void> {
+    private static class RequestFileSizes extends MasterToSlaveFileCallable<Map<String, Long>> {
+        private final Set<String> files;
+
+        RequestFileSizes(Collection<String> files) {
+            this.files = new TreeSet<>(files);
+        }
+
+        @Override
+        public Map<String, Long> invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+            Map<String, Long> result = new TreeMap<>();
+            for (String entry : files) {
+                result.put(entry, new File(f, entry).length());
+            }
+            return result;
+        }
+    }
+
+    private static class UploadPartTask implements Serializable {
+        private final URL url;
+        private final String path;
+        private final long offset;
+        private final long limit;
+        private final int partNumber;
+
+        private UploadPartTask(URL url, String path, long offset, long limit, int partNumber) {
+            this.url = url;
+            this.path = path;
+            this.offset = offset;
+            this.limit = limit;
+            this.partNumber = partNumber;
+        }
+    }
+
+    private static class UploadPartToBlobStorage extends MasterToSlaveFileCallable<Map<String, List<BlobStoreProvider.Part>>> {
         private static final long serialVersionUID = 1L;
 
-        private final Map<String, URL> artifactUrls; // e.g. "target/x.war", "http://..."
+        private final List<UploadPartTask> tasks;
         private final Map<String, String> contentTypes; // e.g. "target/x.zip, "application/zip"
         private final TaskListener listener;
         // Bind when constructed on the master side; on the agent side, deserialize the same configuration.
         private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
-        UploadToBlobStorage(Map<String, URL> artifactUrls, Map<String, String> contentTypes, TaskListener listener) {
-            this.artifactUrls = artifactUrls;
+        UploadPartToBlobStorage(List<UploadPartTask> tasks, Map<String, String> contentTypes, TaskListener listener) {
+            this.tasks = tasks;
             this.contentTypes = contentTypes;
             this.listener = listener;
         }
 
         @Override
-        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+        public Map<String, List<BlobStoreProvider.Part>> invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+            Map<String, List<BlobStoreProvider.Part>> uploadedParts = new HashMap<>();
             try {
-                for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
-                    client.uploadFile(new File(f, entry.getKey()), contentTypes.get(entry.getKey()), entry.getValue(), listener);
+                for (UploadPartTask task : tasks) {
+                    List<BlobStoreProvider.Part> parts = uploadedParts
+                        .computeIfAbsent(task.path, c -> new ArrayList<>());
+                    client.connect("upload",
+                        "upload " + (task.partNumber > 0 ? "part " + task.partNumber + " of " : "")
+                            + f + " to " + client.sanitize(task.url), (client) -> {
+                            HttpPut put = new HttpPut(task.url.toString());
+
+                            put.setEntity(new FilePartEntity(new File(f, task.path), task.offset,
+                                task.limit));
+
+                            if (contentTypes.get(task.path) != null) {
+                                put.setHeader("Content-Type", contentTypes.get(task.path));
+                            }
+
+                            return client.execute(put);
+                        }, (response) -> {
+                            parts.add(new BlobStoreProvider.Part(task.partNumber,
+                                response.getFirstHeader("ETag").getValue()));
+                        }, listener);
                 }
             } finally {
                 listener.getLogger().flush();
             }
-            return null;
+
+            return uploadedParts;
         }
     }
 
@@ -221,24 +319,67 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         blob.getMetadata().setContainer(provider.getContainer());
         // We don't care about content-type when stashing files
         blob.getMetadata().getContentMetadata().setContentType(null);
-        URL url = provider.toExternalURL(blob, HttpMethod.PUT);
-        workspace.act(new Stash(url, provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote(), listener));
+        long multipartSize = S3BlobStoreConfig.get().getMultipartSize();
+        Object[] stashInfo = workspace.act(new Stash(provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote(), listener));
+        String fileName = (String) stashInfo[0];
+        long fileSize = (long) stashInfo[1];
+
+        LOGGER.log(Level.FINE, "Stashing from {0} : size {1}", stashInfo);
+
+        Map<String, BlobStoreProvider.MultipartUploader> multipartUploads = new HashMap<>();
+        try {
+            List<UploadPartTask> uploadTasks = new ArrayList<>();
+
+            if (fileSize > multipartSize) {
+                BlobStoreProvider.MultipartUploader uploader = provider.initiateMultipartUpload(blob);
+
+                long parts = (fileSize + multipartSize - 1) / multipartSize;
+                for (int part = 0; part < parts; part++) {
+                    long offset = part * multipartSize;
+                    long limit = Math.min(multipartSize, fileSize - offset);
+
+                    URL url = uploader.toExternalURL(part + 1);
+                    uploadTasks.add(new UploadPartTask(url, fileName, offset, limit, part + 1));
+                }
+                multipartUploads.put(fileName, uploader);
+            } else {
+                URL url = provider.toExternalURL(blob, HttpMethod.PUT);
+                uploadTasks.add(new UploadPartTask(url, fileName, 0, fileSize, 0));
+            }
+
+            Map<String, String> contentTypes = new HashMap<>();
+            contentTypes.put(fileName, null);
+
+            Map<String, List<BlobStoreProvider.Part>> uploadResult = workspace.act(new UploadPartToBlobStorage(uploadTasks, contentTypes, listener));
+            for (Map.Entry<String, List<BlobStoreProvider.Part>> entry : uploadResult.entrySet()) {
+                BlobStoreProvider.MultipartUploader uploader = multipartUploads.remove(entry.getKey());
+                if (uploader == null) {
+                    continue;
+                }
+                uploader.complete(entry.getValue());
+            }
+        } finally {
+            for (BlobStoreProvider.MultipartUploader uploader : multipartUploads.values()) {
+                try {
+                    uploader.close();
+                } catch (Exception e) {
+                    listener.getLogger().printf("Can't abort multipart upload: %s", e.getMessage());
+                }
+            }
+            workspace.act(new DeleteStash(fileName));
+        }
     }
 
-    private static final class Stash extends MasterToSlaveFileCallable<Void> {
+    private static final class Stash extends MasterToSlaveFileCallable<Object[]> {
         private static final long serialVersionUID = 1L;
-        private final URL url;
         private final URI uri;
         private final String includes, excludes;
         private final boolean useDefaultExcludes;
         private final boolean allowEmpty;
         private final String tempDir;
         private final TaskListener listener;
-        private final RobustHTTPClient client = JCloudsArtifactManager.client;
 
-        Stash(URL url, URI uri, String includes, String excludes, boolean useDefaultExcludes, boolean allowEmpty, String tempDir, TaskListener listener) throws IOException {
-            /** Actual destination as a presigned URL. */
-            this.url = url;
+        Stash(URI uri, String includes, String excludes, boolean useDefaultExcludes, boolean allowEmpty, String tempDir, TaskListener listener) throws IOException {
             /** Logical location for display purposes only. */
             this.uri = uri;
             this.includes = includes;
@@ -250,9 +391,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         }
 
         @Override
-        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            // TODO use streaming upload rather than a temp file; is it necessary to set the content length in advance?
-            // (we prefer not to upload individual files for stashes, so as to preserve symlinks & file permissions, as StashManager’s default does)
+        public Object[] invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             Path tempDirP = Paths.get(tempDir);
             Files.createDirectories(tempDirP);
             Path tmp = Files.createTempFile(tempDirP, "stash", ".tgz");
@@ -266,13 +405,29 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 if (count == 0 && !allowEmpty) {
                     throw new AbortException("No files included in stash");
                 }
-                client.uploadFile(tmp.toFile(), url, listener);
+                String relativePath = f.toPath().relativize(tmp).toString();
                 listener.getLogger().printf("Stashed %d file(s) to %s%n", count, uri);
-                return null;
+                return new Object[] {relativePath, tmp.toFile().length()};
             } finally {
                 listener.getLogger().flush();
-                Files.delete(tmp);
             }
+        }
+    }
+    private static final class DeleteStash extends MasterToSlaveFileCallable<Void> {
+        private static final long serialVersionUID = 1L;
+        private final String fileName;
+
+        DeleteStash(String fileName) throws IOException {
+            /** Logical location for display purposes only. */
+            this.fileName = fileName;
+        }
+
+        @Override
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+            File tmp = new File(f, fileName);
+            Files.delete(tmp.toPath());
+
+            return null;
         }
     }
 
