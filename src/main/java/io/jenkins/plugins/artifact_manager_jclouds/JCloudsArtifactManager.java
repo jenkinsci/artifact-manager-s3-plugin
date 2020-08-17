@@ -222,7 +222,11 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         // We don't care about content-type when stashing files
         blob.getMetadata().getContentMetadata().setContentType(null);
         URL url = provider.toExternalURL(blob, HttpMethod.PUT);
-        workspace.act(new Stash(url, provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote(), listener));
+        FilePath tempDir = WorkspaceList.tempDir(workspace);
+        if (tempDir == null) {
+            throw new AbortException("Could not make temporary directory in " + workspace);
+        }
+        workspace.act(new Stash(url, provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, tempDir.getRemote(), listener));
     }
 
     private static final class Stash extends MasterToSlaveFileCallable<Void> {
