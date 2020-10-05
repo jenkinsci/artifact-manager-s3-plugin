@@ -29,7 +29,7 @@ Table of Contents
    
 # Artifact Manager on S3 plugin
 
-Artifact Manager on S3 plugin is an Artifact Manager that allow you to store you artifacts into a S3 Bucket on Amazon.
+Artifact Manager on S3 plugin is an Artifact Manager that allow you to store your artifacts into a S3 Bucket on Amazon.
 The use of this S3 Bucket as a artifact storage is transparent to Jenkins and your jobs, it works like the default 
 Artifact Manager.
 
