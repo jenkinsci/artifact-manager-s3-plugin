@@ -9,8 +9,4 @@ updates:
   - jglick
   ignore:
   - dependency-name: com.google.guava:guava
-    versions:
-    - ">= 0"
   - dependency-name: com.google.inject.extensions:guice-assistedinject
-    versions:
-    - ">= 0"
