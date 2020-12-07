@@ -18,7 +18,6 @@
     <changelist>-SNAPSHOT</changelist>
     <jenkins.version>2.235.2</jenkins.version>
     <java.level>8</java.level>
-    <workflow-multibranch-plugin.version>2.22</workflow-multibranch-plugin.version>
     <useBeta>true</useBeta>
   </properties>
 
@@ -188,13 +187,11 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-multibranch</artifactId>
-      <version>${workflow-multibranch-plugin.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-multibranch</artifactId>
-      <version>${workflow-multibranch-plugin.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
@@ -255,11 +252,6 @@
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>aws-java-sdk</artifactId>
         <version>1.11.854</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>jackson2-api</artifactId>
-        <version>2.11.3</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
