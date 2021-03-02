@@ -34,19 +34,18 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import java.util.stream.Collectors;
 import jenkins.model.ArtifactManagerConfiguration;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpVersion;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicStatusLine;
-import static org.hamcrest.Matchers.*;
 import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -326,26 +325,24 @@ public class NetworkTest {
 
     @Test
     public void errorCleaningArtifacts() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING).capture(10);
+        loggerRule.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).capture(10);
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         r.buildAndAssertSuccess(p);
         p.setBuildDiscarder(new LogRotator(-1, -1, -1, 0));
         MockApiMetadata.handleRemoveBlob("container", "p/1/artifacts/f", () -> {throw new ContainerNotFoundException("container", "sorry about your artifacts");});
         r.buildAndAssertSuccess(p);
-        assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).collect(Collectors.joining("\n")),
-            containsString("container not found: sorry about your artifacts"));
+        expectLogMessage("container not found: sorry about your artifacts");
     }
 
     @Test
     public void errorCleaningStashes() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING).capture(10);
+        loggerRule.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).capture(10);
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'stuff'}", true));
         MockApiMetadata.handleRemoveBlob("container", "p/1/stashes/stuff.tgz", () -> {throw new ContainerNotFoundException("container", "sorry about your stashes");});
         r.buildAndAssertSuccess(p);
-        assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).collect(Collectors.joining("\n")),
-            containsString("container not found: sorry about your stashes"));
+        expectLogMessage("container not found: sorry about your stashes");
     }
 
     // Interrupts probably never delivered during HTTP requests (maybe depends on servlet container?).
@@ -361,8 +358,7 @@ public class NetworkTest {
             System.err.println("build root");
             loggerRule.record(Run.class, Level.WARNING).capture(10);
             wc.getPage(b);
-            assertThat(loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).collect(Collectors.joining("\n")),
-                containsString("container not found: sorry"));
+            expectLogMessage("container not found: sorry");
         }
         {
             System.err.println("artifact root");
@@ -376,10 +372,15 @@ public class NetworkTest {
                 String responseText = x.getResponse().getContentAsString();
                 String expectedError = "container not found: really sorry";
                 if (!responseText.contains(expectedError)) { // Jenkins 2.224+
-                    assertThat(responseText, loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).collect(Collectors.joining("\n")),
-                            containsString(expectedError));
+                    expectLogMessage(expectedError);
                 }
             }
+        }
+    }
+
+    private void expectLogMessage(String message) throws InterruptedException {
+        while (loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).noneMatch(t -> t.contains(message))) {
+            Thread.sleep(100);
         }
     }
 
