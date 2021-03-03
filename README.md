@@ -103,6 +103,7 @@ the same configuration page.
 * Custom Signing Region: Only used when a Custom Endpoint is specified ('us-east-1' is used if it is blank).
 * Use Path Style URL: When this option is enabled URLs are formatted https://endpoint/bucket/key (path style) and when this option is disabled URLs are formatted as https://bucket.endpoint/key (virtual hosting style).
 * Use Insecure HTTP: Use URLs with the http protocol instead of the https protocol.
+* Use Transfer Acceleration: Use [S3 Transfer Acceleration](https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
 * Disable Session Token: When this option is enabled the plugin won't contact AWS for a session token and will just use the access key and secret key as configured by the Amazon Credentials plugin.
 
 ![](images/bucket-settings.png)
