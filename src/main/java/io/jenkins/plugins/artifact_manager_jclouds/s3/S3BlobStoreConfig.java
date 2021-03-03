@@ -39,6 +39,7 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.Bucket;
+import com.google.common.annotations.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
@@ -272,7 +273,8 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
-    AmazonS3ClientBuilder getAmazonS3ClientBuilderWithCredentials() throws IOException {
+    @VisibleForTesting
+    public AmazonS3ClientBuilder getAmazonS3ClientBuilderWithCredentials() throws IOException {
         return getAmazonS3ClientBuilderWithCredentials(getDisableSessionToken());
     }
 

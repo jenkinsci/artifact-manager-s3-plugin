@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.logging.Level;
 import jenkins.model.ArtifactManagerFactory;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
 import org.junit.AfterClass;
@@ -45,11 +46,11 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import static org.junit.Assert.assertEquals;
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.RealJenkinsRule;
 import org.testcontainers.DockerClientFactory;
 
 public class MinioIntegrationTest {
@@ -63,17 +64,17 @@ public class MinioIntegrationTest {
     private static String minioServiceEndpoint;
     private static DockerImage image;
 
-    private S3BlobStoreConfig config;
-    private AmazonS3 client;    
-    private S3BlobStore provider;
+    private static S3BlobStoreConfig config;
+    private static AmazonS3 client;
+    private static S3BlobStore provider;
     
     @Rule
-    public JenkinsRule jenkinsRule = new JenkinsRule();
+    public RealJenkinsRule rr = new RealJenkinsRule();
     
     @Rule
     public LoggerRule loggerRule = new LoggerRule().recordPackage(JCloudsArtifactManagerFactory.class, Level.FINE);
 
-    protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
+    protected static ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
         return new JCloudsArtifactManagerFactory(new CustomBehaviorBlobStoreProvider(provider, deleteArtifacts, deleteStashes));
     }
 
@@ -110,12 +111,11 @@ public class MinioIntegrationTest {
         }
     }
     
-    @Before
-    public void setUp() throws IOException {
+    private static void setUp(String minioServiceEndpoint) throws IOException {
         provider = new S3BlobStore();
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(REGION);
-        CredentialsProvider.lookupStores(jenkinsRule.jenkins)
+        CredentialsProvider.lookupStores(Jenkins.get())
                 .iterator()
                 .next()
                 .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "MinioIntegrationTest", ACCESS_KEY, SECRET_KEY, "MinioIntegrationTest"));
@@ -130,14 +130,31 @@ public class MinioIntegrationTest {
         config.setDisableSessionToken(true);
         client = config.getAmazonS3ClientBuilderWithCredentials().build();
     }
+
+    private static final class WithMinioServiceEndpoint implements RealJenkinsRule.Step {
+        private final String minioServiceEndpoint;
+        private final RealJenkinsRule.Step delegate;
+        WithMinioServiceEndpoint(RealJenkinsRule.Step delegate) {
+            // Serialize the endpoint into the step sent to the real JVM:
+            this.minioServiceEndpoint = MinioIntegrationTest.minioServiceEndpoint;
+            this.delegate = delegate;
+        }
+        @Override public void run(JenkinsRule r) throws Throwable {
+            setUp(minioServiceEndpoint);
+            delegate.run(r);
+        }
+    }
     
-    private void createBucketWithAwsClient(String bucketName) {
+    private static void createBucketWithAwsClient(String bucketName) {
         config.setContainer(bucketName);
         client.createBucket(bucketName);
     }
     
     @Test
-    public void canCreateBucket() throws Exception {
+    public void canCreateBucket() throws Throwable {
+        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_canCreateBucket));
+    }
+    private static void _canCreateBucket(JenkinsRule r) throws Throwable {
         String testBucketName = "jenkins-ci-data";
         Bucket createdBucket = config.createS3Bucket(testBucketName);
         assertEquals(testBucketName, createdBucket.getName());
@@ -145,25 +162,37 @@ public class MinioIntegrationTest {
     }
     
     @Test
-    public void artifactArchive() throws Exception {
+    public void artifactArchive() throws Throwable {
+        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_artifactArchive));
+    }
+    private static void _artifactArchive(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-archive");
         ArtifactManagerTest.artifactArchive(jenkinsRule, getArtifactManagerFactory(null, null), true, image);
     }
 
     @Test
-    public void artifactArchiveAndDelete() throws Exception {
+    public void artifactArchiveAndDelete() throws Throwable {
+        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_artifactArchiveAndDelete));
+    }
+    private static void _artifactArchiveAndDelete(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-archive-and-delete");
         ArtifactManagerTest.artifactArchiveAndDelete(jenkinsRule, getArtifactManagerFactory(true, null), true, image);
     }
     
     @Test
-    public void artifactStash() throws Exception {
+    public void artifactStash() throws Throwable {
+        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_artifactStash));
+    }
+    private static void _artifactStash(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-stash");
         ArtifactManagerTest.artifactStash(jenkinsRule, getArtifactManagerFactory(null, null), true, image);
     }
 
     @Test
-    public void artifactStashAndDelete() throws Exception {
+    public void artifactStashAndDelete() throws Throwable {
+        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_artifactStashAndDelete));
+    }
+    private static void _artifactStashAndDelete(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-stash-and-delete");
         ArtifactManagerTest.artifactStashAndDelete(jenkinsRule, getArtifactManagerFactory(null, true), true, image);
     }
