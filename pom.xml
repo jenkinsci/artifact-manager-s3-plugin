@@ -18,7 +18,7 @@
     <changelist>-SNAPSHOT</changelist>
     <jenkins.version>2.235.2</jenkins.version>
     <java.level>8</java.level>
-    <jenkins-test-harness.version>999999-SNAPSHOT</jenkins-test-harness.version> <!-- TODO https://github.com/jenkinsci/jenkins-test-harness/pull/280 -->
+    <jenkins-test-harness.version>1475.vfd967deeb478</jenkins-test-harness.version> <!-- TODO https://github.com/jenkinsci/jenkins-test-harness/pull/280 -->
     <useBeta>true</useBeta>
   </properties>
 
