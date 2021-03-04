@@ -18,6 +18,7 @@
     <changelist>-SNAPSHOT</changelist>
     <jenkins.version>2.235.2</jenkins.version>
     <java.level>8</java.level>
+    <jenkins-test-harness.version>1484.v51078b2c2b34</jenkins-test-harness.version>
     <useBeta>true</useBeta>
   </properties>
 
@@ -229,12 +230,16 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
-      <version>1.10.2</version>
+      <version>1.15.2</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.commons</groupId>
           <artifactId>commons-compress</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -249,7 +254,7 @@
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-2.235.x</artifactId>
-        <version>23</version>
+        <version>25</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
@@ -261,7 +266,7 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>aws-java-sdk</artifactId>
-        <version>1.11.930</version>
+        <version>1.11.955</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
