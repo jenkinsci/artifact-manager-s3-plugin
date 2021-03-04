@@ -58,6 +58,10 @@
           <groupId>com.google.code.findbugs</groupId>
           <artifactId>jsr305</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.checkerframework</groupId>
+          <artifactId>checker-qual</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -88,6 +92,12 @@
         <artifactId>workflow-api</artifactId>
         <classifier>tests</classifier>
         <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins.workflow</groupId>
+      <artifactId>workflow-support</artifactId>
+      <version>3.8-rc771.af9ed05ac68f</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
@@ -231,7 +241,7 @@
     <dependency> <!-- see maskClasses config -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>20.0</version>
+      <version>30.0-jre</version>
     </dependency>
   </dependencies>
   <dependencyManagement>
