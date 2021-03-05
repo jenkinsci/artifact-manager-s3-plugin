@@ -97,7 +97,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-support</artifactId>
-      <version>3.8-rc771.af9ed05ac68f</version> <!-- TODO: https://github.com/jenkinsci/workflow-support-plugin/pull/114 -->
+      <version>3.8</version>
       <scope>test</scope>
     </dependency>
     <dependency>
