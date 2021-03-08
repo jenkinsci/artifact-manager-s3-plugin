@@ -97,7 +97,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-support</artifactId>
-      <version>3.8</version>
+      <version>3.8</version> <!-- Remove when https://github.com/jenkinsci/bom/commit/4f5b55b15a72ec92ac9e59d2dc1fd9c0c4cdc7c9 is picked up -->
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -246,7 +246,7 @@
     <dependency> <!-- see maskClasses config -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>30.0-jre</version>
+      <version>30.1-jre</version>
     </dependency>
   </dependencies>
   <dependencyManagement>

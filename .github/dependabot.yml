@@ -8,5 +8,4 @@ updates:
   reviewers:
   - jglick
   ignore:
-  - dependency-name: com.google.guava:guava
   - dependency-name: com.google.inject.extensions:guice-assistedinject
