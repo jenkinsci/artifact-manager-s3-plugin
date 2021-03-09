@@ -97,7 +97,6 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-support</artifactId>
-      <version>3.8</version> <!-- Remove when https://github.com/jenkinsci/bom/commit/4f5b55b15a72ec92ac9e59d2dc1fd9c0c4cdc7c9 is picked up -->
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -254,7 +253,7 @@
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-2.235.x</artifactId>
-        <version>25</version>
+        <version>26</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
