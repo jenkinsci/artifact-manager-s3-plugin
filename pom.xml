@@ -59,6 +59,10 @@
           <groupId>com.google.code.findbugs</groupId>
           <artifactId>jsr305</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.checkerframework</groupId>
+          <artifactId>checker-qual</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -236,7 +240,7 @@
     <dependency> <!-- see maskClasses config -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>20.0</version>
+      <version>30.1-jre</version>
     </dependency>
   </dependencies>
   <dependencyManagement>
@@ -244,7 +248,7 @@
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-2.235.x</artifactId>
-        <version>25</version>
+        <version>26</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
