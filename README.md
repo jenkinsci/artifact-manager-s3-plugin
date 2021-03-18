@@ -122,7 +122,7 @@ See the [troubleshooting section](#troubleshooting) for more details about the r
 
 ![](images/validation-success.png)
 
-If you're using a non AWS S3 service, you will need to use a custom endpoint, use path style URLs and disable session tokens.  We recommond you consult the documentation of the service for the requirements
+If you're using a non AWS S3 service, you will need to use a custom endpoint, use path style URLs and disable session tokens.  We recommend you consult the documentation of the service for the requirements
 
 ![](images/custom-s3-service-configuration.png)
 
