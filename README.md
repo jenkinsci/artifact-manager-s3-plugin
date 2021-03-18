@@ -126,6 +126,11 @@ If you're using a non AWS S3 service, you will need to use a custom endpoint, us
 
 ![](images/custom-s3-service-configuration.png)
 
+For Google Cloud Storage:
+
+* the AWS Credentials need to correspond to a Google Service Account HMAC key (Access ID / Secret) - See [this documentation](https://cloud.google.com/storage/docs/authentication/hmackeys)
+* the custom endpoint is `storage.googleapis.com`
+
 Finally the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist 
 and the AWS credentials configured have permission to create a S3 Bucket.
 
