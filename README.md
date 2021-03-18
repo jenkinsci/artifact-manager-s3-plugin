@@ -122,9 +122,14 @@ See the [troubleshooting section](#troubleshooting) for more details about the r
 
 ![](images/validation-success.png)
 
-If you're using a non AWS S3 service, you will need to use a custom endpoint, use path style URLs and disable session tokens.  We recommond you consult the documentation of the service for the requirements
+If you're using a non AWS S3 service, you will need to use a custom endpoint, use path style URLs and disable session tokens.  We recommend you consult the documentation of the service for the requirements
 
 ![](images/custom-s3-service-configuration.png)
+
+For Google Cloud Storage:
+
+* the AWS Credentials need to correspond to a Google Service Account HMAC key (Access ID / Secret) - See [this documentation](https://cloud.google.com/storage/docs/authentication/hmackeys)
+* the custom endpoint is `storage.googleapis.com`
 
 Finally the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist 
 and the AWS credentials configured have permission to create a S3 Bucket.
