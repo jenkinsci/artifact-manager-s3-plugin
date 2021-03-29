@@ -1,32 +1,3 @@
-Table of Contents
-=================
-
-   * [Table of Contents](#table-of-contents)
-   * [Artifact Manager on S3 plugin](#artifact-manager-on-s3-plugin)
-   * [Prerequisites](#prerequisites)
-   * [Configuration](#configuration)
-   * [How to use  Artifact Manager on S3 plugin](#how-to-use--artifact-manager-on-s3-plugin)
-      * [Pipeline job](#pipeline-job)
-      * [FreeStyle job](#freestyle-job)
-   * [Manage Artifacts](#manage-artifacts)
-      * [Delete Artifacts](#delete-artifacts)
-      * [Delete Stash](#delete-stash)
-   * [AWS Credentials](#aws-credentials)
-   * [Extending Artifact Manager on S3 plugin](#extending-artifact-manager-on-s3-plugin)
-      * [Testing](#testing)
-   * [Troubleshooting](#troubleshooting)
-      * [No valid session credentials](#no-valid-session-credentials)
-      * [Must provide an explicit region in the builder or setup environment to supply a region](#must-provide-an-explicit-region-in-the-builder-or-setup-environment-to-supply-a-region)
-      * [The provided token has expired](#the-provided-token-has-expired)
-      * [The region 'YYYY' is wrong; expecting 'XXXX'](#the-region-yyyy-is-wrong-expecting-xxxx)
-      * [Empty S3 Bucket name](#empty-s3-bucket-name)
-      * [The specified bucket does not exist](#the-specified-bucket-does-not-exist)
-      * [Network outages](#network-outages)
-      * [Member must have length greater than or equal to 20](#member-must-have-length-greater-than-or-equal-to-20)
-      * [User: arn:aws:iam::XXXXXX:user/people/myUser is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::XXXXXXX:role/my-role](#user-arnawsiamxxxxxxuserpeoplemyuser-is-not-authorized-to-perform-stsassumerole-on-resource-arnawsiamxxxxxxxrolemy-role)
-      * [Unable to find a region via the region provider chain. Must provide an explicit region in the builder or setup environment to supply a region.](#unable-to-find-a-region-via-the-region-provider-chain-must-provide-an-explicit-region-in-the-builder-or-setup-environment-to-supply-a-region)
-   * [Changelog](#changelog)
-   
 # Artifact Manager on S3 plugin
 
 Artifact Manager on S3 plugin is an Artifact Manager that allow you to store your artifacts into a S3 Bucket on Amazon.
