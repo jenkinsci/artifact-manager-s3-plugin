@@ -69,7 +69,7 @@ public class MinioIntegrationTest {
     private static S3BlobStore provider;
     
     @Rule
-    public RealJenkinsRule rr = new RealJenkinsRule();
+    public RealJenkinsRule rr = new RealJenkinsRule().javaOptions("-Xmx100m");
     
     @Rule
     public LoggerRule loggerRule = new LoggerRule().recordPackage(JCloudsArtifactManagerFactory.class, Level.FINE);
