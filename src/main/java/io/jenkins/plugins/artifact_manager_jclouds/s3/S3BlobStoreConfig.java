@@ -383,11 +383,11 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
                 customSigningRegion);
         
         try {
-            JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix);
+            JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix.replaceFirst("/$", ""));
             jc.list();
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
-            ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
+            ret = FormValidation.error(t, StringUtils.abbreviate(msg, 200));
         }
         try {
             provider.getConfiguration().checkGetBucketLocation(container, disableSessionToken);
