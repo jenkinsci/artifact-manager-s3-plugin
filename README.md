@@ -400,7 +400,7 @@ org.jclouds.aws.AWSResponseException: request GET https://my-bucket.s3.amazonaws
 
 ## The region 'YYYY' is wrong; expecting 'XXXX'
 
-Idf the AWS login region is different than the S3 Bucket region, you would see the following errors in logs, 
+If the AWS login region is different than the S3 Bucket region, you would see the following errors in logs, 
 to fix it, you have to force the S3 bucket region on the Plugin configuration to the `S3 Bucket region`.
 
 ![](images/validation-wrong-region.png)
