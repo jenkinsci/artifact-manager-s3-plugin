@@ -241,6 +241,11 @@
       <artifactId>guava</artifactId>
       <version>30.1.1-jre</version>
     </dependency>
+    <dependency> <!-- also used along with guice-assistedinject in a newer version by jclouds -->
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>4.2.3</version>
+    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>
@@ -250,11 +255,6 @@
         <version>872.v03c18fa35487</version>
         <scope>import</scope>
         <type>pom</type>
-      </dependency>
-      <dependency> <!-- JENKINS-50520: picked up from jclouds; to match the Guice version in core -->
-        <groupId>com.google.inject.extensions</groupId>
-        <artifactId>guice-assistedinject</artifactId>
-        <version>4.0</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
@@ -280,8 +280,8 @@
             <groupId>org.jenkins-ci.tools</groupId>
             <artifactId>maven-hpi-plugin</artifactId>
             <configuration>
-              <!-- JENKINS-50520: since we need a custom version of Guava -->
-              <maskClasses>com.google.common.</maskClasses>
+              <!-- JENKINS-50520: since we need a custom version of Guava and Guice -->
+              <maskClasses>com.google.common. com.google.inject.</maskClasses>
             </configuration>
           </plugin>
 
