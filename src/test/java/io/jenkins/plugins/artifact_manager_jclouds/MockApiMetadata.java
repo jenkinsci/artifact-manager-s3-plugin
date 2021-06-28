@@ -208,6 +208,7 @@ public final class MockApiMetadata extends BaseApiMetadata {
             return blob;
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String putBlob(String containerName, Blob blob) throws IOException {
             {
@@ -220,6 +221,11 @@ public final class MockApiMetadata extends BaseApiMetadata {
             }
             blobsByContainer.get(containerName).put(blob.getMetadata().getName(), blob);
             return null;
+        }
+
+        @Override
+        public String putBlob(String containerName, Blob blob, BlobAccess ba) throws IOException {
+            return putBlob(containerName, blob);
         }
 
         @Override
