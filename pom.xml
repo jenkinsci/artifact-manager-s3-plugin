@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>4.16</version>
+    <version>4.27</version>
     <relativePath />
   </parent>
   <groupId>io.jenkins.plugins</groupId>
@@ -14,11 +14,10 @@
   <packaging>hpi</packaging>
 
   <properties>
-    <revision>1.13</revision>
+    <revision>1.16</revision>
     <changelist>-SNAPSHOT</changelist>
     <jenkins.version>2.249.1</jenkins.version>
     <java.level>8</java.level>
-    <jenkins-test-harness.version>1484.v51078b2c2b34</jenkins-test-harness.version>
     <useBeta>true</useBeta>
   </properties>
 
@@ -54,6 +53,16 @@
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
       <version>1.32</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.code.findbugs</groupId>
+          <artifactId>jsr305</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.checkerframework</groupId>
+          <artifactId>checker-qual</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
@@ -87,7 +96,7 @@
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
-      <version>1.10</version>
+      <version>1.11</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -214,7 +223,7 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
-      <version>1.15.2</version>
+      <version>1.16.0</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -235,7 +244,7 @@
     <dependency> <!-- see maskClasses config -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>20.0</version>
+      <version>31.0.1-jre</version>
     </dependency>
   </dependencies>
   <dependencyManagement>
@@ -255,17 +264,16 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
         <artifactId>aws-java-sdk-minimal</artifactId>
-        <version>1.12.70</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
-        <version>2.10.10</version>
+        <version>2.10.12</version>
       </dependency>
       <dependency>
         <groupId>com.google.errorprone</groupId>
         <artifactId>error_prone_annotations</artifactId>
-        <version>2.5.1</version>
+        <version>2.9.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
