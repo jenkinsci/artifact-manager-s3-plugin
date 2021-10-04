@@ -52,7 +52,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
-      <version>1.30</version>
+      <version>1.32</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.code.findbugs</groupId>
