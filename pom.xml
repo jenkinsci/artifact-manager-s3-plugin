@@ -16,7 +16,7 @@
   <properties>
     <revision>1.13</revision>
     <changelist>-SNAPSHOT</changelist>
-    <jenkins.version>2.235.2</jenkins.version>
+    <jenkins.version>2.249.1</jenkins.version>
     <java.level>8</java.level>
     <jenkins-test-harness.version>1484.v51078b2c2b34</jenkins-test-harness.version>
     <useBeta>true</useBeta>
@@ -43,7 +43,7 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>aws-global-configuration</artifactId>
-      <version>1.6</version>
+      <version>1.7-rc87.64ae81df1dd1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.jclouds.provider</groupId>
@@ -53,13 +53,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
-      <version>1.28</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.code.findbugs</groupId>
-          <artifactId>jsr305</artifactId>
-        </exclusion>
-      </exclusions>
+      <version>1.32</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
@@ -231,6 +225,11 @@
           <groupId>org.slf4j</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <!-- use version from jackson2-api -->
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency> <!-- see maskClasses config -->
@@ -243,8 +242,8 @@
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.235.x</artifactId>
-        <version>25</version>
+        <artifactId>bom-2.249.x</artifactId>
+        <version>966.v3857b7c82032</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
@@ -254,9 +253,9 @@
         <version>4.0</version>
       </dependency>
       <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>aws-java-sdk</artifactId>
-        <version>1.11.955</version>
+        <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
+        <artifactId>aws-java-sdk-minimal</artifactId>
+        <version>1.12.70</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
