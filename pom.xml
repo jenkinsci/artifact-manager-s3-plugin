@@ -16,7 +16,7 @@
   <properties>
     <revision>1.16</revision>
     <changelist>-SNAPSHOT</changelist>
-    <jenkins.version>2.235.5</jenkins.version>
+    <jenkins.version>2.249.1</jenkins.version>
     <java.level>8</java.level>
     <useBeta>true</useBeta>
   </properties>
@@ -246,8 +246,8 @@
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.235.x</artifactId>
-        <version>918.vae501d2cdc99</version>
+        <artifactId>bom-2.249.x</artifactId>
+        <version>966.v3857b7c82032</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
