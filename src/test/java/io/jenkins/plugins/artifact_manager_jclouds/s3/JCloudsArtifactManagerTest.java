@@ -201,7 +201,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         wc.getPage(b, "artifact/3/4/");
         int httpCount = httpLogging.getRecords().size();
         System.err.println("total count: " + httpCount);
-        assertThat(httpCount, lessThanOrEqualTo(11));
+        assertThat(httpCount, lessThanOrEqualTo(13));
     }
 
     @Issue({"JENKINS-51390", "JCLOUDS-1200"})
