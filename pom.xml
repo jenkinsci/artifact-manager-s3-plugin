@@ -16,7 +16,7 @@
   <properties>
     <revision>1.17</revision>
     <changelist>-SNAPSHOT</changelist>
-    <jenkins.version>2.249.1</jenkins.version>
+    <jenkins.version>2.320</jenkins.version>
     <java.level>8</java.level>
     <useBeta>true</useBeta>
   </properties>
@@ -240,17 +240,12 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <dependency> <!-- see maskClasses config -->
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>31.0.1-jre</version>
-    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.249.x</artifactId>
+        <artifactId>bom-2.249.x</artifactId> <!-- TODO weekly -->
         <version>966.v3857b7c82032</version>
         <scope>import</scope>
         <type>pom</type>
@@ -272,20 +267,6 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
-  <build>
-      <plugins>
-          <plugin>
-            <groupId>org.jenkins-ci.tools</groupId>
-            <artifactId>maven-hpi-plugin</artifactId>
-            <configuration>
-              <!-- JENKINS-50520: since we need a custom version of Guava -->
-              <maskClasses>com.google.common.</maskClasses>
-            </configuration>
-          </plugin>
-
-      </plugins>
-  </build>
 
   <repositories>
     <repository>
