@@ -282,7 +282,6 @@
               </dependencies>
             </requireSameVersions>
           </rules>
-
         </configuration>
       </plugin>
     </plugins>
