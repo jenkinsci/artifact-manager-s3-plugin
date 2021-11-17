@@ -16,7 +16,7 @@
   <properties>
     <revision>1.18</revision>
     <changelist>-SNAPSHOT</changelist>
-    <jenkins.version>2.320</jenkins.version>
+    <jenkins.version>2.321</jenkins.version>
     <java.level>8</java.level>
     <useBeta>true</useBeta>
   </properties>
@@ -47,7 +47,7 @@
     <dependency>
       <groupId>org.apache.jclouds.provider</groupId>
       <artifactId>aws-s3</artifactId>
-      <version>2.2.1</version>
+      <version>2.3.0</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
@@ -250,11 +250,6 @@
         <scope>import</scope>
         <type>pom</type>
       </dependency>
-      <dependency> <!-- JENKINS-50520: picked up from jclouds; to match the Guice version in core -->
-        <groupId>com.google.inject.extensions</groupId>
-        <artifactId>guice-assistedinject</artifactId>
-        <version>4.0</version>
-      </dependency>
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
@@ -265,8 +260,32 @@
         <artifactId>error_prone_annotations</artifactId>
         <version>2.10.0</version>
       </dependency>
+      <dependency>
+        <groupId>com.google.inject.extensions</groupId>
+        <artifactId>guice-assistedinject</artifactId>
+        <version>5.0.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <configuration>
+          <rules combine.children="append">
+            <requireSameVersions>
+              <dependencies>
+                <dependency>com.google.inject:guice</dependency>
+                <dependency>com.google.inject.extensions:guice-assistedinject</dependency>
+              </dependencies>
+            </requireSameVersions>
+          </rules>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 
   <repositories>
     <repository>
