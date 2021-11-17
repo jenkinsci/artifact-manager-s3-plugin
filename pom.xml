@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>4.19</version>
+    <version>4.31</version>
     <relativePath />
   </parent>
   <groupId>io.jenkins.plugins</groupId>
@@ -14,9 +14,9 @@
   <packaging>hpi</packaging>
 
   <properties>
-    <revision>1.16</revision>
+    <revision>1.18</revision>
     <changelist>-SNAPSHOT</changelist>
-    <jenkins.version>2.235.5</jenkins.version>
+    <jenkins.version>2.320</jenkins.version>
     <java.level>8</java.level>
     <useBeta>true</useBeta>
   </properties>
@@ -42,7 +42,7 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>aws-global-configuration</artifactId>
-      <version>1.6</version>
+      <version>1.7</version>
     </dependency>
     <dependency>
       <groupId>org.apache.jclouds.provider</groupId>
@@ -52,7 +52,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
-      <version>1.29</version>
+      <version>1.32</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.code.findbugs</groupId>
@@ -223,7 +223,7 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
-      <version>1.15.3</version>
+      <version>1.16.2</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -234,14 +234,13 @@
           <groupId>org.slf4j</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
-    <dependency> <!-- see maskClasses config -->
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>30.1.1-jre</version>
-    </dependency>
-    <dependency> <!-- also used along with guice-assistedinject in a newer version by jclouds -->
+    <dependency> <!-- used along with guice-assistedinject in a newer version by jclouds -->
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>
       <version>4.2.3</version>
@@ -251,25 +250,20 @@
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.235.x</artifactId>
-        <version>872.v03c18fa35487</version>
+        <artifactId>bom-2.249.x</artifactId> <!-- TODO weekly -->
+        <version>966.v3857b7c82032</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
       <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>aws-java-sdk</artifactId>
-        <version>1.11.995</version>
-      </dependency>
-      <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
-        <version>2.10.10</version>
+        <version>2.10.13</version>
       </dependency>
       <dependency>
         <groupId>com.google.errorprone</groupId>
         <artifactId>error_prone_annotations</artifactId>
-        <version>2.7.1</version>
+        <version>2.10.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -280,8 +274,8 @@
             <groupId>org.jenkins-ci.tools</groupId>
             <artifactId>maven-hpi-plugin</artifactId>
             <configuration>
-              <!-- JENKINS-50520: since we need a custom version of Guava and Guice -->
-              <maskClasses>com.google.common. com.google.inject.</maskClasses>
+              <!-- since we need a custom version of Guice -->
+              <maskClasses>com.google.inject.</maskClasses>
             </configuration>
           </plugin>
 

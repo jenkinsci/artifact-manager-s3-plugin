@@ -159,7 +159,7 @@ public class NetworkTest {
             r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
             // Also from master:
             hangIn(BlobStoreProvider.HttpMethod.PUT, "p/2/artifacts/f");
-            p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+            p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
             b = r.buildAndAssertSuccess(p);
             r.assertLogContains("Retrying upload", b);
             r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
@@ -181,7 +181,7 @@ public class NetworkTest {
         // Currently prints a stack trace of java.lang.InterruptedException; good enough.
         // Check the same from a timeout within the build, rather than a user abort, and also from master just for fun:
         hangIn(BlobStoreProvider.HttpMethod.PUT, "p/2/artifacts/f");
-        p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; timeout(time: 3, unit: 'SECONDS') {archiveArtifacts 'f'}}", true));
+        p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; timeout(time: 3, unit: 'SECONDS') {archiveArtifacts 'f'}}", true));
         r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
@@ -253,7 +253,7 @@ public class NetworkTest {
             r.assertLogContains("Retrying download", b);
             r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
             hangIn(BlobStoreProvider.HttpMethod.GET, "p/2/stashes/f.tgz");
-            p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
+            p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
             b = r.buildAndAssertSuccess(p);
             r.assertLogContains("Retrying download", b);
             r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
@@ -273,7 +273,7 @@ public class NetworkTest {
         b.getExecutor().interrupt();
         r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(b));
         hangIn(BlobStoreProvider.HttpMethod.GET, "p/2/stashes/f.tgz");
-        p.setDefinition(new CpsFlowDefinition("node('master') {writeFile file: 'f', text: '.'; stash 'f'; timeout(time: 3, unit: 'SECONDS') {unstash 'f'}}", true));
+        p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; stash 'f'; timeout(time: 3, unit: 'SECONDS') {unstash 'f'}}", true));
         r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
