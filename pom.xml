@@ -260,8 +260,33 @@
         <artifactId>error_prone_annotations</artifactId>
         <version>2.10.0</version>
       </dependency>
+      <dependency>
+        <groupId>com.google.inject.extensions</groupId>
+        <artifactId>guice-assistedinject</artifactId>
+        <version>5.0.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <configuration>
+          <rules combine.children="append">
+            <requireSameVersions>
+              <dependencies>
+                <dependency>com.google.inject:guice</dependency>
+                <dependency>com.google.inject.extensions:guice-assistedinject</dependency>
+              </dependencies>
+            </requireSameVersions>
+          </rules>
+
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 
   <repositories>
     <repository>
