@@ -16,7 +16,7 @@
   <properties>
     <revision>1.18</revision>
     <changelist>-SNAPSHOT</changelist>
-    <jenkins.version>2.320</jenkins.version>
+    <jenkins.version>2.321</jenkins.version>
     <java.level>8</java.level>
     <useBeta>true</useBeta>
   </properties>
@@ -240,11 +240,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <dependency> <!-- used along with guice-assistedinject in a newer version by jclouds -->
-      <groupId>com.google.inject</groupId>
-      <artifactId>guice</artifactId>
-      <version>4.2.3</version>
-    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>
@@ -267,20 +262,6 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
-  <build>
-      <plugins>
-          <plugin>
-            <groupId>org.jenkins-ci.tools</groupId>
-            <artifactId>maven-hpi-plugin</artifactId>
-            <configuration>
-              <!-- since we need a custom version of Guice -->
-              <maskClasses>com.google.inject.</maskClasses>
-            </configuration>
-          </plugin>
-
-      </plugins>
-  </build>
 
   <repositories>
     <repository>
