@@ -16,7 +16,7 @@
   <properties>
     <revision>1.19</revision>
     <changelist>-SNAPSHOT</changelist>
-    <jenkins.version>2.321</jenkins.version>
+    <jenkins.version>2.324</jenkins.version>
     <java.level>8</java.level>
     <useBeta>true</useBeta>
   </properties>
@@ -260,11 +260,6 @@
         <groupId>com.google.errorprone</groupId>
         <artifactId>error_prone_annotations</artifactId>
         <version>2.10.0</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.inject.extensions</groupId>
-        <artifactId>guice-assistedinject</artifactId>
-        <version>5.0.1</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
