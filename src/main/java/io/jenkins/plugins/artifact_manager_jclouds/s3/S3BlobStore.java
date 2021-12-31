@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
@@ -182,7 +182,7 @@ public class S3BlobStore extends BlobStoreProvider {
         return () -> sessionCredentials;
     }
 
-    @Nonnull
+    @NonNull
     @Override
     public URI toURI(@NonNull String container, @NonNull String key) {
         assert container != null;
