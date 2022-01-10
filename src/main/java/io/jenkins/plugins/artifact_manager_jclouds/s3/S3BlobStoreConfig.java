@@ -27,7 +27,7 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -237,13 +237,13 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         save();
     }
     
-    @Nonnull
+    @NonNull
     @Override
     public String getDisplayName() {
         return "Amazon S3 Bucket Access settings";
     }
 
-    @Nonnull
+    @NonNull
     public static S3BlobStoreConfig get() {
         return ExtensionList.lookupSingleton(S3BlobStoreConfig.class);
     }
