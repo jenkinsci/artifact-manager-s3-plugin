@@ -9,3 +9,7 @@ updates:
   - jglick
   ignore:
   - dependency-name: com.google.inject.extensions:guice-assistedinject
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: weekly
