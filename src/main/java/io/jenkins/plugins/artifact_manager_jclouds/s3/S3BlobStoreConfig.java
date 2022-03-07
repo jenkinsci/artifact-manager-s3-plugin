@@ -40,6 +40,9 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.Bucket;
 import com.google.common.annotations.VisibleForTesting;
+import com.amazonaws.services.s3.model.BucketAccelerateConfiguration;
+import com.amazonaws.services.s3.model.BucketAccelerateStatus;
+import com.amazonaws.services.s3.model.SetBucketAccelerateConfigurationRequest;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
@@ -87,6 +90,8 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     
     private boolean useHttp;
     
+    private boolean useTransferAcceleration;
+
     private boolean disableSessionToken;
     
     private String customEndpoint;
@@ -105,14 +110,16 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         private transient S3BlobStoreConfig config;
 
         S3BlobStoreTester(String container, String prefix, boolean useHttp,
-            boolean usePathStyleUrl, boolean disableSessionToken, 
-            String customEndpoint, String customSigningRegion) {
+            boolean useTransferAcceleration, boolean usePathStyleUrl,
+            boolean disableSessionToken, String customEndpoint,
+            String customSigningRegion) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
             config.setCustomEndpoint(customEndpoint);
             config.setCustomSigningRegion(customSigningRegion);
             config.setUseHttp(useHttp);
+            config.setUseTransferAcceleration(useTransferAcceleration);
             config.setUsePathStyleUrl(usePathStyleUrl);
             config.setDisableSessionToken(disableSessionToken);
         }
@@ -192,6 +199,16 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         save();
     }
     
+    public boolean getUseTransferAcceleration() {
+        return useTransferAcceleration;
+    }
+
+    @DataBoundSetter
+    public void setUseTransferAcceleration(boolean useTransferAcceleration){
+        this.useTransferAcceleration = useTransferAcceleration;
+        save();
+    }
+
     public boolean getDisableSessionToken() {
         return disableSessionToken;
     }
@@ -266,6 +283,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         } else {
             ret = ret.withForceGlobalBucketAccessEnabled(true);
         }
+        ret = ret.withAccelerateModeEnabled(useTransferAcceleration);
 
         // TODO the client would automatically use path-style URLs under certain conditions; is it really necessary to override?
         ret = ret.withPathStyleAccessEnabled(getUsePathStyleUrl());
@@ -343,8 +361,14 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     private Bucket createS3Bucket(String name, boolean disableSessionToken) throws IOException {
         AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
-        AmazonS3 client = builder.build();
-        return client.createBucket(name);
+        //Accelerated mode must be off in order to apply it to a bucket
+        AmazonS3 client = builder.withAccelerateModeEnabled(false).build();
+        Bucket bucket = client.createBucket(name);
+        if(useTransferAcceleration) {
+            client.setBucketAccelerateConfiguration(new SetBucketAccelerateConfigurationRequest(name,
+                new BucketAccelerateConfiguration(BucketAccelerateStatus.Enabled)));
+        }
+        return bucket;
     }
 
     @RequirePOST
@@ -371,6 +395,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             @QueryParameter String container, 
             @QueryParameter String prefix,
             @QueryParameter boolean useHttp,
+            @QueryParameter boolean useTransferAcceleration,
             @QueryParameter boolean usePathStyleUrl,
             @QueryParameter boolean disableSessionToken, 
             @QueryParameter String customEndpoint,
@@ -379,8 +404,8 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         FormValidation ret = FormValidation.ok("success");
         
         S3BlobStore provider = new S3BlobStoreTester(container, prefix, 
-                useHttp, usePathStyleUrl, disableSessionToken, customEndpoint, 
-                customSigningRegion);
+                useHttp, useTransferAcceleration,usePathStyleUrl,
+                disableSessionToken, customEndpoint, customSigningRegion);
         
         try {
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix.replaceFirst("/$", ""));
