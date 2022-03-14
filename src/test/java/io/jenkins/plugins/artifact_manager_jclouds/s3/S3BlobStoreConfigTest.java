@@ -1,34 +1,15 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import static org.junit.Assert.*;
-
-import java.io.IOException;
-import java.net.ServerSocket;
+import hudson.model.Failure;
+import hudson.util.FormValidation;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import java.util.logging.Logger;
-
+import jenkins.model.ArtifactManagerConfiguration;
+import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.AnonymousAWSCredentials;
-import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.cloudbees.jenkins.plugins.awscredentials.BaseAmazonWebServicesCredentials;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.domains.Domain;
-
-import hudson.model.Failure;
-import hudson.util.FormValidation;
-import io.findify.s3mock.S3Mock;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
-import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
-import jenkins.model.ArtifactManagerConfiguration;
 
 public class S3BlobStoreConfigTest {
 
@@ -140,61 +121,4 @@ public class S3BlobStoreConfigTest {
         assertTrue(descriptor.doCheckCustomSigningRegion("").getMessage().contains("us-east-1"));
     }
 
-    @Test
-    public void createS3Bucket() throws IOException {
-        int port =  findFreePort();
-        String serviceEndpoint = "127.0.0.1:" + port;
-        S3BlobStoreConfig config = S3BlobStoreConfig.get();
-        config.setContainer(CONTAINER_NAME);
-        config.setPrefix(CONTAINER_PREFIX);
-        config.setCustomEndpoint(serviceEndpoint);
-        config.setCustomSigningRegion(CONTAINER_REGION);
-        config.setUseHttp(true);
-        config.setUsePathStyleUrl(true);
-
-        CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
-        credentialsConfig.setRegion(CONTAINER_REGION);
-        CredentialsProvider.lookupStores(j.jenkins).iterator().next().addCredentials(Domain.global(), new PhonySessionCredentials(CredentialsScope.GLOBAL, "phony", null));
-        credentialsConfig.setCredentialsId("phony");
-
-        S3Mock api = new S3Mock.Builder().withPort(port).withInMemoryBackend().build();
-        api.start();
-
-        config.createS3Bucket(CONTAINER_NAME);
-
-        AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(config.getResolvedCustomEndpoint(), CONTAINER_REGION);
-        AmazonS3 client = AmazonS3ClientBuilder
-                .standard()
-                .withPathStyleAccessEnabled(true)
-                .withEndpointConfiguration(endpoint)
-                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-                .build();
-        client.putObject(CONTAINER_NAME, "file/name", "contents");
-        api.shutdown();
-    }
-    private static final class PhonySessionCredentials extends BaseAmazonWebServicesCredentials {
-        PhonySessionCredentials(CredentialsScope scope, String id, String description) {
-            super(scope, id, description);
-        }
-        @Override
-        public AWSCredentials getCredentials() {
-            return new BasicSessionCredentials("FakeKey", "FakeSecret", "FakeToken");
-        }
-        @Override
-        public String getDisplayName() {
-            return "Phony";
-        }
-        @Override
-        public AWSCredentials getCredentials(String mfaToken) {
-            return getCredentials();
-        }
-        @Override
-        public void refresh() {}
-    }
-
-    private Integer findFreePort() throws IOException {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
-    }
 }
