@@ -47,22 +47,10 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.ArrayList;
 
 import javax.annotation.Nonnull;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.*;
-import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
-import com.amazonaws.services.s3.model.PartETag;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
@@ -78,21 +66,18 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.auth.AWSSessionCredentials;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
-import com.google.common.base.Supplier;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.Extension;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
-import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
-import org.jenkinsci.Symbol;
-
-import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
+
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PartETag;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.google.common.base.Supplier;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -312,14 +297,14 @@ public class S3BlobStore extends BlobStoreProvider {
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
         LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
-            new Object[] { container, name, httpMethod });
+                new Object[] { container, name, httpMethod });
         String contentType = null;
         com.amazonaws.HttpMethod awsMethod;
         switch (httpMethod) {
         case PUT:
             awsMethod = com.amazonaws.HttpMethod.PUT;
-                // Only set content type for upload URLs, so that the right S3 metadata gets set
-                contentType = blob.getMetadata().getContentMetadata().getContentType();
+            // Only set content type for upload URLs, so that the right S3 metadata gets set
+            contentType = blob.getMetadata().getContentMetadata().getContentType();
             break;
         case GET:
             awsMethod = com.amazonaws.HttpMethod.GET;
@@ -334,10 +319,12 @@ public class S3BlobStore extends BlobStoreProvider {
             .withContentType(contentType);
 
         if (StringUtils.isNotEmpty(uploadID)) {
-            generatePresignedUrlRequest.addRequestParameter("partNumber", Integer.toString(partNumber));
+            generatePresignedUrlRequest
+                .addRequestParameter("partNumber", Integer.toString(partNumber));
             generatePresignedUrlRequest.addRequestParameter("uploadId", uploadID);
-            LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2} (part {3})",
-                new Object[]{container, name, httpMethod, partNumber});
+            LOGGER
+                .log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2} (part {3})",
+                    new Object[]{container, name, httpMethod, partNumber});
         } else {
             LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
                 new Object[]{container, name, httpMethod});
@@ -345,6 +332,7 @@ public class S3BlobStore extends BlobStoreProvider {
 
         return builder.build().generatePresignedUrl(generatePresignedUrlRequest);
     }
+
 
     @NonNull
     public MultipartUploader initiateMultipartUpload(@NonNull Blob blob) throws IOException {
@@ -355,7 +343,16 @@ public class S3BlobStore extends BlobStoreProvider {
         LOGGER.log(Level.FINE, "Initiate multipart upload for {0} / {1}",
             new Object[]{container, name});
 
-        InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(container, name);
+        String contentType = blob.getMetadata().getContentMetadata().getContentType();
+
+        if (contentType == null)
+            contentType = "application/octet-stream";
+
+        ObjectMetadata objectMetadata = new ObjectMetadata();
+        objectMetadata.setContentType(contentType);
+
+        InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(container, name, objectMetadata);
+
         InitiateMultipartUploadResult result = client().initiateMultipartUpload(request);
         return new S3MultipartUploader(blob, result.getUploadId());
     }
