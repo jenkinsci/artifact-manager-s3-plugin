@@ -56,8 +56,10 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import java.net.ProtocolException;
 
 import jenkins.util.VirtualFile;
+import org.jclouds.http.HttpResponseException;
 
 public class JCloudsVirtualFileTest extends S3AbstractTest {
 
@@ -75,7 +77,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         Blob blob = blobStore.blobBuilder(filePath).payload(tmpFile).build();
 
         LOGGER.log(Level.INFO, "Adding test blob {0} {1}", new String[] { getContainer(), filePath });
-        blobStore.putBlob(getContainer(), blob);
+        putBlob(blob);
 
         root = newJCloudsBlobStore(S3_DIR);
         subdir = newJCloudsBlobStore(getPrefix());
@@ -91,7 +93,23 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         weirdCharacters = newJCloudsBlobStore(weirdCharactersPath);
         weirdCharactersMissing = newJCloudsBlobStore(weirdCharactersPath + "missing");
         LOGGER.log(Level.INFO, "Adding test blob {0} {1}", new String[] { getContainer(), weirdCharactersPath });
-        blobStore.putBlob(getContainer(), blobStore.blobBuilder(weirdCharactersPath).payload(tmpFile).build());
+        putBlob(blobStore.blobBuilder(weirdCharactersPath).payload(tmpFile).build());
+    }
+
+    /** Working around an apparent server flake. */
+    private void putBlob(Blob blob) {
+        for (int i = 0; i < 5; i++) {
+            try {
+                blobStore.putBlob(getContainer(), blob);
+                return;
+            } catch (HttpResponseException x) {
+                if (x.getCause() instanceof ProtocolException && i < 4) {
+                    x.printStackTrace();
+                    continue;
+                }
+                throw x;
+            }
+        }
     }
 
     private JCloudsVirtualFile newJCloudsBlobStore(String path) {
@@ -202,10 +220,10 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
             String iDir = getPrefix() + "sprawling/i" + i + "/";
             for (int j = 0; j < 10; j++) {
                 for (int k = 0; k < 10; k++) {
-                    blobStore.putBlob(getContainer(), blobStore.blobBuilder(iDir + "j" + j + "/k" + k).payload(new byte[0]).build());
+                    putBlob(blobStore.blobBuilder(iDir + "j" + j + "/k" + k).payload(new byte[0]).build());
                 }
             }
-            blobStore.putBlob(getContainer(), blobStore.blobBuilder(iDir + "extra").payload(new byte[0]).build());
+            putBlob(blobStore.blobBuilder(iDir + "extra").payload(new byte[0]).build());
             LOGGER.log(Level.INFO, "added 101 blobs to {0}", iDir);
         }
         httpLogging.record(InvokeHttpMethod.class, Level.FINE);
@@ -267,7 +285,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         String key = getPrefix() + "xxx#?:&$'\"<>čॐ";
 
         try {
-            blobStore.putBlob(getContainer(), blobStore.blobBuilder(key).payload("test").build());
+            putBlob(blobStore.blobBuilder(key).payload("test").build());
 
             final AmazonS3 s3 = AmazonS3ClientBuilder.defaultClient();
             ListObjectsV2Result result = s3.listObjectsV2(getContainer(), key);
