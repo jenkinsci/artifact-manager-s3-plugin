@@ -48,6 +48,11 @@
       <version>2.3.6-1</version>
     </dependency>
     <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-core</artifactId>
+      <version>1.18</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.jclouds.provider</groupId>
       <artifactId>aws-s3</artifactId>
       <version>2.5.0</version>

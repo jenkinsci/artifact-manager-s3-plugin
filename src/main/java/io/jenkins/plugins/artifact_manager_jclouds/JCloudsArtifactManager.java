@@ -61,6 +61,7 @@ import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.tika.Tika;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.BlobStores;
@@ -159,12 +160,20 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     if (contentType == null) {
                         contentType = URLConnection.guessContentTypeFromName(theFile.getName());
                     }
+                    if (contentType == null){
+                        contentType = detectByTika(theFile);
+                    }
                     contentTypes.put(relPath, contentType);
                 } catch (IOException e) {
                     Functions.printStackTrace(e, listener.error("Unable to determine content type for file: " + theFile));
                 }
             }
             return contentTypes;
+        }
+
+        static String detectByTika(File f) throws IOException {
+            Tika tika = new Tika();
+            return tika.detect(f);
         }
     }
 
