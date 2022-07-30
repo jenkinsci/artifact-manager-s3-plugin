@@ -283,13 +283,13 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     public void contentType() throws Exception {
         String text = "some regular text";
         String html = "<html><header></header><body>Test file contents</body></html>";
-
+        String json = "{\"key\":\"value\"}";
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
 
         j.createSlave("remote", null, null);
 
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f.txt', text: '" + text + "'; writeFile file: 'f.html', text: '" + html + "'; writeFile file: 'f', text: '\\u0000'; archiveArtifacts 'f*'}", true));
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f.txt', text: '" + text + "'; writeFile file: 'f.html', text: '" + html + "'; writeFile file: 'f', text: '\\u0000';writeFile file: 'f.json', text: '" + json +"'; archiveArtifacts 'f*'}", true));
         j.buildAndAssertSuccess(p);
 
         WebResponse response = j.createWebClient().goTo("job/p/1/artifact/f.txt", null).getWebResponse();
@@ -301,6 +301,9 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         response = j.createWebClient().goTo("job/p/1/artifact/f", null).getWebResponse();
         assertThat(response.getContentLength(), equalTo(1L));
         assertThat(response.getContentType(), containsString("/octet-stream"));
+        response = j.createWebClient().goTo("job/p/1/artifact/f.json", null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(json));
+        assertThat(response.getContentType(), equalTo("application/json"));
     }
 
     //@Test

@@ -61,7 +61,6 @@ import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.tika.Tika;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.BlobStores;
@@ -72,6 +71,8 @@ import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+
+import static io.jenkins.plugins.artifact_manager_jclouds.TikaUtil.detectByTika;
 
 /**
  * Jenkins artifact/stash implementation using any blob store supported by Apache jclouds.
@@ -160,7 +161,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     if (contentType == null) {
                         contentType = URLConnection.guessContentTypeFromName(theFile.getName());
                     }
-                    if (contentType == null){
+                    if (contentType == null) {
                         contentType = detectByTika(theFile);
                     }
                     contentTypes.put(relPath, contentType);
@@ -169,11 +170,6 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 }
             }
             return contentTypes;
-        }
-
-        static String detectByTika(File f) throws IOException {
-            Tika tika = new Tika();
-            return tika.detect(f);
         }
     }
 
