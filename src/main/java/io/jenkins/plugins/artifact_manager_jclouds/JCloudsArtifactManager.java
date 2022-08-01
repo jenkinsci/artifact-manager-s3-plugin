@@ -72,6 +72,8 @@ import org.jenkinsci.plugins.workflow.flow.StashManager;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import static io.jenkins.plugins.artifact_manager_jclouds.TikaUtil.detectByTika;
+
 /**
  * Jenkins artifact/stash implementation using any blob store supported by Apache jclouds.
  * To offer a new backend, implement {@link BlobStoreProvider}.
@@ -158,6 +160,9 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     String contentType = Files.probeContentType(theFile.toPath());
                     if (contentType == null) {
                         contentType = URLConnection.guessContentTypeFromName(theFile.getName());
+                    }
+                    if (contentType == null) {
+                        contentType = detectByTika(theFile);
                     }
                     contentTypes.put(relPath, contentType);
                 } catch (IOException e) {
