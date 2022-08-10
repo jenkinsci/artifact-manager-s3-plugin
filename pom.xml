@@ -51,6 +51,12 @@
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
       <version>2.4.1</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.jclouds.provider</groupId>
@@ -245,11 +251,6 @@
         <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
         <artifactId>aws-java-sdk-minimal</artifactId>
         <version>1.12.246-349.v96b_b_f7eb_a_c3c</version>
-      </dependency>
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>1.7.36</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
