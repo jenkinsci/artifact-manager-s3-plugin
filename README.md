@@ -205,9 +205,9 @@ you cannot download the artifact with that URL any more, thus you have to go bac
 and click on the artifact to download it again. 
 
 If you use a regular Key/Secret AWS Credentials you can set the token duration by adding the property 
-`-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.sessionDuration` to the Jenkins JVM properties, 
-the default value is one hour. However if you set and IAM Role to assume on the AWS credential, 
-the token duration is always one hour, this parameter does not change the duration in AWS Credentials Plugin settings.
+`-Dio.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration.sessionDuration` to the Jenkins JVM properties,
+the default value is one hour. However if you set an IAM Role to assume on the AWS credential,
+the token duration is always one hour (3600), this parameter does not change the duration in AWS Credentials Plugin settings.
 
 # Extending Artifact Manager on S3 plugin
 
