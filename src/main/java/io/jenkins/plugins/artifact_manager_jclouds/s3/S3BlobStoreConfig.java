@@ -45,14 +45,18 @@ import com.amazonaws.services.s3.model.BucketAccelerateStatus;
 import com.amazonaws.services.s3.model.SetBucketAccelerateConfigurationRequest;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Util;
 import hudson.model.Failure;
 import hudson.util.FormValidation;
+
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.AbstractAwsGlobalConfiguration;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+
 import jenkins.model.Jenkins;
 import org.jenkinsci.Symbol;
 
@@ -101,18 +105,18 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private final boolean deleteArtifacts;
     
     private final boolean deleteStashes;
-    
+
     /**
      * class to test configuration against Amazon S3 Bucket.
      */
     private static class S3BlobStoreTester extends S3BlobStore {
         private static final long serialVersionUID = -3645770416235883487L;
+
+        @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED", justification = "This transient field is only modified from the class constructor.")
         private transient S3BlobStoreConfig config;
 
-        S3BlobStoreTester(String container, String prefix, boolean useHttp,
-            boolean useTransferAcceleration, boolean usePathStyleUrl,
-            boolean disableSessionToken, String customEndpoint,
-            String customSigningRegion) {
+        S3BlobStoreTester(String container, String prefix, boolean useHttp, boolean useTransferAcceleration, boolean usePathStyleUrl,
+                          boolean disableSessionToken, String customEndpoint, String customSigningRegion) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
@@ -130,6 +134,8 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
     }
 
+    @SuppressFBWarnings(value = "MC_OVERRIDABLE_METHOD_CALL_IN_CONSTRUCTOR",
+            justification = "Calling load in the constructor is the typical way to manage GlobalConfiguration objects.")
     public S3BlobStoreConfig() {
         load();
         if (Util.fixEmpty(region) != null || Util.fixEmpty(credentialsId) != null) {
