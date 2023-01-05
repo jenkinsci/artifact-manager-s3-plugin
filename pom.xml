@@ -5,8 +5,8 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>4.51</version>
-    <relativePath />
+    <version>4.53</version>
+    <relativePath/>
   </parent>
   <groupId>io.jenkins.plugins</groupId>
   <artifactId>artifact-manager-s3</artifactId>
@@ -15,7 +15,7 @@
 
   <properties>
     <changelist>999999-SNAPSHOT</changelist>
-    <jenkins.version>2.332.4</jenkins.version>
+    <jenkins.version>2.361.4</jenkins.version>
     <useBeta>true</useBeta>
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
@@ -32,7 +32,7 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
+    <connection>scm:git:https://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
     <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
     <tag>${scmTag}</tag>
@@ -47,7 +47,6 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>jaxb</artifactId>
-      <version>2.3.6-2</version>
     </dependency>
     <dependency>
       <groupId>org.apache.tika</groupId>
@@ -237,8 +236,8 @@
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.332.x</artifactId>
-        <version>1706.vc166d5f429f8</version>
+        <artifactId>bom-2.361.x</artifactId>
+        <version>1763.v092b_8980a_f5e</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
