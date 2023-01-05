@@ -6,10 +6,11 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import java.util.logging.Logger;
 import jenkins.model.ArtifactManagerConfiguration;
+
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.*;
 
 import org.hamcrest.MatcherAssert;
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -47,7 +48,7 @@ public class S3BlobStoreConfigTest {
 
         LOGGER.info(artifactManagerFactory.getProvider().toString());
         BlobStoreProvider providerConfigured = artifactManagerFactory.getProvider();
-        MatcherAssert.assertThat(providerConfigured, IsInstanceOf.instanceOf(S3BlobStore.class));
+        MatcherAssert.assertThat(providerConfigured, instanceOf(S3BlobStore.class));
         checkFieldValues(config);
 
         //check configuration page submit

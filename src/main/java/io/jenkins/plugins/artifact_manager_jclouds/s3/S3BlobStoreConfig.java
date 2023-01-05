@@ -67,7 +67,7 @@ import org.jenkinsci.Symbol;
  */
 @Symbol("s3")
 @Extension
-public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
+public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     private static final String BUCKET_REGEXP = "^([a-z]|(\\d(?!\\d{0,2}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})))([a-z\\d]|(\\.(?!(\\.|-)))|(-(?!\\.))){1,61}[a-z\\d\\.]$";
     private static final Pattern bucketPattern = Pattern.compile(BUCKET_REGEXP);
@@ -115,8 +115,10 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED", justification = "This transient field is only modified from the class constructor.")
         private transient S3BlobStoreConfig config;
 
-        S3BlobStoreTester(String container, String prefix, boolean useHttp, boolean useTransferAcceleration, boolean usePathStyleUrl,
-                          boolean disableSessionToken, String customEndpoint, String customSigningRegion) {
+        S3BlobStoreTester(String container, String prefix, boolean useHttp,
+                          boolean useTransferAcceleration, boolean usePathStyleUrl,
+                          boolean disableSessionToken, String customEndpoint,
+                          String customSigningRegion) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
@@ -133,9 +135,7 @@ public class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             return config;
         }
     }
-
-    @SuppressFBWarnings(value = "MC_OVERRIDABLE_METHOD_CALL_IN_CONSTRUCTOR",
-            justification = "Calling load in the constructor is the typical way to manage GlobalConfiguration objects.")
+    
     public S3BlobStoreConfig() {
         load();
         if (Util.fixEmpty(region) != null || Util.fixEmpty(credentialsId) != null) {
