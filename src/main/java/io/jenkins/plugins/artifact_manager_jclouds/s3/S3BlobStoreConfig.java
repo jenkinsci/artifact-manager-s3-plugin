@@ -116,9 +116,9 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         private transient S3BlobStoreConfig config;
 
         S3BlobStoreTester(String container, String prefix, boolean useHttp,
-                          boolean useTransferAcceleration, boolean usePathStyleUrl,
-                          boolean disableSessionToken, String customEndpoint,
-                          String customSigningRegion) {
+            boolean useTransferAcceleration, boolean usePathStyleUrl,
+            boolean disableSessionToken, String customEndpoint,
+            String customSigningRegion) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
