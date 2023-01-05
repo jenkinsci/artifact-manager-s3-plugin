@@ -56,6 +56,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import hudson.AbortException;
 import hudson.remoting.Callable;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
@@ -79,6 +81,9 @@ public class JCloudsVirtualFile extends VirtualFile {
     private final String key;
     @CheckForNull
     private transient Blob blob;
+
+    @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
+            justification = "This field is expected to be loaded by a provider instead of deserialization.")
     @CheckForNull
     private transient BlobStoreContext context;
 

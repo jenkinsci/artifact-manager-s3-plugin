@@ -1,15 +1,22 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import hudson.model.Failure;
-import hudson.util.FormValidation;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
-import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import java.util.logging.Logger;
-import jenkins.model.ArtifactManagerConfiguration;
-import static org.junit.Assert.*;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
+import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
+
+import hudson.model.Failure;
+import hudson.util.FormValidation;
+import jenkins.model.ArtifactManagerConfiguration;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class S3BlobStoreConfigTest {
 
@@ -44,7 +51,7 @@ public class S3BlobStoreConfigTest {
 
         LOGGER.info(artifactManagerFactory.getProvider().toString());
         BlobStoreProvider providerConfigured = artifactManagerFactory.getProvider();
-        assertTrue(providerConfigured instanceof S3BlobStore);
+        assertThat(providerConfigured, instanceOf(S3BlobStore.class));
         checkFieldValues(config);
 
         //check configuration page submit

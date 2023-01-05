@@ -57,6 +57,7 @@ import org.jclouds.blobstore.domain.StorageMetadata;
  */
 public final class MockBlobStore extends BlobStoreProvider {
 
+    private static final long serialVersionUID = 42L;
     private static final Logger LOGGER = Logger.getLogger(MockBlobStore.class.getName());
 
     private transient BlobStoreContext context;
