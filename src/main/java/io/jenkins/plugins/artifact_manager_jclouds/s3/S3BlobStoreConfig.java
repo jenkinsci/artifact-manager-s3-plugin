@@ -101,7 +101,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private String customEndpoint;
     
     private String customSigningRegion;
-    
+
     private final boolean deleteArtifacts;
     
     private final boolean deleteStashes;
@@ -135,7 +135,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             return config;
         }
     }
-    
+
     public S3BlobStoreConfig() {
         load();
         if (Util.fixEmpty(region) != null || Util.fixEmpty(credentialsId) != null) {
