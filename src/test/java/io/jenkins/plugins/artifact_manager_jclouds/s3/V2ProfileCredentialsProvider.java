@@ -22,8 +22,6 @@
  * THE SOFTWARE.
  */
 
-// adapted from https://github.com/aws/aws-sdk-java/issues/2434#issuecomment-819985174 https://github.com/aws/aws-sdk-java/issues/803#issuecomment-593530484
-
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import com.amazonaws.auth.AWSCredentials;
@@ -34,7 +32,11 @@ import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 
-public class CliCompatibleCredentialsProvider implements AWSCredentialsProvider {
+/**
+ * Allows use of {@code aws sso login} when running tests.
+ * Adapted from https://github.com/aws/aws-sdk-java/issues/2434#issuecomment-819985174 and https://github.com/aws/aws-sdk-java/issues/803#issuecomment-593530484
+ */
+public class V2ProfileCredentialsProvider implements AWSCredentialsProvider {
 
     private final ProfileCredentialsProvider delegate = ProfileCredentialsProvider.create();
 

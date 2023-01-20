@@ -44,7 +44,10 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 
 import com.amazonaws.SdkClientException;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSCredentialsProviderChain;
 import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
@@ -65,7 +68,8 @@ public abstract class S3AbstractTest {
     public static void live() {
         assumeThat("define $S3_BUCKET as explained in README", S3_BUCKET, notNullValue());
         assumeThat("define $S3_DIR as explained in README", S3_DIR, notNullValue());
-        S3BlobStoreConfig.clientBuilder = () -> AmazonS3ClientBuilder.standard().withCredentials(new CliCompatibleCredentialsProvider());
+        AWSCredentialsProvider ssoEnabledCredentialsProvider = new AWSCredentialsProviderChain(DefaultAWSCredentialsProviderChain.getInstance(), new V2ProfileCredentialsProvider());
+        S3BlobStoreConfig.clientBuilder = () -> AmazonS3ClientBuilder.standard().withCredentials(ssoEnabledCredentialsProvider);
         try {
             AmazonS3ClientBuilder builder = S3BlobStoreConfig.clientBuilder.get();
             assumeTrue(S3_BUCKET + " bucket does not exist", builder.build().doesBucketExistV2(S3_BUCKET));
