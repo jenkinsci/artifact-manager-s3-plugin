@@ -65,8 +65,9 @@ public abstract class S3AbstractTest {
     public static void live() {
         assumeThat("define $S3_BUCKET as explained in README", S3_BUCKET, notNullValue());
         assumeThat("define $S3_DIR as explained in README", S3_DIR, notNullValue());
+        S3BlobStoreConfig.clientBuilder = () -> AmazonS3ClientBuilder.standard().withCredentials(new CliCompatibleCredentialsProvider());
         try {
-            AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+            AmazonS3ClientBuilder builder = S3BlobStoreConfig.clientBuilder.get();
             assumeTrue(S3_BUCKET + " bucket does not exist", builder.build().doesBucketExistV2(S3_BUCKET));
             builder.build().listObjects(S3_BUCKET);
             assumeThat("can get credentials from environment", builder.getCredentials().getCredentials(), allOf(notNullValue(), not(isA(AnonymousAWSCredentials.class))));
