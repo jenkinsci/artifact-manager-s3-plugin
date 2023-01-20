@@ -25,9 +25,8 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -271,12 +270,15 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ExtensionList.lookupSingleton(S3BlobStoreConfig.class);
     }
 
+    @VisibleForTesting
+    static Supplier<AmazonS3ClientBuilder> clientBuilder = AmazonS3ClientBuilder::standard;
+
     /**
     *
     * @return an AmazonS3ClientBuilder using the region or not, it depends if a region is configured or not.
     */
     AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
-        AmazonS3ClientBuilder ret = AmazonS3ClientBuilder.standard();
+        AmazonS3ClientBuilder ret = clientBuilder.get();
 
         if (StringUtils.isNotBlank(customEndpoint)) {
             String resolvedCustomSigningRegion = customSigningRegion;
