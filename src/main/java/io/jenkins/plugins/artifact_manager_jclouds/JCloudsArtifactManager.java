@@ -121,7 +121,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     public void archive(FilePath workspace, Launcher launcher, BuildListener listener, Map<String, String> artifacts)
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
-        Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.keySet()), listener));
+        Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.values()), listener));
         LOGGER.fine(() -> "guessing content types: " + contentTypes);
         Map<String, URL> artifactUrls = new HashMap<>();
         BlobStore blobStore = getContext().getBlobStore();
@@ -132,7 +132,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             String blobPath = getBlobPath(path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(provider.getContainer());
-            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getKey()));
+            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
         }
 
@@ -167,6 +167,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     contentTypes.put(relPath, contentType);
                 } catch (IOException e) {
                     Functions.printStackTrace(e, listener.error("Unable to determine content type for file: " + theFile));
+                    // A content type must be specified; otherwise, the metadata signature will be computed from data that includes "Content-Type:", but no such HTTP header will be sent, and AWS will reject the request.
+                    contentTypes.put(relPath, "application/octet-stream");
                 }
             }
             return contentTypes;
