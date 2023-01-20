@@ -44,6 +44,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 
 import com.amazonaws.SdkClientException;
+import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
@@ -67,7 +68,7 @@ public abstract class S3AbstractTest {
         try {
             AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
             assumeTrue(S3_BUCKET + " bucket does not exist", builder.build().doesBucketExistV2(S3_BUCKET));
-            assumeThat("can get credentials from environment", builder.getCredentials().getCredentials(), notNullValue());
+            assumeThat("can get credentials from environment", builder.getCredentials().getCredentials(), allOf(notNullValue(), not(isA(AnonymousAWSCredentials.class))));
         } catch (SdkClientException x) {
             x.printStackTrace();
             assumeNoException("failed to connect to S3 with current credentials", x);
