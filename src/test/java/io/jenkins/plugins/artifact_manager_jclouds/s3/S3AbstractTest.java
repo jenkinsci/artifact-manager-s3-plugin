@@ -68,6 +68,7 @@ public abstract class S3AbstractTest {
         try {
             AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
             assumeTrue(S3_BUCKET + " bucket does not exist", builder.build().doesBucketExistV2(S3_BUCKET));
+            builder.build().listObjects(S3_BUCKET);
             assumeThat("can get credentials from environment", builder.getCredentials().getCredentials(), allOf(notNullValue(), not(isA(AnonymousAWSCredentials.class))));
         } catch (SdkClientException x) {
             x.printStackTrace();
