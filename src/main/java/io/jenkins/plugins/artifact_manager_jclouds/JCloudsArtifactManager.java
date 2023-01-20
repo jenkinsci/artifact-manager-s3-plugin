@@ -132,10 +132,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             String blobPath = getBlobPath(path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(provider.getContainer());
-            String contentType = contentTypes.get(entry.getValue());
-            if (contentType != null) {
-                blob.getMetadata().getContentMetadata().setContentType(contentType);
-            }
+            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
         }
 
@@ -170,6 +167,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     contentTypes.put(relPath, contentType);
                 } catch (IOException e) {
                     Functions.printStackTrace(e, listener.error("Unable to determine content type for file: " + theFile));
+                    // A content type must be specified; otherwise, the metadata signature will be computed from data that includes "Content-Type:", but no such HTTP header will be sent, and AWS will reject the request.
+                    contentTypes.put(relPath, "application/octet-stream");
                 }
             }
             return contentTypes;

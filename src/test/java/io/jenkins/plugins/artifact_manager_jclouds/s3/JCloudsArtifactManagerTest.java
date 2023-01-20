@@ -72,11 +72,13 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Item;
 import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
 import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
@@ -89,6 +91,7 @@ import jenkins.plugins.git.GitSCMSource;
 import jenkins.plugins.git.GitSampleRepoRule;
 import jenkins.plugins.git.traits.BranchDiscoveryTrait;
 import jenkins.security.MasterToSlaveCallable;
+import jenkins.util.BuildListenerAdapter;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -104,6 +107,7 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
+import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
@@ -370,7 +374,8 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
     }
 
-    public static class ArchiveArtifactWithCustomPathStep extends Step {
+    public static class ArchiveArtifactWithCustomPathStep extends Step implements Serializable {
+        private static final long serialVersionUID = 1L;
         private final String archivePath;
         private final String workspacePath;
         @DataBoundConstructor
@@ -384,11 +389,12 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
                 context.get(Run.class).pickArtifactManager().archive(
                         context.get(FilePath.class),
                         context.get(Launcher.class),
-                        context.get(BuildListener.class),
+                        new BuildListenerAdapter(context.get(TaskListener.class)),
                         Collections.singletonMap(archivePath, workspacePath));
                 return null;
             });
         }
+        @TestExtension("archiveWithDistinctArchiveAndWorkspacePaths")
         public static class DescriptorImpl extends StepDescriptor {
             @Override
             public String getFunctionName() {
@@ -396,7 +402,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
             }
             @Override
             public Set<? extends Class<?>> getRequiredContext() {
-                return Set.of(FilePath.class, Launcher.class, BuildListener.class);
+                return Set.of(FilePath.class, Launcher.class, TaskListener.class);
             }
         }
     }
