@@ -106,6 +106,12 @@
         <scope>test</scope>
     </dependency>
     <dependency>
+        <groupId>org.jenkins-ci.plugins.workflow</groupId>
+        <artifactId>workflow-step-api</artifactId>
+        <classifier>tests</classifier>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
       <version>166.v912b_95083ffe</version>

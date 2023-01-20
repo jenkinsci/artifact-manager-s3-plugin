@@ -27,8 +27,11 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.*;
 
 import java.io.IOException;
@@ -68,6 +71,7 @@ import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Item;
+import hudson.model.Run;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
 import hudson.slaves.DumbSlave;
@@ -76,6 +80,7 @@ import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfigura
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
+import java.util.Set;
 import jenkins.branch.BranchSource;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
@@ -93,7 +98,13 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -306,6 +317,26 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         assertThat(response.getContentType(), equalTo("application/json"));
     }
 
+    @Test
+    public void archiveWithDistinctArchiveAndWorkspacePaths() throws Exception {
+        String text = "some regular text";
+        ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
+
+        j.createSlave("remote", null, null);
+
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "node('remote') {\n" +
+                "  writeFile file: 'f.txt', text: '" + text + "'\n" +
+                "  archiveWithCustomPath(archivePath: 'what/an/interesting/path/to/f.txt', workspacePath: 'f.txt')\n" +
+                "}", true));
+        j.buildAndAssertSuccess(p);
+
+        WebResponse response = j.createWebClient().goTo("job/p/1/artifact/what/an/interesting/path/to/f.txt", null).getWebResponse();
+        assertThat(response.getContentAsString(), equalTo(text));
+        assertThat(response.getContentType(), equalTo("text/plain"));
+    }
+
     //@Test
     public void archiveSingleLargeFile() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
@@ -339,4 +370,34 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
     }
 
+    public static class ArchiveArtifactWithCustomPathStep extends Step {
+        private final String archivePath;
+        private final String workspacePath;
+        @DataBoundConstructor
+        public ArchiveArtifactWithCustomPathStep(String archivePath, String workspacePath) {
+            this.archivePath = archivePath;
+            this.workspacePath = workspacePath;
+        }
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return StepExecutions.synchronousNonBlocking(context, context2 -> {
+                context.get(Run.class).pickArtifactManager().archive(
+                        context.get(FilePath.class),
+                        context.get(Launcher.class),
+                        context.get(BuildListener.class),
+                        Collections.singletonMap(archivePath, workspacePath));
+                return null;
+            });
+        }
+        public static class DescriptorImpl extends StepDescriptor {
+            @Override
+            public String getFunctionName() {
+                return "archiveWithCustomPath";
+            }
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of(FilePath.class, Launcher.class, BuildListener.class);
+            }
+        }
+    }
 }
