@@ -132,7 +132,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             String blobPath = getBlobPath(path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(provider.getContainer());
-            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getKey()));
+            String contentType = contentTypes.get(entry.getKey());
+            if (contentType != null) {
+                blob.getMetadata().getContentMetadata().setContentType(contentType);
+            }
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
         }
 
