@@ -263,7 +263,7 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
         <artifactId>aws-java-sdk-minimal</artifactId>
-        <version>1.12.287-357.vf82d85a_6eefd</version>
+        <version>1.12.406-370.v8f993c987059</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
