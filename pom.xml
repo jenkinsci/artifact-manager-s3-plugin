@@ -253,18 +253,6 @@
         <scope>import</scope>
         <type>pom</type>
       </dependency>
-      <!--
-        aws-java-sdk-minimal, which we depend on not directly but rather transitively via
-        aws-global-configuration, declares a dependency on an old version of jackson2-api that
-        causes upper bounds errors. Depending on a more recent version works around the issue.
-        When aws-global-configuration depends on a recent version of aws-java-sdk-minimal, this can
-        be deleted.
-      -->
-      <dependency>
-        <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
-        <artifactId>aws-java-sdk-minimal</artifactId>
-        <version>1.12.406-370.v8f993c987059</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
