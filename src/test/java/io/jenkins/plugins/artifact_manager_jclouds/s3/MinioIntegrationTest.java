@@ -37,6 +37,7 @@ import java.time.Duration;
 import java.util.logging.Level;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
+import static org.hamcrest.Matchers.is;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
 import org.junit.AfterClass;
@@ -80,8 +81,9 @@ public class MinioIntegrationTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
+        // Beyond just isDockerAvailable, verify the OS:
         try {
-            DockerClientFactory.instance().client();
+            Assume.assumeThat("expect to run Docker on Linux containers", DockerClientFactory.instance().client().infoCmd().exec().getOsType(), is("linux"));
         } catch (Exception x) {
             Assume.assumeNoException("does not look like Docker is available", x);
         }
