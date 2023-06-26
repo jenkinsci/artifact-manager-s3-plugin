@@ -23,7 +23,7 @@
  */
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.FailingHttpStatusCodeException;
 import hudson.Functions;
 import hudson.init.impl.InstallUncaughtExceptionHandler;
 import hudson.model.Result;
