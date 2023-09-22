@@ -38,6 +38,7 @@ import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import org.apache.commons.lang.StringUtils;
+import static org.jclouds.Constants.PROPERTY_ENDPOINT;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
@@ -121,7 +122,7 @@ public class S3BlobStore extends BlobStoreProvider {
             if (hasCustomEndpoint) {
                 // We need to set the endpoint here and in the builder or listing
                 // will still use s3.amazonaws.com
-                props.setProperty(LocationConstants.ENDPOINT, getConfiguration().getResolvedCustomEndpoint());
+                props.setProperty(PROPERTY_ENDPOINT, getConfiguration().getResolvedCustomEndpoint());
             }
             props.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, Boolean.toString(!getConfiguration().getUsePathStyleUrl()));
 
