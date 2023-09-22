@@ -293,12 +293,9 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         // Map stash to url for download
         String blobPath = getBlobPath("stashes/" + name + ".tgz");
-        Blob blob = blobStore.getBlob(provider.getContainer(), blobPath);
-        if (blob == null) {
-            throw new AbortException(
-                    String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
-        }
-        URL url = provider.toExternalURL(blob, HttpMethod.GET);
+        final Blob blob = blobStore.blobBuilder(blobPath).build();
+        blob.getMetadata().setContainer(provider.getContainer());
+        final URL url = provider.toExternalURL(blob, HttpMethod.GET);
         workspace.act(new Unstash(url, listener));
         listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
     }
