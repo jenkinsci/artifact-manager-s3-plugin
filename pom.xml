@@ -272,6 +272,14 @@
           </rules>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.jenkins-ci.tools</groupId>
+        <artifactId>maven-hpi-plugin</artifactId>
+        <configuration>
+          <!-- TODO JCLOUDS-1620 -->
+          <maskClasses>com.google.gson.</maskClasses>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
