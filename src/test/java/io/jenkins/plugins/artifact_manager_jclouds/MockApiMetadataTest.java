@@ -38,10 +38,11 @@ public class MockApiMetadataTest {
     public void smokes() throws Exception {
         BlobStoreContext bsc = ContextBuilder.newBuilder("mock").buildView(BlobStoreContext.class);
         BlobStore bs = bsc.getBlobStore();
-        bs.createContainerInLocation(null, "container");
+        String container = "container";
+        bs.createContainerInLocation(null, container);
         Blob blob = bs.blobBuilder("file.txt").payload("content").build();
-        bs.putBlob("container", blob);
-        assertEquals("file.txt", bs.list("container").stream().map(StorageMetadata::getName).collect(Collectors.joining(":")));
+        bs.putBlob(container, blob);
+        assertEquals("file.txt", bs.list(container).stream().map(StorageMetadata::getName).collect(Collectors.joining(":")));
     }
 
 }

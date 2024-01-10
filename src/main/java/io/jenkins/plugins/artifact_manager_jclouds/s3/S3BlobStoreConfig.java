@@ -95,6 +95,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     
     private boolean useTransferAcceleration;
 
+    private boolean useAWSCLI;
+
     private boolean disableSessionToken;
     
     private String customEndpoint;
@@ -115,7 +117,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         private transient S3BlobStoreConfig config;
 
         S3BlobStoreTester(String container, String prefix, boolean useHttp,
-            boolean useTransferAcceleration, boolean usePathStyleUrl,
+            boolean useTransferAcceleration, boolean useAWSCLI, boolean usePathStyleUrl,
             boolean disableSessionToken, String customEndpoint,
             String customSigningRegion) {
             config = new S3BlobStoreConfig();
@@ -125,6 +127,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             config.setCustomSigningRegion(customSigningRegion);
             config.setUseHttp(useHttp);
             config.setUseTransferAcceleration(useTransferAcceleration);
+            config.setUseAWSCLI(useAWSCLI);
             config.setUsePathStyleUrl(usePathStyleUrl);
             config.setDisableSessionToken(disableSessionToken);
         }
@@ -211,6 +214,16 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     @DataBoundSetter
     public void setUseTransferAcceleration(boolean useTransferAcceleration){
         this.useTransferAcceleration = useTransferAcceleration;
+        save();
+    }
+
+    public boolean getUseAWSCLI() {
+        return useAWSCLI;
+    }
+
+    @DataBoundSetter
+    public void setUseAWSCLI(boolean useAWSCLI){
+        this.useAWSCLI = useAWSCLI;
         save();
     }
 
@@ -404,6 +417,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             @QueryParameter String prefix,
             @QueryParameter boolean useHttp,
             @QueryParameter boolean useTransferAcceleration,
+            @QueryParameter boolean useAWSCLI,
             @QueryParameter boolean usePathStyleUrl,
             @QueryParameter boolean disableSessionToken, 
             @QueryParameter String customEndpoint,
@@ -412,7 +426,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         FormValidation ret = FormValidation.ok("success");
         
         S3BlobStore provider = new S3BlobStoreTester(container, prefix, 
-                useHttp, useTransferAcceleration,usePathStyleUrl,
+                useHttp, useTransferAcceleration,useAWSCLI,usePathStyleUrl,
                 disableSessionToken, customEndpoint, customSigningRegion);
         
         try {

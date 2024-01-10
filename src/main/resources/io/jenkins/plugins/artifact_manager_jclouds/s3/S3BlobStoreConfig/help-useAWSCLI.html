@@ -1,0 +1,7 @@
+<div>This parameter switches the default AWS API mode to AWS CLI mode with use of
+    <a href="https://docs.aws.amazon.com/cli/latest/reference/s3/">AWS S3 Command Line Interface (CLI) file commands</a>
+    for artifact files upload to S3.
+<p>This option is a workaround for big files transfer API error for file bigger than 5Gb (MaxSizeAllowed=5368709120 bytes):</p>
+<pre>ERROR: Step ‘Archive the artifacts’ failed ..., response: 400 Bad Request,</pre>
+<pre> EntityTooLarge: Your proposed upload exceeds the maximum allowed size</pre>
+</div>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?jelly escape-by-default='true'?>
 <div>
-    A Jenkins plugin to keep artifacts and Pipeline stashes in Amazon S3.
+    A Jenkins plugin to keep artifacts and Pipeline stashes in Amazon S3 with AWS CLI option.
+    Use AWS CLI option for big artifacts (over 5Gb) upload to Amazon S3.
 </div>

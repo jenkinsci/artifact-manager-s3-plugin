@@ -19,6 +19,7 @@
     <useBeta>true</useBeta>
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
+<!--    <maven.test.skip>true</maven.test.skip>-->
   </properties>
 
   <name>Artifact Manager on S3 plugin</name>

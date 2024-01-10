@@ -7,6 +7,15 @@ Artifact Manager.
 Artifact manager implementation for Amazon S3, currently using the jClouds library.
 [wiki](https://wiki.jenkins.io/display/JENKINS/Artifact+Manager+S3+Plugin)
 
+Plugin artifacts upload methods depends on the Jenkins setting at
+Jenkins > Setting > AWS, checkbox 'Use AWS CLI for files upload to S3'.
+For artifacts upload to Amazon S3, plugin uses either [AWS API](https://docs.aws.amazon.com/apigateway/)
+(default) or [AWS CLI](https://aws.amazon.com/cli/).
+AWS API is the default method, but it fails to upload artifacts bigger than 5GB.
+See [JENKINS-56740](https://issues.jenkins.io/browse/JENKINS-56740)
+AWS CLI allows to upload large artifacts bigger than 5GB.
+
+
 # Prerequisites
 
 First of all, you will need a Amazon account, this Amazon account should have permissions over the S3 Bucket that 
@@ -103,7 +112,7 @@ For Google Cloud Storage:
 * the AWS Credentials need to correspond to a Google Service Account HMAC key (Access ID / Secret) - See [this documentation](https://cloud.google.com/storage/docs/authentication/hmackeys)
 * the custom endpoint is `storage.googleapis.com`
 
-Finally the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist 
+Finally, the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist
 and the AWS credentials configured have permission to create a S3 Bucket.
 
 # How to use  Artifact Manager on S3 plugin
@@ -255,6 +264,8 @@ mvn hpi:run
 Alternately, you can test against MinIO:
 
 ```bash
+docker run --rm -e MINIO_ROOT_USER=dummy -e MINIO_ROOT_PASSWORD=dummydummy -p 127.0.0.1:9000:9000 minio/minio server /data
+# WARNING: MINIO_ACCESS_KEY and MINIO_SECRET_KEY are deprecated:
 docker run --rm -e MINIO_ACCESS_KEY=dummy -e MINIO_SECRET_KEY=dummydummy -p 127.0.0.1:9000:9000 minio/minio server /data
 ```
 
@@ -772,7 +783,50 @@ java.lang.NullPointerException
 	at java.lang.Thread.run(Thread.java:748)
 ```
 
+
+# Build Plugin Package
+## Prerequisites
+ * RequireMavenVersion: 3.8.1 required to no longer download dependencies via HTTP (use HTTPS instead)
+
+## Build Plugin Package
+In order to build the plugin, run the following command in the plugin source code folder:
+```
+  mvn clean package
+```
+or
+```
+  mvn clean package -Dchangelist=desired-version
+```
+or
+```
+  mvn clean package -Dchangelist=$(git tag -l --sort=creatordate | tail -n 1).patch2.0.$(date +%Y%m%d-%H%M%S)
+```
+After any changes, possible to run just:
+```
+  mvn hpi:hpi
+```
+### Known Build Issues
+#### Disabled Plugin Tests
+Plugin tests are disabled because tests are not adopted for AWS CLI usage and would fail.
+#### Failed Build Target
+On a clean project, the build command `mvn package` is required prior `mvn hpi:hpi`.
+Otherwise `mvn hpi:hpi` would cause the following error to appear despite of the absence
+of the <description> in pom.xml and the existence of file src/main/resources/index.jelly:
+```
+[ERROR] Failed to execute goal org.jenkins-ci.tools:maven-hpi-plugin:3.32:hpi (default-cli) on project artifact-manager-s3:
+Missing target/classes/index.jelly. Delete any <description> from pom.xml and create src/main/resources/index.jelly:
+[ERROR] <?jelly escape-by-default='true'?>
+[ERROR] <div>
+[ERROR]     The description here…
+[ERROR] </div>
+```
+
+
 # Changelog
+
+## AWS CLI Patch
+- Use AWS CLI for files upload to avoid issues with big files upload.
+- Tests are disabled as not adapted for AWS CLI usage.
 
 ## 1.7 and newer
 

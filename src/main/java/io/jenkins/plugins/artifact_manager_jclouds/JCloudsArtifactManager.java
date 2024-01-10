@@ -27,6 +27,7 @@ package io.jenkins.plugins.artifact_manager_jclouds;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.Functions;
 import hudson.Launcher;
 import hudson.Util;
 import hudson.model.BuildListener;
@@ -37,8 +38,8 @@ import hudson.slaves.WorkspaceList;
 import hudson.util.DirScanner;
 import hudson.util.io.ArchiverFactory;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.Functions;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
+import io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig;
 import io.jenkins.plugins.httpclient.RobustHTTPClient;
 import java.io.File;
 import java.io.IOException;
@@ -121,23 +122,66 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     public void archive(FilePath workspace, Launcher launcher, BuildListener listener, Map<String, String> artifacts)
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
-        Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.values()), listener));
-        LOGGER.fine(() -> "guessing content types: " + contentTypes);
-        Map<String, URL> artifactUrls = new HashMap<>();
-        BlobStore blobStore = getContext().getBlobStore();
 
-        // Map artifacts to urls for upload
-        for (Map.Entry<String, String> entry : artifacts.entrySet()) {
-            String path = "artifacts/" + entry.getKey();
-            String blobPath = getBlobPath(path);
-            Blob blob = blobStore.blobBuilder(blobPath).build();
-            blob.getMetadata().setContainer(provider.getContainer());
-            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-            artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
+        // TODO: AWS switch API to CLI here
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        int artifactUrlsSize = 0;
+        if (config.getUseAWSCLI()){
+            listener.getLogger().printf("AWS option selected: Use AWS CLI...\n");
+            LOGGER.fine(() -> "ignore guessing content types");
+            Map<String, String> artifactUrls = new HashMap<>();
+
+            // Map artifacts to urls for upload
+            for (Map.Entry<String, String> entry : artifacts.entrySet()) {
+                String path = "artifacts/" + entry.getKey();
+                String blobPath = getBlobPath(path);
+                String remotePath = "s3://" + provider.getContainer() + "/" + blobPath;
+                listener.getLogger().printf("Copy %s to %s%n", entry.getValue(), remotePath);
+
+                String[] cmd = {"aws",
+                        "s3",
+                        "cp",
+                        "--quiet",
+                        "--no-guess-mime-type",
+                        entry.getValue(), remotePath};
+                int cmdResult = launcher.launch(cmd, new String[0], null, listener.getLogger(), workspace).join();
+                if (cmdResult == 0) {
+                    artifactUrls.put(entry.getValue(), remotePath);
+                }
+                else {
+                    listener.getLogger().printf("Copy FAILED! %s%n", cmdResult);
+                }
+            }
+            artifactUrlsSize = artifactUrls.size();
+            int failedUploads = artifacts.size() - artifactUrlsSize;
+            if ( failedUploads > 0 ) {
+                String msg = String.format("FAILED AWS S3 CLI upload for %s artifact(s) of %s%n", failedUploads, artifacts.size());
+                listener.getLogger().printf(msg);
+                throw new InterruptedException(msg);
+            }
+        } else {
+            listener.getLogger().printf("AWS option selected:: Use AWS API...\n");
+            Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.values()), listener));
+            LOGGER.fine(() -> "guessing content types: " + contentTypes);
+            Map<String, URL> artifactUrls = new HashMap<>();
+            BlobStore blobStore = getContext().getBlobStore();
+
+            // Map artifacts to urls for upload
+            for (Map.Entry<String, String> entry : artifacts.entrySet()) {
+                String path = "artifacts/" + entry.getKey();
+                String blobPath = getBlobPath(path);
+                Blob blob = blobStore.blobBuilder(blobPath).build();
+                blob.getMetadata().setContainer(provider.getContainer());
+                blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
+                artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
+            }
+
+            workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
+            artifactUrlsSize = artifactUrls.size();
         }
 
-        workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
-        listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
+        // Analyse and log upload results
+        listener.getLogger().printf("Uploaded %d artifact(s) to %s%n", artifactUrlsSize, provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
 
     private static class ContentTypeGuesser extends MasterToSlaveFileCallable<Map<String, String>> {
