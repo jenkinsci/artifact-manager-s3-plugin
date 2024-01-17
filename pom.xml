@@ -191,10 +191,6 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
-          <groupId>joda-time</groupId>
-          <artifactId>joda-time</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>com.google.code.gson</groupId>
           <artifactId>gson</artifactId>
         </exclusion>
@@ -205,12 +201,6 @@
       <artifactId>git</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>joda-time</groupId>
-          <artifactId>joda-time</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -268,6 +258,12 @@
         <version>2671.va_73a_b_4c103fb_</version>
         <scope>import</scope>
         <type>pom</type>
+      </dependency>
+      <!-- TODO until in BOM -->
+      <dependency>
+        <groupId>io.jenkins.plugins</groupId>
+        <artifactId>aws-global-configuration</artifactId>
+        <version>130.v35b_7b_96f53c3</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
