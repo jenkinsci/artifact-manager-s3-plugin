@@ -141,7 +141,7 @@ public final class MockBlobStore extends BlobStoreProvider {
                 }).
                 create();
             server.start();
-            baseURL = new URL("http://" + server.getInetAddress().getHostName() + ":" + server.getLocalPort() + "/");
+            baseURL = new URL("http", server.getInetAddress().getHostName(), server.getLocalPort(), "/");
             LOGGER.log(Level.INFO, "Mock server running at {0}", baseURL);
         }
         return context;
