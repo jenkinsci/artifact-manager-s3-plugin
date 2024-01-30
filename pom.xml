@@ -15,7 +15,7 @@
 
   <properties>
     <changelist>999999-SNAPSHOT</changelist>
-    <jenkins.version>2.401.3</jenkins.version>
+    <jenkins.version>2.443</jenkins.version>
     <useBeta>true</useBeta>
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
@@ -72,6 +72,10 @@
           <groupId>com.sun.xml.bind</groupId>
           <artifactId>jaxb-impl</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -82,6 +86,10 @@
         <exclusion>
           <groupId>com.google.code.gson</groupId>
           <artifactId>gson</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -150,6 +158,10 @@
         <exclusion>
           <groupId>com.google.code.gson</groupId>
           <artifactId>gson</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
         </exclusion>
       </exclusions>
       <scope>test</scope>
@@ -254,16 +266,10 @@
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.401.x</artifactId>
-        <version>2671.va_73a_b_4c103fb_</version>
+        <artifactId>bom-2.440.x</artifactId>
+        <version>2779.v391653d9c5da_</version>
         <scope>import</scope>
         <type>pom</type>
-      </dependency>
-      <!-- TODO until in BOM -->
-      <dependency>
-        <groupId>io.jenkins.plugins</groupId>
-        <artifactId>aws-global-configuration</artifactId>
-        <version>130.v35b_7b_96f53c3</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

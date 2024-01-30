@@ -106,6 +106,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
+import org.junit.AssumptionViolatedException;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -117,7 +118,13 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @BeforeClass
     public static void live() {
-        S3AbstractTest.live();
+        try {
+            S3AbstractTest.live();
+        } catch (AssumptionViolatedException x) {
+            // TODO Surefire seems to not display these at all?
+            x.printStackTrace();
+            throw x;
+        }
     }
 
     private static DockerImage image;
