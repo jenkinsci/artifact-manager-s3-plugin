@@ -5,8 +5,8 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>4.70</version>
-    <relativePath/>
+    <version>4.76</version>
+    <relativePath />
   </parent>
   <groupId>io.jenkins.plugins</groupId>
   <artifactId>artifact-manager-s3</artifactId>
@@ -15,7 +15,7 @@
 
   <properties>
     <changelist>999999-SNAPSHOT</changelist>
-    <jenkins.version>2.361.4</jenkins.version>
+    <jenkins.version>2.443</jenkins.version>
     <useBeta>true</useBeta>
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
@@ -42,7 +42,6 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>aws-global-configuration</artifactId>
-      <version>108.v47b_fd43dfec6</version>
     </dependency>
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
@@ -51,11 +50,15 @@
     <dependency>
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
-      <version>2.8.0</version>
+      <version>2.9.1</version>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-io</groupId> <!-- take version from Jenkins Core -->
+          <artifactId>commons-io</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -69,17 +72,31 @@
           <groupId>com.sun.xml.bind</groupId>
           <artifactId>jaxb-impl</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
-      <version>191.vcb_f183ce58b_9</version>
+      <exclusions>
+        <!-- TODO JCLOUDS-1620 -->
+        <exclusion>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>sso</artifactId>
-      <version>2.20.92</version>
+      <version>2.22.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -120,7 +137,7 @@
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
-      <version>166.v912b_95083ffe</version>
+      <version>178.v2c7d2343886b_</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -136,6 +153,17 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>ssh-slaves</artifactId>
+      <exclusions>
+        <!-- TODO JCLOUDS-1620 -->
+        <exclusion>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
+        </exclusion>
+      </exclusions>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -175,10 +203,6 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
-          <groupId>joda-time</groupId>
-          <artifactId>joda-time</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>com.google.code.gson</groupId>
           <artifactId>gson</artifactId>
         </exclusion>
@@ -189,12 +213,6 @@
       <artifactId>git</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>joda-time</groupId>
-          <artifactId>joda-time</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -226,7 +244,7 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
-      <version>1.18.3</version>
+      <version>1.19.3</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -248,8 +266,8 @@
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.361.x</artifactId>
-        <version>1948.veb_1fd345d3a_e</version>
+        <artifactId>bom-2.440.x</artifactId>
+        <version>2779.v391653d9c5da_</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
