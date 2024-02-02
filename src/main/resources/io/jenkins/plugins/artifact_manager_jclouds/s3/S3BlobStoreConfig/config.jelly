@@ -29,14 +29,21 @@
         <f:entry title="${%Use Transfer Acceleration}" field="useTransferAcceleration">
             <f:checkbox/>
         </f:entry>
-        <f:entry title="${%Use AWS CLI for files upload to S3}" field="useAWSCLI">
-            <f:checkbox/>
-        </f:entry>
         <f:entry title="${%Disable Session Token}" field="disableSessionToken">
             <f:checkbox/>
         </f:entry>
+        <f:entry title="${%Use AWS CLI for files upload to S3}" field="useAWSCLI">
+            <f:checkbox/>
+        </f:entry>
+        <f:entry name="customStorageClass" title="S3 Storage Class" field="customStorageClass">
+            <select name="customStorageClass">
+                <option value="STANDARD" selected="${instance.customStorageClass.equals('STANDARD')?'true':null}">STANDARD</option>
+                <option value="STANDARD_IA"  selected="${instance.customStorageClass.equals('STANDARD_IA')?'true':null}"
+                >STANDARD_IA</option>
+            </select>
+        </f:entry>
         <f:validateButton title="Validate S3 Bucket configuration" progress="Validate..." method="validateS3BucketConfig"
-                          with="container,prefix,useHttp,useTransferAcceleration,useAWSCLI,usePathStyleUrl,disableSessionToken,customEndpoint,customSigningRegion"/>
+                          with="container,prefix,useHttp,useTransferAcceleration,useAWSCLI,customStorageClass,usePathStyleUrl,disableSessionToken,customEndpoint,customSigningRegion"/>
         <f:validateButton title="Create S3 Bucket from configuration" progress="Creating S3 Bucket..." method="createS3Bucket"
                           with="container,disableSessionToken"/>
     </f:section>

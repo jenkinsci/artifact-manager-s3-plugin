@@ -123,8 +123,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             throws IOException, InterruptedException {
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
 
-        // TODO: AWS switch API to CLI here
+        // Switch AWS API to S3 CLI mode according to the UseAWSCLI config option checkmark status
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        String customStorageClass = config.getCustomStorageClass();
+        listener.getLogger().printf("AWS Storage Class selected option: %s%n", customStorageClass);
         int artifactUrlsSize = 0;
         if (config.getUseAWSCLI()){
             listener.getLogger().printf("AWS option selected: Use AWS CLI...\n");
@@ -138,21 +140,22 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 String remotePath = "s3://" + provider.getContainer() + "/" + blobPath;
                 listener.getLogger().printf("Copy %s to %s%n", entry.getValue(), remotePath);
 
-                String[] cmd = {"aws",
-                        "s3",
-                        "cp",
-                        "--quiet",
-                        "--no-guess-mime-type",
-                        entry.getValue(), remotePath,
-                        "--storage-class", "STANDARD_IA"};
-                int cmdResult = launcher.launch(cmd, new String[0], null, listener.getLogger(), workspace).join();
-                if (cmdResult == 0) {
-                    artifactUrls.put(entry.getValue(), remotePath);
-                }
-                else {
-                    listener.getLogger().printf("Copy FAILED! %s%n", cmdResult);
-                }
-            }
+                // Apply customStorageClass according to the Storage Class option selected (STANDARD or STANDARD_IA)
+		        String[] cmd = {"aws",
+		                "s3",
+		                "cp",
+		                "--quiet",
+		                "--no-guess-mime-type",
+		                entry.getValue(), remotePath,
+                        "--storage-class", customStorageClass}; // (STANDARD or STANDARD_IA)
+		        int cmdResult = launcher.launch(cmd, new String[0], null, listener.getLogger(), workspace).join();
+		        if (cmdResult == 0) {
+		            artifactUrls.put(entry.getValue(), remotePath);
+		        }
+		        else {
+		            listener.getLogger().printf("Copy FAILED! %s%n", cmdResult);
+		        }
+		    }
             artifactUrlsSize = artifactUrls.size();
             int failedUploads = artifacts.size() - artifactUrlsSize;
             if ( failedUploads > 0 ) {

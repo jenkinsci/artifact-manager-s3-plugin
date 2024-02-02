@@ -2,5 +2,7 @@
 <?jelly escape-by-default='true'?>
 <div>
     A Jenkins plugin to keep artifacts and Pipeline stashes in Amazon S3 with AWS CLI option.
-    Use AWS CLI option for big artifacts (over 5Gb) upload to Amazon S3 with STANDARD_IA S3 Storage Class.
+    Use AWS CLI (Command Line Interface) instead of the default AWS API for:
+    (i) big artifacts (over 5Gb) upload to Amazon S3;
+    (ii) option to support the STANDARD_IA S3 Storage Class instead of the default STANDARD.
 </div>

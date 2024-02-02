@@ -27,6 +27,8 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 import java.io.IOException;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.Collection;
+import java.util.ArrayList;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -97,6 +99,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     private boolean useAWSCLI;
 
+    private String customStorageClass;
+
     private boolean disableSessionToken;
     
     private String customEndpoint;
@@ -117,7 +121,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         private transient S3BlobStoreConfig config;
 
         S3BlobStoreTester(String container, String prefix, boolean useHttp,
-            boolean useTransferAcceleration, boolean useAWSCLI, boolean usePathStyleUrl,
+            boolean useTransferAcceleration, boolean useAWSCLI, String customStorageClass,boolean usePathStyleUrl,
             boolean disableSessionToken, String customEndpoint,
             String customSigningRegion) {
             config = new S3BlobStoreConfig();
@@ -128,6 +132,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             config.setUseHttp(useHttp);
             config.setUseTransferAcceleration(useTransferAcceleration);
             config.setUseAWSCLI(useAWSCLI);
+            config.setCustomStorageClass(customStorageClass);
             config.setUsePathStyleUrl(usePathStyleUrl);
             config.setDisableSessionToken(disableSessionToken);
         }
@@ -224,6 +229,17 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     @DataBoundSetter
     public void setUseAWSCLI(boolean useAWSCLI){
         this.useAWSCLI = useAWSCLI;
+        save();
+    }
+
+    public String getCustomStorageClass() {
+        return customStorageClass;
+    }
+
+    @DataBoundSetter
+    public void setCustomStorageClass(String customStorageClass){
+        checkValue(doCheckCustomStorageClass(customStorageClass));
+        this.customStorageClass = customStorageClass;
         save();
     }
 
@@ -369,6 +385,34 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
+    public FormValidation doCheckStorageClass(@QueryParameter String customStorageClass,
+                                                    @QueryParameter boolean useAWSCLI) {
+        String values = "INFO: Upload mode: " + (useAWSCLI?"AWS CLI":"AWS API")
+                + " with StorageClass " + customStorageClass;
+        FormValidation ret = FormValidation.ok(values);
+        if (StringUtils.isNotBlank(customStorageClass)) {
+            if (StringUtils.equals(
+                    StringUtils.upperCase(customStorageClass),
+                    StringUtils.upperCase("STANDARD_IA")
+                    )) {
+                if (!useAWSCLI) {
+                    ret = FormValidation.warning("WARNING: " + customStorageClass
+                            + " is unsupported Storage Class in the "
+                            + (useAWSCLI?"AWS CLI":"AWS API") + " mode! "
+                            + "It is supported only in AWS CLI mode. Check to Use AWS CLI for files upload to S3. "
+                            + "CAUTION: STANDARD will be used regardless of a selected Storage Class!"
+                    );
+                }
+            }
+        }
+        return ret;
+    }
+
+    public FormValidation doCheckCustomStorageClass(@QueryParameter String customStorageClass) {
+        return this.doCheckStorageClass(customStorageClass, this.useAWSCLI);
+    }
+
+
     /**
      * create an S3 Bucket.
      * @param name name of the S3 Bucket.
@@ -418,30 +462,54 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             @QueryParameter boolean useHttp,
             @QueryParameter boolean useTransferAcceleration,
             @QueryParameter boolean useAWSCLI,
+            @QueryParameter String customStorageClass,
             @QueryParameter boolean usePathStyleUrl,
             @QueryParameter boolean disableSessionToken, 
             @QueryParameter String customEndpoint,
             @QueryParameter String customSigningRegion) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-        FormValidation ret = FormValidation.ok("success");
-        
+        Collection<FormValidation> validations = new ArrayList<FormValidation>();
+
+
         S3BlobStore provider = new S3BlobStoreTester(container, prefix, 
-                useHttp, useTransferAcceleration,useAWSCLI,usePathStyleUrl,
+                useHttp, useTransferAcceleration,useAWSCLI,customStorageClass,usePathStyleUrl,
                 disableSessionToken, customEndpoint, customSigningRegion);
-        
+
+        String step = "Clouds Virtual File Validation ";
         try {
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix.replaceFirst("/$", ""));
             jc.list();
+            validations.add(FormValidation.ok("OK: " + step));
         } catch (Throwable t){
-            String msg = processExceptionMessage(t);
-            ret = FormValidation.error(t, StringUtils.abbreviate(msg, 200));
+            validations.add(FormValidation.error(t, "FAILED: " + step
+                    + StringUtils.abbreviate(processExceptionMessage(t), 200)));
         }
+
+        step = "Get Bucket Location Validation ";
         try {
             provider.getConfiguration().checkGetBucketLocation(container, disableSessionToken);
+            validations.add(FormValidation.ok("OK: " + step));
         } catch (Throwable t){
-            ret = FormValidation.warning(t, "GetBucketLocation failed");
+            validations.add(FormValidation.warning(t, "FAILED: " + step
+                    + StringUtils.abbreviate(processExceptionMessage(t), 200)));
         }
-        return ret;
-    }
 
+        step = "Storage Class Validation " +
+                "\n Tested for useAWSCLI=" + (useAWSCLI?" true":" false")
+                + ", StorageClass=" + customStorageClass;
+        try {
+            FormValidation fv = provider.getConfiguration().doCheckStorageClass(customStorageClass,useAWSCLI);
+            validations.add(FormValidation.ok("OK: " + step));
+            validations.add(fv);
+        } catch (Throwable t){
+            validations.add(FormValidation.warning(t, "FAILED: " + step
+                    + StringUtils.abbreviate(processExceptionMessage(t), 200)));
+        }
+
+        if ( FormValidation.aggregate(validations).kind != FormValidation.Kind.ERROR) {
+            validations.add(FormValidation.ok("\nSUCCESS."));
+        }
+
+        return FormValidation.aggregate(validations);
+    }
 }
