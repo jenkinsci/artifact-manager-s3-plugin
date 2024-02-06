@@ -364,7 +364,10 @@ public class JCloudsVirtualFile extends VirtualFile {
             List<String> paths = new ArrayList<>();
             for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive())) {
                 String path = sm.getName();
-                assert path.startsWith(prefix);
+                if (!path.startsWith(prefix)) {
+                    LOGGER.warning(() -> path + " does not start with " + prefix);
+                    continue;
+                }
                 paths.add(path);
             }
             if (paths.isEmpty()) {
