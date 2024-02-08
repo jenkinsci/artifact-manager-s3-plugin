@@ -143,7 +143,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                         "cp",
                         "--quiet",
                         "--no-guess-mime-type",
-                        entry.getValue(), remotePath};
+                        entry.getValue(), remotePath,
+                        "--storage-class", "STANDARD_IA"};
                 int cmdResult = launcher.launch(cmd, new String[0], null, listener.getLogger(), workspace).join();
                 if (cmdResult == 0) {
                     artifactUrls.put(entry.getValue(), remotePath);
