@@ -63,7 +63,7 @@ For more details check [AWS Credentials](#aws-credentials)
 
 * S3 Bucket Region: Region to use to generate the URLs to get/put artifacts, by default it is autodetected.
 
-After that you can configure the S3 Bucket settings on Manage Jenkins/Amazon Web Services Configuration on the section `Amazon S3 Bucket Access settings` in 
+After that you can configure the S3 Bucket settings on Manage Jenkins/Amazon Web Services Configuration on the section `Artifact Manager Amazon S3 Bucket` in 
 the same configuration page.
 
 * S3 Bucket Name: Name of the S3 Bucket to use to store artifacts.

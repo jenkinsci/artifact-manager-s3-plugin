@@ -262,7 +262,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     @NonNull
     @Override
     public String getDisplayName() {
-        return "Amazon S3 Bucket Access settings";
+        return "Artifact Manager Amazon S3 Bucket";
     }
 
     @NonNull
