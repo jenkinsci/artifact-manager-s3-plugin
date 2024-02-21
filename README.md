@@ -825,7 +825,8 @@ Missing target/classes/index.jelly. Delete any <description> from pom.xml and cr
 # Changelog
 
 ## AWS CLI Patch
-- Use AWS CLI for files upload to avoid issues with big files upload.
+- Add option to use AWS CLI for big files upload to avoid issues with big files having over 5Gb.
+- Add option to set AWS S3 Storage Class STANDARD_IA instead of the default STANDARD.
 - Tests are disabled as not adapted for AWS CLI usage.
 
 ## 1.7 and newer
