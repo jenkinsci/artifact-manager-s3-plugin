@@ -388,7 +388,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     public FormValidation doCheckStorageClass(@QueryParameter String customStorageClass,
                                                     @QueryParameter boolean useAWSCLI) {
         String values = "INFO: Upload mode: " + (useAWSCLI?"AWS CLI":"AWS API")
-                + " with StorageClass " + customStorageClass;
+                        + ", S3 Storage Class: " + customStorageClass;
         FormValidation ret = FormValidation.ok(values);
         if (StringUtils.isNotBlank(customStorageClass)) {
             if (StringUtils.equals(
@@ -399,7 +399,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
                     ret = FormValidation.warning("WARNING: " + customStorageClass
                             + " is not supported Storage Class in the AWS API mode! "
                             + "It is supported only in AWS CLI mode. Check to Use AWS CLI for files upload to S3. "
-                            + "CAUTION: STANDARD will be used regardless of a selected Storage Class!"
+                            + "CAUTION: STANDARD Storage Class will be used regardless of an option selected!"
                     );
                 }
             }
@@ -493,9 +493,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
                     + StringUtils.abbreviate(processExceptionMessage(t), 200)));
         }
 
-        step = "Storage Class Validation " +
-                "\n Tested for useAWSCLI=" + (useAWSCLI?" true":" false")
-                + ", StorageClass=" + customStorageClass;
+        step = "Storage Class Validation ";
+//               " (" + customStorageClass + " in AWS " + (useAWSCLI?"CLI":"API") + " upload mode) ";
         try {
             FormValidation fv = provider.getConfiguration().doCheckStorageClass(customStorageClass,useAWSCLI);
             validations.add(FormValidation.ok("OK: " + step));

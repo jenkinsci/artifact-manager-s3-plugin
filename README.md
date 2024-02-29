@@ -85,6 +85,8 @@ the same configuration page.
 * Use Insecure HTTP: Use URLs with the http protocol instead of the https protocol.
 * Use Transfer Acceleration: Use [S3 Transfer Acceleration](https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
 * Disable Session Token: When this option is enabled the plugin won't contact AWS for a session token and will just use the access key and secret key as configured by the Amazon Credentials plugin.
+* Use [AWS CLI](https://aws.amazon.com/cli/) for files upload to S3: When this option is enabled the plugin will use [AWS CLI](https://aws.amazon.com/cli/) to upload artifacts to S3. It allows to upload files over 5Gb (fix for [JENKINS-56740](https://issues.jenkins.io/browse/JENKINS-56740)).
+* Storage Class: When AWS CLI option is enabled, the plugin will AWS upload artifacts with selected [S3 Storage Class](https://aws.amazon.com/s3/storage-classes/). Dy default, this selection is ignored and plugin upload artifacts with STANDARD storage class.
 
 ![](images/bucket-settings.png)
 
@@ -107,6 +109,19 @@ If you're using a non AWS S3 service, you will need to use a custom endpoint, us
 
 ![](images/custom-s3-service-configuration.png)
 
+For artifacts larger than 5Gb, check to use [AWS CLI](https://aws.amazon.com/cli/) for uploads to S3. 
+Otherwise, upload will fail in the default AWS API mode.
+
+Besides, with [AWS CLI](https://aws.amazon.com/cli/) mode, you may choose a 
+[S3 Storage Class](https://aws.amazon.com/s3/storage-classes/) for uploaded artifacts: 
+ - **STANDARD** - [Amazon S3 Standard (S3 Standard)](https://aws.amazon.com/s3/storage-classes/#General_purpose) is a default Storage Class.
+ - **STANDARD_IA** - [Amazon S3 Standard-Infrequent Access (S3 Standard-IA)](https://aws.amazon.com/s3/storage-classes/#Infrequent_access)
+
+Beware! Only _Standard_ S3 Storage Class is applied for artifacts uploaded in the default AWS API mode.
+
+![](images/upload-configugation.png)
+
+
 For Google Cloud Storage:
 
 * the AWS Credentials need to correspond to a Google Service Account HMAC key (Access ID / Secret) - See [this documentation](https://cloud.google.com/storage/docs/authentication/hmackeys)
@@ -114,6 +129,9 @@ For Google Cloud Storage:
 
 Finally, the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist
 and the AWS credentials configured have permission to create a S3 Bucket.
+
+![](images/custom-s3-service-configuration.png)
+
 
 # How to use  Artifact Manager on S3 plugin
 
@@ -199,6 +217,7 @@ In order to delete artifacts on the S3 Bucket, you would have to add the propert
 In order to delete stashes on the S3 Bucket, you would have to add the property 
 `-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes=true`  to your Jenkins JVM properties
 , if it is not set the stash will not be deleted from S3 when the corresponding build is deleted.
+
 
 # AWS Credentials
 
@@ -806,8 +825,6 @@ After any changes, possible to run just:
   mvn hpi:hpi
 ```
 ### Known Build Issues
-#### Disabled Plugin Tests
-Plugin tests are disabled because tests are not adopted for AWS CLI usage and would fail.
 #### Failed Build Target
 On a clean project, the build command `mvn package` is required prior `mvn hpi:hpi`.
 Otherwise `mvn hpi:hpi` would cause the following error to appear despite of the absence
@@ -823,11 +840,6 @@ Missing target/classes/index.jelly. Delete any <description> from pom.xml and cr
 
 
 # Changelog
-
-## AWS CLI Patch
-- Add option to use AWS CLI for big files upload to avoid issues with big files having over 5Gb.
-- Add option to set AWS S3 Storage Class STANDARD_IA instead of the default STANDARD.
-- Tests are disabled as not adapted for AWS CLI usage.
 
 ## 1.7 and newer
 
