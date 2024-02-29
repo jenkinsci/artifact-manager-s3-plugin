@@ -129,7 +129,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         listener.getLogger().printf("AWS Storage Class selected option: %s%n", customStorageClass);
         int artifactUrlsSize = 0;
         if (config.getUseAWSCLI()){
-            listener.getLogger().printf("AWS option selected: Use AWS CLI...\n");
+            listener.getLogger().printf("AWS option selected: Use AWS CLI...%n");
             LOGGER.fine(() -> "ignore guessing content types");
             Map<String, String> artifactUrls = new HashMap<>();
 
@@ -164,7 +164,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 throw new InterruptedException(msg);
             }
         } else {
-            listener.getLogger().printf("AWS option selected:: Use AWS API...\n");
+            listener.getLogger().printf("AWS option selected:: Use AWS API...%n");
             Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.values()), listener));
             LOGGER.fine(() -> "guessing content types: " + contentTypes);
             Map<String, URL> artifactUrls = new HashMap<>();

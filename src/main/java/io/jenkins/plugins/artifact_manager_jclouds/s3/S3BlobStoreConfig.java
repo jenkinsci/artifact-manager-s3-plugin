@@ -397,8 +397,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
                     )) {
                 if (!useAWSCLI) {
                     ret = FormValidation.warning("WARNING: " + customStorageClass
-                            + " is unsupported Storage Class in the "
-                            + (useAWSCLI?"AWS CLI":"AWS API") + " mode! "
+                            + " is not supported Storage Class in the AWS API mode! "
                             + "It is supported only in AWS CLI mode. Check to Use AWS CLI for files upload to S3. "
                             + "CAUTION: STANDARD will be used regardless of a selected Storage Class!"
                     );
