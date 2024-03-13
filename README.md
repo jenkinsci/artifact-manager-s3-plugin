@@ -7,6 +7,15 @@ Artifact Manager.
 Artifact manager implementation for Amazon S3, currently using the jClouds library.
 [wiki](https://wiki.jenkins.io/display/JENKINS/Artifact+Manager+S3+Plugin)
 
+Plugin artifacts upload methods depends on the Jenkins setting at
+Jenkins > Setting > AWS, checkbox 'Use AWS CLI for files upload to S3'.
+For artifacts upload to Amazon S3, plugin uses either [AWS API](https://docs.aws.amazon.com/apigateway/)
+(default) or [AWS CLI](https://aws.amazon.com/cli/).
+AWS API is the default method, but it fails to upload artifacts bigger than 5GB.
+See [JENKINS-56740](https://issues.jenkins.io/browse/JENKINS-56740)
+AWS CLI allows to upload large artifacts bigger than 5GB.
+
+
 # Prerequisites
 
 First of all, you will need a Amazon account, this Amazon account should have permissions over the S3 Bucket that 
@@ -76,6 +85,8 @@ the same configuration page.
 * Use Insecure HTTP: Use URLs with the http protocol instead of the https protocol.
 * Use Transfer Acceleration: Use [S3 Transfer Acceleration](https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
 * Disable Session Token: When this option is enabled the plugin won't contact AWS for a session token and will just use the access key and secret key as configured by the Amazon Credentials plugin.
+* Use [AWS CLI](https://aws.amazon.com/cli/) for files upload to S3: When this option is enabled the plugin will use [AWS CLI](https://aws.amazon.com/cli/) to upload artifacts to S3. It allows to upload files over 5Gb (fix for [JENKINS-56740](https://issues.jenkins.io/browse/JENKINS-56740)).
+* Storage Class: When AWS CLI option is enabled, the plugin will AWS upload artifacts with selected [S3 Storage Class](https://aws.amazon.com/s3/storage-classes/). Dy default, this selection is ignored and plugin upload artifacts with STANDARD storage class.
 
 ![](images/bucket-settings.png)
 
@@ -98,13 +109,29 @@ If you're using a non AWS S3 service, you will need to use a custom endpoint, us
 
 ![](images/custom-s3-service-configuration.png)
 
+For artifacts larger than 5Gb, check to use [AWS CLI](https://aws.amazon.com/cli/) for uploads to S3. 
+Otherwise, upload will fail in the default AWS API mode.
+
+Besides, with [AWS CLI](https://aws.amazon.com/cli/) mode, you may choose a 
+[S3 Storage Class](https://aws.amazon.com/s3/storage-classes/) for uploaded artifacts: 
+ - **STANDARD** - [Amazon S3 Standard (S3 Standard)](https://aws.amazon.com/s3/storage-classes/#General_purpose) is a default Storage Class.
+ - **STANDARD_IA** - [Amazon S3 Standard-Infrequent Access (S3 Standard-IA)](https://aws.amazon.com/s3/storage-classes/#Infrequent_access)
+
+Beware! Only _Standard_ S3 Storage Class is applied for artifacts uploaded in the default AWS API mode.
+
+![](images/upload-configugation.png)
+
+
 For Google Cloud Storage:
 
 * the AWS Credentials need to correspond to a Google Service Account HMAC key (Access ID / Secret) - See [this documentation](https://cloud.google.com/storage/docs/authentication/hmackeys)
 * the custom endpoint is `storage.googleapis.com`
 
-Finally the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist 
+Finally, the "Create S3 Bucket from configuration" button allow you to create the bucket if it does not exist
 and the AWS credentials configured have permission to create a S3 Bucket.
+
+![](images/custom-s3-service-configuration.png)
+
 
 # How to use  Artifact Manager on S3 plugin
 
@@ -191,6 +218,7 @@ In order to delete stashes on the S3 Bucket, you would have to add the property
 `-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes=true`  to your Jenkins JVM properties
 , if it is not set the stash will not be deleted from S3 when the corresponding build is deleted.
 
+
 # AWS Credentials
 
 Artifact Manager on S3 plugin needs an AWS credentials in order to access to the S3 Bucket, you can select one on the
@@ -255,6 +283,8 @@ mvn hpi:run
 Alternately, you can test against MinIO:
 
 ```bash
+docker run --rm -e MINIO_ROOT_USER=dummy -e MINIO_ROOT_PASSWORD=dummydummy -p 127.0.0.1:9000:9000 minio/minio server /data
+# WARNING: MINIO_ACCESS_KEY and MINIO_SECRET_KEY are deprecated:
 docker run --rm -e MINIO_ACCESS_KEY=dummy -e MINIO_SECRET_KEY=dummydummy -p 127.0.0.1:9000:9000 minio/minio server /data
 ```
 
@@ -771,6 +801,43 @@ java.lang.NullPointerException
 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
 	at java.lang.Thread.run(Thread.java:748)
 ```
+
+
+# Build Plugin Package
+## Prerequisites
+ * RequireMavenVersion: 3.8.1 required to no longer download dependencies via HTTP (use HTTPS instead)
+
+## Build Plugin Package
+In order to build the plugin, run the following command in the plugin source code folder:
+```
+  mvn clean package
+```
+or
+```
+  mvn clean package -Dchangelist=desired-version
+```
+or
+```
+  mvn clean package -Dchangelist=$(git tag -l --sort=creatordate | tail -n 1).patch2.0.$(date +%Y%m%d-%H%M%S)
+```
+After any changes, possible to run just:
+```
+  mvn hpi:hpi
+```
+### Known Build Issues
+#### Failed Build Target
+On a clean project, the build command `mvn package` is required prior `mvn hpi:hpi`.
+Otherwise `mvn hpi:hpi` would cause the following error to appear despite of the absence
+of the <description> in pom.xml and the existence of file src/main/resources/index.jelly:
+```
+[ERROR] Failed to execute goal org.jenkins-ci.tools:maven-hpi-plugin:3.32:hpi (default-cli) on project artifact-manager-s3:
+Missing target/classes/index.jelly. Delete any <description> from pom.xml and create src/main/resources/index.jelly:
+[ERROR] <?jelly escape-by-default='true'?>
+[ERROR] <div>
+[ERROR]     The description here…
+[ERROR] </div>
+```
+
 
 # Changelog
 
