@@ -39,7 +39,6 @@ This is an example policy
             "Action": [
                 "s3:PutObject",
                 "s3:GetObject",
-                "s3:DeleteObject",
                 "s3:ListObjects"
             ],
             "Resource": "arn:aws:s3:::my-bucket-name/some/path/*"
@@ -68,8 +67,8 @@ the same configuration page.
 
 * S3 Bucket Name: Name of the S3 Bucket to use to store artifacts.
 * Base Prefix: Prefix to use for files and folders inside the S3 Bucket, if the prefix is a folder should be end with `/`.
-* Delete Artifacts: Delete artifacts from S3 when a build is deleted, this option is controlled by a java property see [Delete Artifacts](#delete-artifacts)
-* Delete Stashes: Delete stashes from S3 when a build is deleted, this option is controlled by a java property see [Delete Stash](#delete-stash)
+* Delete Artifacts: See [Delete Artifacts](#delete-artifacts) for discussion.
+* Delete Stashes: See [Delete Stash](#delete-stash) for discussion.
 * Custom Endpoint: Custom host and port (e.g. minio.myorg.org:9000) for the S3 client to connect to. This is typically used when using an S3 compatible provider (e.g. Azure, Google Cloud, minio) and not AWS S3.
 * Custom Signing Region: Only used when a Custom Endpoint is specified ('us-east-1' is used if it is blank).
 * Use Path Style URL: When this option is enabled URLs are formatted https://endpoint/bucket/key (path style) and when this option is disabled URLs are formatted as https://bucket.endpoint/key (virtual hosting style).
@@ -184,12 +183,24 @@ If you want to change this behaviour you should define a couple of JVM propertie
 In order to delete artifacts on the S3 Bucket, you would have to add the property 
 `-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteArtifacts=true` to your Jenkins JVM properties 
 , if it is not set the artifacts will not be deleted from S3 Bucket when the corresponding build is deleted.
+You would also need to grant the `s3:DeleteObject` permission.
+
+This mode is not recommended:
+a compromised controller could delete data,
+and builds deleted from `$JENKINS_HOME` (or not restored from backups) will leave orphaned blobs.
+You should instead configure your blob store to automatically delete artifacts older than a certain age,
+and/or move them to cheaper long-term storage.
 
 ## Delete Stash
 
 In order to delete stashes on the S3 Bucket, you would have to add the property 
 `-Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes=true`  to your Jenkins JVM properties
 , if it is not set the stash will not be deleted from S3 when the corresponding build is deleted.
+
+This mode is not recommended for the same reason as the delete artifacts option.
+Note that stashes and artifacts use distinct top-level directories,
+so you can configure distinct retention policies for them
+(for example keeping stashes only for a day but keeping artifacts for a month).
 
 # AWS Credentials
 
@@ -778,76 +789,6 @@ java.lang.NullPointerException
 
 See [GitHub releases](https://github.com/jenkinsci/artifact-manager-s3-plugin/releases).
 
-## 1.6 (2019-05-23)
+## 1.6 and older
 
--   Extend 1.5’s flush fix to some error-handling cases.
-
-## 1.5 (2019-05-06)
-
--   Properly flush listeners from all remote callables
-    ([commit](https://github.com/jenkinsci/artifact-manager-s3-plugin/pull/92/commits/9da949541b8a9c5cb36a290fa8a4f91f92132b6f){.external-link})
--   [PR
-    \#92](https://github.com/jenkinsci/artifact-manager-s3-plugin/pull/92){.external-link}
-    - Internal: Update dependencies to support testing of the plugin
-    with Java 11
-
-## 1.4 (2019-04-04)
-
--   Following up metadata changes in 1.3 to make the plugin work on
-    Java 11. Now requires Jenkins 2.164.x or newer.
-
-## 1.3 (2019-03-27)
-
--   Flush a message printed from the agent side, to work better
-    with [JEP-210](https://jenkins.io/jep/210){.external-link}.
--   Metadata changes for `plugin-compat-tester`.
-
-## 1.2 (2018-11-06)
-
--   [
-    JENKINS-50591](https://issues.jenkins-ci.org/browse/JENKINS-50591){.jira-issue-key}
-    - Getting issue details... STATUS  /  [
-    JENKINS-52151](https://issues.jenkins-ci.org/browse/JENKINS-52151){.jira-issue-key}
-    - Getting issue details... STATUS  Picking
-    up <https://jira.apache.org/jira/browse/JCLOUDS-1401> and <https://jira.apache.org/jira/browse/JCLOUDS-1433> to
-    address most problems with special characters in artifact names.
--   Added form validation for bucket location.
-
-## 1.1 (2018 Jul 17)
-
--   Using [AWS Global Configuration
-    Plugin](https://wiki.jenkins.io/display/JENKINS/AWS+Global+Configuration+Plugin)
-    for configuration.
--   [
-    JENKINS-52304](https://issues.jenkins-ci.org/browse/JENKINS-52304){.jira-issue-key}
-    - Getting issue details... STATUS
--   [
-    JENKINS-52361](https://issues.jenkins-ci.org/browse/JENKINS-52361){.jira-issue-key}
-    - Getting issue details... STATUS
--   test for  [
-    JENKINS-52151](https://issues.jenkins-ci.org/browse/JENKINS-52151){.jira-issue-key}
-    - Getting issue details... STATUS  and [
-    JENKINS-50591](https://issues.jenkins-ci.org/browse/JENKINS-50591){.jira-issue-key}
-    - Getting issue details... STATUS ; actual fix is pending a new
-    jclouds release
--   [
-    JENKINS-52254](https://issues.jenkins-ci.org/browse/JENKINS-52254){.jira-issue-key}
-    - Getting issue details... STATUS
--   [
-    JENKINS-52250](https://issues.jenkins-ci.org/browse/JENKINS-52250){.jira-issue-key}
-    - Getting issue details... STATUS
--   Ability to create the S3 bucket from the configuration page.
-
-## 1.0 (2018 Jun 26)
-
-No code changes since beta 2, only metadata.
-
-## 1.0-beta-2 (2018 Jun 21)
-
--   [
-    JENKINS-51396](https://issues.jenkins-ci.org/browse/JENKINS-51396){.jira-issue-key}
-    - Getting issue details... STATUS
-
-## 1.0-beta-1 (2018 Jun 19)
-
-Initial release to experimental update center.
+See [archives](https://github.com/jenkinsci/artifact-manager-s3-plugin/blob/717b4c00169f9ceef271d72236c6a3dbe5651efc/README.md#16-2019-05-23).
