@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import jenkins.model.ArtifactManagerConfiguration;
+import jenkins.model.GlobalBuildDiscarderListener;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpVersion;
 import org.apache.http.entity.StringEntity;
@@ -325,7 +326,7 @@ public class NetworkTest {
 
     @Test
     public void errorCleaningArtifacts() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).capture(10);
+        loggerRule.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).record(GlobalBuildDiscarderListener.class, Level.WARNING).capture(10);
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         r.buildAndAssertSuccess(p);
