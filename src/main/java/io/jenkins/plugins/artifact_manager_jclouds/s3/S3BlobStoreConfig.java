@@ -201,7 +201,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     @DataBoundSetter
-    public void setUseHttp(boolean useHttp) throws IllegalArgumentException {
+    public void setUseHttp(boolean useHttp) {
         checkValue(doCheckUseHttp(useHttp));
         this.useHttp = useHttp;
         save();
