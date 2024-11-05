@@ -130,7 +130,7 @@ public class S3BlobStoreConfigTest {
     }
 
     @Test
-    public void checkValidationUseHttps() {
+    public void checkValidationUseHttpsWithFipsDisabled() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
         assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckUseHttp(false).kind , FormValidation.Kind.OK);
