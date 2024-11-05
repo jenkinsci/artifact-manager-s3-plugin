@@ -57,8 +57,8 @@ import io.jenkins.plugins.aws.global_configuration.AbstractAwsGlobalConfiguratio
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 
 import jenkins.model.Jenkins;
-import org.jenkinsci.Symbol;
 import jenkins.security.FIPS140;
+import org.jenkinsci.Symbol;
 
 
 /**
@@ -201,7 +201,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     @DataBoundSetter
-    public void setUseHttp(boolean useHttp) {
+    public void setUseHttp(boolean useHttp)  {
         checkValue(doCheckUseHttp(useHttp));
         this.useHttp = useHttp;
         save();

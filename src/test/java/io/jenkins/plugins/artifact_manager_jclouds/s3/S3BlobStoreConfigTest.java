@@ -34,7 +34,6 @@ public class S3BlobStoreConfigTest {
     @Rule
     public JenkinsRule j = new JenkinsRule();
 
-
     @Test
     public void checkConfigurationManually() throws Exception {
         S3BlobStore provider = new S3BlobStore();
