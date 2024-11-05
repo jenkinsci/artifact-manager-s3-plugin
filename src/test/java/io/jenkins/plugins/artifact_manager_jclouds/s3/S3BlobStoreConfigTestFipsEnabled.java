@@ -12,10 +12,6 @@ import jenkins.security.FIPS140;
 
 public class S3BlobStoreConfigTestFipsEnabled {
 
-    @Rule
-    public JenkinsRule j = new JenkinsRule();
-
-
     @ClassRule
     public static FlagRule<String> fipsFlag = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
 

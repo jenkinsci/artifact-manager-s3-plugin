@@ -421,7 +421,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
         if (FIPS140.useCompliantAlgorithms() && useHttp) {
-            return FormValidation.warning("Cannot use HTTP in FIPS mode.");
+            return FormValidation.warning("Validation failed as \"use Insecure Http\" flag is enabled while in FIPS mode");
         }
         FormValidation ret = FormValidation.ok("success");
         S3BlobStore provider = new S3BlobStoreTester(container, prefix, 
