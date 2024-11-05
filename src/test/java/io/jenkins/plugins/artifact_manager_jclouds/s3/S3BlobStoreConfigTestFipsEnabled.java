@@ -2,8 +2,10 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.logging.Logger;
 
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.JenkinsRule;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
@@ -17,8 +19,10 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import jenkins.security.FIPS140;
 
-public class S3BlobStoreConfigTest {
+
+public class S3BlobStoreConfigTestFipsEnabled {
 
     private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfigTest.class.getName());
 
@@ -28,11 +32,15 @@ public class S3BlobStoreConfigTest {
     public static final String CUSTOM_ENDPOINT = "internal-s3.company.org:9000";
     public static final String CUSTOM_ENDPOINT_SIGNING_REGION = "us-west-2";
     public static final boolean USE_PATH_STYLE = true;
-    public static final boolean USE_HTTP = true;
+    public static final boolean USE_HTTP = false;
     public static final boolean DISABLE_SESSION_TOKEN = true;
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
+
+
+    @ClassRule
+    public static FlagRule<String> fipsFlag = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
 
 
     @Test
@@ -55,7 +63,7 @@ public class S3BlobStoreConfigTest {
         assertThat(providerConfigured, instanceOf(S3BlobStore.class));
         checkFieldValues(config);
 
-        //check configuration page submit
+        // Check configuration page submit
         j.configRoundtrip();
         checkFieldValues(config);
     }
@@ -82,7 +90,7 @@ public class S3BlobStoreConfigTest {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
         assertEquals(descriptor.doCheckContainer("aaa").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckContainer("aaa12345678901234567890123456789012345678901234568901234567890")
-                             .kind, FormValidation.Kind.OK);
+                .kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckContainer("name.1name.name1").kind, FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckContainer("name-1name-name1").kind, FormValidation.Kind.OK);
 
@@ -132,7 +140,7 @@ public class S3BlobStoreConfigTest {
     @Test
     public void checkValidationUseHttps() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.ERROR);
         assertEquals(descriptor.doCheckUseHttp(false).kind , FormValidation.Kind.OK);
     }
 }
