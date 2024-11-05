@@ -58,6 +58,8 @@ import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfigura
 
 import jenkins.model.Jenkins;
 import org.jenkinsci.Symbol;
+import jenkins.security.FIPS140;
+
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
@@ -199,7 +201,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     @DataBoundSetter
-    public void setUseHttp(boolean useHttp){
+    public void setUseHttp(boolean useHttp) throws IllegalArgumentException {
+        checkValue(doCheckUseHttp(useHttp));
         this.useHttp = useHttp;
         save();
     }
@@ -356,6 +359,13 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
+    public FormValidation doCheckUseHttp(@QueryParameter boolean useHttp) {
+        if (FIPS140.useCompliantAlgorithms() && useHttp) {
+            return FormValidation.error("Cannot use HTTP in FIPS mode.");
+        }
+        return FormValidation.ok();
+    }
+
     /**
      * create an S3 Bucket.
      * @param name name of the S3 Bucket.
@@ -409,8 +419,11 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             @QueryParameter String customEndpoint,
             @QueryParameter String customSigningRegion) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+
+        if (FIPS140.useCompliantAlgorithms() && useHttp) {
+            return FormValidation.warning("Cannot use HTTP in FIPS mode.");
+        }
         FormValidation ret = FormValidation.ok("success");
-        
         S3BlobStore provider = new S3BlobStoreTester(container, prefix, 
                 useHttp, useTransferAcceleration,usePathStyleUrl,
                 disableSessionToken, customEndpoint, customSigningRegion);

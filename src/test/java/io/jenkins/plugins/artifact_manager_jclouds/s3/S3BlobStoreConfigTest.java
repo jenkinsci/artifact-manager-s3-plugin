@@ -2,8 +2,10 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.logging.Logger;
 
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.JenkinsRule;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
@@ -17,6 +19,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import jenkins.security.FIPS140;
 
 public class S3BlobStoreConfigTest {
 
@@ -34,6 +37,10 @@ public class S3BlobStoreConfigTest {
     @Rule
     public JenkinsRule j = new JenkinsRule();
 
+    @ClassRule
+    public static FlagRule<String> fipsFlag = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+
+
     @Test
     public void checkConfigurationManually() throws Exception {
         S3BlobStore provider = new S3BlobStore();
@@ -43,7 +50,9 @@ public class S3BlobStoreConfigTest {
         config.setCustomEndpoint(CUSTOM_ENDPOINT);
         config.setCustomSigningRegion(CUSTOM_ENDPOINT_SIGNING_REGION);
         config.setUsePathStyleUrl(USE_PATH_STYLE);
-        config.setUseHttp(USE_HTTP);
+
+        boolean fipsEnabled = FIPS140.useCompliantAlgorithms();
+        config.setUseHttp(!fipsEnabled && USE_HTTP);
         config.setDisableSessionToken(DISABLE_SESSION_TOKEN);
 
         JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
@@ -65,7 +74,9 @@ public class S3BlobStoreConfigTest {
         assertEquals(CUSTOM_ENDPOINT, S3BlobStoreConfig.get().getCustomEndpoint());
         assertEquals(CUSTOM_ENDPOINT_SIGNING_REGION, S3BlobStoreConfig.get().getCustomSigningRegion());
         assertEquals(USE_PATH_STYLE, S3BlobStoreConfig.get().getUsePathStyleUrl());
-        assertEquals(USE_HTTP, S3BlobStoreConfig.get().getUseHttp());
+
+        boolean fipsEnabled = FIPS140.useCompliantAlgorithms();
+        assertEquals(!fipsEnabled && USE_HTTP, configuration.getUseHttp());
         assertEquals(DISABLE_SESSION_TOKEN, S3BlobStoreConfig.get().getDisableSessionToken());
     }
 
@@ -128,4 +139,10 @@ public class S3BlobStoreConfigTest {
         assertTrue(descriptor.doCheckCustomSigningRegion("").getMessage().contains("us-east-1"));
     }
 
+    @Test
+    public void checkValidationUseHttps() {
+        S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
+        assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.ERROR);
+        assertEquals(descriptor.doCheckUseHttp(false).kind , FormValidation.Kind.OK);
+    }
 }
