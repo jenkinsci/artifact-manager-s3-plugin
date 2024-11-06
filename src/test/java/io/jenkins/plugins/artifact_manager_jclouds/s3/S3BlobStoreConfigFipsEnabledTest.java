@@ -10,11 +10,13 @@ import static org.junit.Assert.assertEquals;
 import jenkins.security.FIPS140;
 
 
-public class S3BlobStoreConfigTestFipsEnabled {
+public class S3BlobStoreConfigFipsEnabledTest {
 
     @ClassRule
     public static FlagRule<String> fipsFlag = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
 
+    @Rule
+    public JenkinsRule j = new JenkinsRule();
 
     @Test
     public void checkValidationUseHttpsWithFipsEnabled() {

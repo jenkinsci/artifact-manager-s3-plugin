@@ -360,6 +360,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     public FormValidation doCheckUseHttp(@QueryParameter boolean useHttp) {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (FIPS140.useCompliantAlgorithms() && useHttp) {
             return FormValidation.error("Cannot use HTTP in FIPS mode.");
         }
