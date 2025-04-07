@@ -191,7 +191,7 @@ public final class MockApiMetadata extends BaseApiMetadata {
         }
 
         @Override
-        public Iterable<String> getBlobKeysInsideContainer(String container, String prefix) throws IOException {
+        public Iterable<String> getBlobKeysInsideContainer(String container, String prefix, String delimiter) throws IOException {
             GetBlobKeysInsideContainerHandler handler = getBlobKeysInsideContainerHandlers.remove(container);
             if (handler != null) {
                 handler.run();

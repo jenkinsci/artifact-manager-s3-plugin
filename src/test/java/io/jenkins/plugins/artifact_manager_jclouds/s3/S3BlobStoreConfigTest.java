@@ -128,4 +128,10 @@ public class S3BlobStoreConfigTest {
         assertTrue(descriptor.doCheckCustomSigningRegion("").getMessage().contains("us-east-1"));
     }
 
+    @Test
+    public void checkValidationUseHttpsWithFipsDisabled() {
+        S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
+        assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.OK);
+        assertEquals(descriptor.doCheckUseHttp(false).kind , FormValidation.Kind.OK);
+    }
 }

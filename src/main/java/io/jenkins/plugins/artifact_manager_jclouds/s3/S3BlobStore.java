@@ -188,8 +188,6 @@ public class S3BlobStore extends BlobStoreProvider {
     @NonNull
     @Override
     public URI toURI(@NonNull String container, @NonNull String key) {
-        assert container != null;
-        assert key != null;
         try {
             AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
             URI uri = builder.build().getUrl(container, key).toURI();
@@ -206,8 +204,6 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     @Override
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
-        assert blob != null;
-        assert httpMethod != null;
         AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilderWithCredentials();
         
         Date expiration = new Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
