@@ -23,9 +23,6 @@
  */
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.Bucket;
-import com.amazonaws.services.s3.model.HeadBucketRequest;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
@@ -53,6 +50,10 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.RealJenkinsRule;
 import org.testcontainers.DockerClientFactory;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Bucket;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
 public class MinioIntegrationTest {
     private static final String ACCESS_KEY = "supersecure";
@@ -66,7 +67,7 @@ public class MinioIntegrationTest {
     private static DockerImage image;
 
     private static S3BlobStoreConfig config;
-    private static AmazonS3 client;
+    private static S3Client client;
     private static S3BlobStore provider;
     
     @Rule
@@ -149,7 +150,7 @@ public class MinioIntegrationTest {
     
     private static void createBucketWithAwsClient(String bucketName) {
         config.setContainer(bucketName);
-        client.createBucket(bucketName);
+        client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
     }
     
     @Test
@@ -159,8 +160,8 @@ public class MinioIntegrationTest {
     private static void _canCreateBucket(JenkinsRule r) throws Throwable {
         String testBucketName = "jenkins-ci-data";
         Bucket createdBucket = config.createS3Bucket(testBucketName);
-        assertEquals(testBucketName, createdBucket.getName());
-        client.headBucket(new HeadBucketRequest(testBucketName));
+        assertEquals(testBucketName, createdBucket.name());
+        client.headBucket( HeadBucketRequest.builder().bucket(testBucketName).build());
     }
     
     @Test

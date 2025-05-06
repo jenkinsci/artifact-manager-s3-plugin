@@ -24,8 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -54,8 +52,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
 
-import com.amazonaws.SdkClientException;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
@@ -110,6 +106,8 @@ import org.junit.AssumptionViolatedException;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -153,12 +151,13 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
             DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test"));
             Jenkins.get().addNode(agent);
             j.waitOnline(agent);
-            try {
+            //try {
                 agent.getChannel().call(new LoadS3Credentials());
                 fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
-            } catch (SdkClientException x) {
-                System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
-            }
+            // FIXME exception
+            //} catch (SdkClientException x) {
+            //    System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
+            //}
         }
     }
 
@@ -186,7 +185,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
         @Override
         public Void call() {
-            AmazonS3ClientBuilder.standard().build();
+            S3Client.builder();
             return null;
         }
     }

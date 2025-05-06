@@ -52,15 +52,18 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.LoggerRule;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsV2Result;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import java.net.ProtocolException;
 
 import jenkins.util.VirtualFile;
 import org.jclouds.http.HttpResponseException;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class JCloudsVirtualFileTest extends S3AbstractTest {
+
+    protected static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
 
     protected File tmpFile;
     protected String filePath, missingFilePath, weirdCharactersPath;
@@ -286,9 +289,9 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         try {
             putBlob(blobStore.blobBuilder(key).payload("test").build());
 
-            final AmazonS3 s3 = S3BlobStoreConfig.clientBuilder.get().build();
-            ListObjectsV2Result result = s3.listObjectsV2(getContainer(), key);
-            List<S3ObjectSummary> objects = result.getObjectSummaries();
+            final S3Client s3 = S3BlobStoreConfig.clientBuilder.get().build();
+            ListObjectsV2Response result = s3.listObjectsV2(ListObjectsV2Request.builder().bucket(getContainer()).build());
+            List<S3Object> objects = result.contents();
             assertThat(objects, not(empty()));
 
             // fails with
