@@ -55,10 +55,8 @@ import jenkins.security.FIPS140;
 import org.jenkinsci.Symbol;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.regions.RegionMetadata;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
-import software.amazon.awssdk.services.s3.model.AccelerateConfiguration;
 import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
@@ -308,11 +306,15 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     @VisibleForTesting
     public S3ClientBuilder getAmazonS3ClientBuilderWithCredentials() throws IOException {
-        return getAmazonS3ClientBuilderWithCredentials(getDisableSessionToken());
+        try {
+            return getAmazonS3ClientBuilderWithCredentials(getDisableSessionToken());
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private S3ClientBuilder getAmazonS3ClientBuilderWithCredentials(boolean disableSessionToken) throws IOException {
-        S3ClientBuilder builder = S3Client.builder();
+    private S3ClientBuilder getAmazonS3ClientBuilderWithCredentials(boolean disableSessionToken) throws IOException, URISyntaxException {
+        S3ClientBuilder builder = getAmazonS3ClientBuilder();
         if (disableSessionToken) {
             builder = builder.credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials());
         } else {
@@ -357,8 +359,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckCustomEndpoint(@QueryParameter String customEndpoint) {
         FormValidation ret = FormValidation.ok();
-        if (!StringUtils.isBlank(customEndpoint) && !endPointPattern.matcher(customEndpoint).matches()) {
-            ret = FormValidation.error("Custom Endpoint may not be valid.");
+        if (StringUtils.isBlank(customEndpoint)) { // && !endPointPattern.matcher(customEndpoint).matches()) {
+            ret = FormValidation.error("Custom Endpoint may not be valid." + customEndpoint);
         }
         return ret;
     }
@@ -379,10 +381,14 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
      * runtime exceptions are thrown by createBucket method.
      */
     public Bucket createS3Bucket(String name) throws IOException {
-        return createS3Bucket(name, getDisableSessionToken());
+        try {
+            return createS3Bucket(name, getDisableSessionToken());
+        } catch (URISyntaxException e) {
+            throw new IOException(e);
+        }
     }
 
-    private Bucket createS3Bucket(String name, boolean disableSessionToken) throws IOException {
+    private Bucket createS3Bucket(String name, boolean disableSessionToken) throws IOException, URISyntaxException {
         S3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
         if (useTransferAcceleration) {
             //AccelerateConfiguration.builder()
@@ -416,7 +422,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
-    void checkGetBucketLocation(String container, boolean disableSessionToken) throws IOException {
+    void checkGetBucketLocation(String container, boolean disableSessionToken) throws IOException, URISyntaxException {
         S3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
         S3Client client = builder.build();
         client.getBucketLocation(GetBucketLocationRequest.builder().bucket(container).build());

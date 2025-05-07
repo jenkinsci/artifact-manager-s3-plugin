@@ -71,7 +71,7 @@ public class MinioIntegrationTest {
     private static S3BlobStore provider;
     
     @Rule
-    public RealJenkinsRule rr = new RealJenkinsRule().javaOptions("-Xmx150m");
+    public RealJenkinsRule rr = new RealJenkinsRule().javaOptions("-Xmx150m").withDebugPort(8000).withDebugSuspend(true);
     
     @Rule
     public LoggerRule loggerRule = new LoggerRule().recordPackage(JCloudsArtifactManagerFactory.class, Level.FINE);
@@ -102,7 +102,7 @@ public class MinioIntegrationTest {
 
         Integer mappedPort = minioServer.getFirstMappedPort();
         Testcontainers.exposeHostPorts(mappedPort);
-        minioServiceEndpoint = String.format("%s:%s", minioServer.getContainerIpAddress(), mappedPort);
+        minioServiceEndpoint = String.format("http://%s:%s", minioServer.getContainerIpAddress(), mappedPort);
         
         image = ArtifactManagerTest.prepareImage();
     }
