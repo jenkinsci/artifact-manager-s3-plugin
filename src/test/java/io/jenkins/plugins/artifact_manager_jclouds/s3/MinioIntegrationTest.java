@@ -102,7 +102,7 @@ public class MinioIntegrationTest {
 
         Integer mappedPort = minioServer.getFirstMappedPort();
         Testcontainers.exposeHostPorts(mappedPort);
-        minioServiceEndpoint = String.format("http://%s:%s", minioServer.getContainerIpAddress(), mappedPort);
+        minioServiceEndpoint = String.format("%s:%s", minioServer.getContainerIpAddress(), mappedPort);
         
         image = ArtifactManagerTest.prepareImage();
     }
