@@ -236,9 +236,9 @@ public class S3BlobStore extends BlobStoreProvider {
             //awsMethod = com.amazonaws.HttpMethod.PUT;
             // Only set content type for upload URLs, so that the right S3 metadata gets set
             contentType = blob.getMetadata().getContentMetadata().getContentType();
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(name)
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(container)
                     .contentType(contentType)
-                    .key(container)
+                    .key(name)
                     .build();
             PutObjectPresignRequest putObjectPresignRequest = PutObjectPresignRequest.builder()
                     .signatureDuration(expiration)
@@ -246,7 +246,7 @@ public class S3BlobStore extends BlobStoreProvider {
 
             return presigner.presignPutObject(putObjectPresignRequest).url();
         case GET:
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(name).key(container).build();
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(container).key(container).build();
             GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
                     .signatureDuration(expiration)
                     .getObjectRequest(getObjectRequest).build();

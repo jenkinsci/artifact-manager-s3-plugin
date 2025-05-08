@@ -349,7 +349,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckCustomSigningRegion(@QueryParameter String customSigningRegion) {
         FormValidation ret;
-        if (StringUtils.isBlank(customSigningRegion) && StringUtils.isNotBlank(customEndpoint)) {
+        if (!StringUtils.isBlank(customSigningRegion) && StringUtils.isNotBlank(customEndpoint)) {
             ret = FormValidation.ok("'us-east-1' will be used when a custom endpoint is configured and custom signing region is blank.");
         } else {
             ret = FormValidation.ok();
@@ -359,7 +359,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckCustomEndpoint(@QueryParameter String customEndpoint) {
         FormValidation ret = FormValidation.ok();
-        if (StringUtils.isBlank(customEndpoint)) { // && !endPointPattern.matcher(customEndpoint).matches()) {
+        if (!StringUtils.isBlank(customEndpoint) && !endPointPattern.matcher(customEndpoint).matches()) { //) { //
             ret = FormValidation.error("Custom Endpoint may not be valid." + customEndpoint);
         }
         return ret;
@@ -390,13 +390,13 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     private Bucket createS3Bucket(String name, boolean disableSessionToken) throws IOException, URISyntaxException {
         S3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
-        if (useTransferAcceleration) {
-            //AccelerateConfiguration.builder()
-            // not sure how and why using this here
-            //client.setBucketAccelerateConfiguration(new SetBucketAccelerateConfigurationRequest(name,
-            //        new BucketAccelerateConfiguration(BucketAccelerateStatus.Enabled)));
-            builder.accelerate(true);
-        }
+
+        //AccelerateConfiguration.builder()
+        // not sure how and why using this here
+        //client.setBucketAccelerateConfiguration(new SetBucketAccelerateConfigurationRequest(name,
+        //        new BucketAccelerateConfiguration(BucketAccelerateStatus.Enabled)));
+        builder.accelerate(useTransferAcceleration);
+
         //Accelerated mode must be off in order to apply it to a bucket
         try (S3Client client = builder.accelerate(false).build()) {
             CreateBucketResponse response = client.createBucket(CreateBucketRequest.builder().bucket(name).build());
