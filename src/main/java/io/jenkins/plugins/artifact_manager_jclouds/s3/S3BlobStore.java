@@ -225,7 +225,7 @@ public class S3BlobStore extends BlobStoreProvider {
                 .s3Client(builder.build())
                 .build();
 
-        Date expiration = new Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
+        Duration expiration = Duration.ofHours(1);
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
         LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
@@ -241,14 +241,14 @@ public class S3BlobStore extends BlobStoreProvider {
                     .key(container)
                     .build();
             PutObjectPresignRequest putObjectPresignRequest = PutObjectPresignRequest.builder()
-                    .signatureDuration(Duration.ofMillis(expiration.getTime()))
+                    .signatureDuration(expiration)
                     .putObjectRequest(putObjectRequest).build();
 
             return presigner.presignPutObject(putObjectPresignRequest).url();
         case GET:
             GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(name).key(container).build();
             GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
-                    .signatureDuration(Duration.ofMillis(expiration.getTime()))
+                    .signatureDuration(expiration)
                     .getObjectRequest(getObjectRequest).build();
             return presigner.presignGetObject(getObjectPresignRequest).url();
         default:
