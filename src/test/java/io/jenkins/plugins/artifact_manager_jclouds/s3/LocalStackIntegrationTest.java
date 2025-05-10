@@ -31,6 +31,8 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
+import org.apache.commons.lang.StringUtils;
+import org.jclouds.aws.domain.Region;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
 import org.junit.AfterClass;
@@ -51,6 +53,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.logging.Level;
 
 import static org.hamcrest.Matchers.is;
@@ -135,7 +138,7 @@ public class LocalStackIntegrationTest {
         config.setUseHttp(true);
         config.setUsePathStyleUrl(true);
         config.setDisableSessionToken(true);
-        config.setCustomSigningRegion(REGION);
+        config.setCustomSigningRegion(StringUtils.isBlank(REGION)? Region.US_EAST_1.toLowerCase(Locale.US):REGION);
         client = config.getAmazonS3ClientBuilderWithCredentials().build();
     }
 

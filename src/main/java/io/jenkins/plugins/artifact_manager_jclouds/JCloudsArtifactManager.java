@@ -196,6 +196,9 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                 for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
                     client.uploadFile(new File(f, entry.getKey()), contentTypes.get(entry.getKey()), entry.getValue(), listener);
                 }
+            } catch (IOException e) {
+                listener.error(e.getMessage());
+                throw e;
             } finally {
                 listener.getLogger().flush();
             }
