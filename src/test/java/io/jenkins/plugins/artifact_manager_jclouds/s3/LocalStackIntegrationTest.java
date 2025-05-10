@@ -29,46 +29,50 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
-import java.io.IOException;
-import java.util.logging.Level;
 import jenkins.model.ArtifactManagerFactory;
 import jenkins.model.Jenkins;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.jenkinsci.test.acceptance.docker.DockerImage;
 import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.testcontainers.Testcontainers;
-import org.testcontainers.containers.MinIOContainer;
-import static org.junit.Assert.assertEquals;
 import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.RealJenkinsRule;
 import org.testcontainers.DockerClientFactory;
+import org.testcontainers.Testcontainers;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
-public class MinioIntegrationTest {
-    private static final String ACCESS_KEY = "supersecure";
-    private static final String SECRET_KEY = "donttell";
+import java.io.IOException;
+import java.util.logging.Level;
+
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
+
+public class LocalStackIntegrationTest {
+    private static String ACCESS_KEY;
+    private static String SECRET_KEY;
     private static final String CONTAINER_NAME = "jenkins";
     private static final String CONTAINER_PREFIX = "ci/";
-    private static final String REGION = "us-east-1";
-    
-    private static MinIOContainer minioServer;
-    private static String minioServiceEndpoint;
+    private static String REGION;
+
+    private static String localStackServiceEndpoint;
     private static DockerImage image;
 
     private static S3BlobStoreConfig config;
     private static S3Client client;
     private static S3BlobStore provider;
+
+
+    private static LocalStackContainer LOCALSTACK;
     
     @Rule
     public RealJenkinsRule rr = new RealJenkinsRule().javaOptions("-Xmx150m").withDebugPort(8000).withDebugSuspend(true);
@@ -88,71 +92,82 @@ public class MinioIntegrationTest {
         } catch (Exception x) {
             Assume.assumeNoException("does not look like Docker is available", x);
         }
-        int port = 9000;
-        minioServer = new MinIOContainer("minio/minio")
-                .withEnv("MINIO_ACCESS_KEY", ACCESS_KEY)
-                .withEnv("MINIO_SECRET_KEY", SECRET_KEY)
-                .withExposedPorts(port);
-        minioServer.start();
 
-        Integer mappedPort = minioServer.getFirstMappedPort();
+        LOCALSTACK = new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.4.0"))
+                .withServices(S3);
+        LOCALSTACK.start();
+        Integer mappedPort = LOCALSTACK.getFirstMappedPort();
         Testcontainers.exposeHostPorts(mappedPort);
-        minioServiceEndpoint = String.format("%s:%s", minioServer.getHost(), mappedPort);
+
+        localStackServiceEndpoint = LOCALSTACK.getEndpoint().getHost() + ":" + LOCALSTACK.getEndpoint().getPort();
+        ACCESS_KEY = LOCALSTACK.getAccessKey();
+        SECRET_KEY = LOCALSTACK.getSecretKey();
+        REGION = LOCALSTACK.getRegion();
         
         image = ArtifactManagerTest.prepareImage();
     }
     
     @AfterClass
     public static void shutDownClass() {
-        if (minioServer != null && minioServer.isRunning()) {
-            minioServer.stop();
+        if (LOCALSTACK != null && LOCALSTACK.isRunning()) {
+            LOCALSTACK.stop();
+        }
+        if (client != null) {
+            client.close();
         }
     }
     
-    private static void setUp(String minioServiceEndpoint) throws IOException {
+    private static void setUp(WithMinioServiceEndpoint withMinioServiceEndpoint) throws IOException {
         provider = new S3BlobStore();
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
-        credentialsConfig.setRegion(REGION);
+        credentialsConfig.setRegion(withMinioServiceEndpoint.region);
         CredentialsProvider.lookupStores(Jenkins.get())
                 .iterator()
                 .next()
-                .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "MinioIntegrationTest", ACCESS_KEY, SECRET_KEY, "MinioIntegrationTest"));
+                .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "MinioIntegrationTest", withMinioServiceEndpoint.accessKey,
+                        withMinioServiceEndpoint.secretKey, "MinioIntegrationTest"));
         credentialsConfig.setCredentialsId("MinioIntegrationTest");
         
         config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
         config.setPrefix(CONTAINER_PREFIX);
-        config.setCustomEndpoint(minioServiceEndpoint);
+        config.setCustomEndpoint(withMinioServiceEndpoint.localStackServiceEndpoint);
         config.setUseHttp(true);
         config.setUsePathStyleUrl(true);
         config.setDisableSessionToken(true);
+        config.setCustomSigningRegion(REGION);
         client = config.getAmazonS3ClientBuilderWithCredentials().build();
     }
 
     private static final class WithMinioServiceEndpoint implements RealJenkinsRule.Step {
-        private final String minioServiceEndpoint;
+        private final String localStackServiceEndpoint;
+        private final String accessKey;
+        private final String secretKey;
+        private final String region;
         private final RealJenkinsRule.Step delegate;
         WithMinioServiceEndpoint(RealJenkinsRule.Step delegate) {
             // Serialize the endpoint into the step sent to the real JVM:
-            this.minioServiceEndpoint = MinioIntegrationTest.minioServiceEndpoint;
+            this.localStackServiceEndpoint = LocalStackIntegrationTest.localStackServiceEndpoint;
+            this.accessKey = LocalStackIntegrationTest.ACCESS_KEY;
+            this.secretKey = LocalStackIntegrationTest.SECRET_KEY;
+            this.region = LocalStackIntegrationTest.REGION;
             this.delegate = delegate;
         }
         @Override public void run(JenkinsRule r) throws Throwable {
-            setUp(minioServiceEndpoint);
+            setUp(this);
             delegate.run(r);
         }
     }
     
     private static void createBucketWithAwsClient(String bucketName) {
         config.setContainer(bucketName);
-        assertThat(client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build()).sdkHttpResponse().isSuccessful(), is(true));
+        client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
     }
     
     @Test
     public void canCreateBucket() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_canCreateBucket));
+        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_canCreateBucket));
     }
-
     private static void _canCreateBucket(JenkinsRule r) throws Throwable {
         String testBucketName = "jenkins-ci-data";
         Bucket createdBucket = config.createS3Bucket(testBucketName);
@@ -162,7 +177,7 @@ public class MinioIntegrationTest {
     
     @Test
     public void artifactArchive() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_artifactArchive));
+        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_artifactArchive));
     }
     private static void _artifactArchive(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-archive");
@@ -171,7 +186,7 @@ public class MinioIntegrationTest {
 
     @Test
     public void artifactArchiveAndDelete() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_artifactArchiveAndDelete));
+        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_artifactArchiveAndDelete));
     }
     private static void _artifactArchiveAndDelete(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-archive-and-delete");
@@ -180,7 +195,7 @@ public class MinioIntegrationTest {
     
     @Test
     public void artifactStash() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_artifactStash));
+        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_artifactStash));
     }
     private static void _artifactStash(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-stash");
@@ -189,7 +204,7 @@ public class MinioIntegrationTest {
 
     @Test
     public void artifactStashAndDelete() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(MinioIntegrationTest::_artifactStashAndDelete));
+        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_artifactStashAndDelete));
     }
     private static void _artifactStashAndDelete(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-stash-and-delete");

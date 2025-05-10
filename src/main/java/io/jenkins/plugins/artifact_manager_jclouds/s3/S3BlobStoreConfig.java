@@ -30,6 +30,7 @@ import java.net.URISyntaxException;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -82,6 +83,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
+
+    private static final boolean DO_NOT_CHECK_CUSTOM_ENDPOINT = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".doNotCheckCustomEndpoint");
 
     /**
      * Name of the S3 Bucket.
@@ -235,7 +238,6 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     
     @DataBoundSetter
     public void setCustomEndpoint(String customEndpoint){
-        //if(DO_NOT_CHECK_CUSTOM_ENDPOINT)
         checkValue(doCheckCustomEndpoint(customEndpoint));
         this.customEndpoint = customEndpoint;
         save();
@@ -244,7 +246,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     public String getResolvedCustomEndpoint() {
         if(StringUtils.isNotBlank(customEndpoint)) {
             String protocol;
-            if(getUseHttp()) {
+            if (getUseHttp()) {
                 protocol = "http";
             } else {
                 protocol = "https";
@@ -286,12 +288,12 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     S3ClientBuilder getAmazonS3ClientBuilder() throws URISyntaxException {
         S3ClientBuilder ret = clientBuilder.get();
 
-        if (StringUtils.isNotBlank(customEndpoint)) {
+        if (StringUtils.isNotBlank(getResolvedCustomEndpoint())) {
             String resolvedCustomSigningRegion = customSigningRegion;
             if (StringUtils.isBlank(resolvedCustomSigningRegion)) {
                 resolvedCustomSigningRegion = "us-east-1";
             }
-            ret = ret.endpointOverride(new URI(getCustomEndpoint())).region(Region.of(resolvedCustomSigningRegion));
+            ret = ret.endpointOverride(new URI(getResolvedCustomEndpoint())).region(Region.of(resolvedCustomSigningRegion));
         } else if (StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
             ret = ret.region(Region.of(CredentialsAwsGlobalConfiguration.get().getRegion()));
         } else {
@@ -319,9 +321,13 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         if (disableSessionToken) {
             builder = builder.credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials());
         } else {
-            StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
-            CredentialsAwsGlobalConfiguration.get().getCredentials().resolveCredentials());
-            builder = builder.credentialsProvider(credentialsProvider);
+            AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
+            if (amazonWebServicesCredentials != null) {
+                StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider .create(amazonWebServicesCredentials.resolveCredentials());
+                builder = builder.credentialsProvider(credentialsProvider);
+            } else {
+                throw new IllegalArgumentException("Cannot create S3Client as no credentials provided");
+            }
         }
         return builder;
     }
@@ -350,7 +356,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckCustomSigningRegion(@QueryParameter String customSigningRegion) {
         FormValidation ret;
-        if (!StringUtils.isBlank(customSigningRegion) && StringUtils.isNotBlank(customEndpoint)) {
+        if (StringUtils.isBlank(customSigningRegion) && StringUtils.isNotBlank(customEndpoint)) {
             ret = FormValidation.ok("'us-east-1' will be used when a custom endpoint is configured and custom signing region is blank.");
         } else {
             ret = FormValidation.ok();
@@ -425,8 +431,9 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     void checkGetBucketLocation(String container, boolean disableSessionToken) throws IOException, URISyntaxException {
         S3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
-        S3Client client = builder.build();
-        client.getBucketLocation(GetBucketLocationRequest.builder().bucket(container).build());
+        try (S3Client client = builder.build()) {
+            client.getBucketLocation(GetBucketLocationRequest.builder().bucket(container).build());
+        }
     }
 
     @RequirePOST

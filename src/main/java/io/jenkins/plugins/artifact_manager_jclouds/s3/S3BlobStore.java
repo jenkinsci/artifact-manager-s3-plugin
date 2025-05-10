@@ -62,8 +62,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import org.jenkinsci.Symbol;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.http.SdkHttpMethod;
-import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetUrlRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -198,10 +197,9 @@ public class S3BlobStore extends BlobStoreProvider {
     @NonNull
     @Override
     public URI toURI(@NonNull String container, @NonNull String key) {
-        try {
-            S3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
+        try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilder().build()) {
             GetUrlRequest getUrlRequest = GetUrlRequest.builder().key(key).bucket(container).build();
-            URI uri = builder.build().utilities().getUrl(getUrlRequest).toURI();
+            URI uri = s3Client.utilities().getUrl(getUrlRequest).toURI();
             LOGGER.fine(() -> container + " / " + key + " → " + uri);
             return uri;
         } catch (URISyntaxException e) {
@@ -216,46 +214,49 @@ public class S3BlobStore extends BlobStoreProvider {
     @Override
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
 
-        S3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilderWithCredentials();
+        String customEndpoint = getConfiguration().getResolvedCustomEndpoint();
+        try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build()) {
+            S3Presigner.Builder presignerBuilder = S3Presigner.builder()
+                    .fipsEnabled(FIPS140.useCompliantAlgorithms())
+                    .credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials())
+                    .s3Client(s3Client);
+            if (StringUtils.isNotBlank(customEndpoint)) {
+                presignerBuilder.endpointOverride(URI.create(customEndpoint));
+            }
 
-        // TODO do we need endpointOverride?
-        S3Presigner presigner = S3Presigner.builder()
-                .fipsEnabled(FIPS140.useCompliantAlgorithms())
-                .credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials())
-                .s3Client(builder.build())
-                .build();
+            try (S3Presigner presigner = presignerBuilder.build()) {
+                Duration expiration = Duration.ofHours(1);
+                String container = blob.getMetadata().getContainer();
+                String name = blob.getMetadata().getName();
+                LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
+                        new Object[]{container, name, httpMethod});
+                String contentType = null;
+                switch (httpMethod) {
+                    case PUT:
+                        // Only set content type for upload URLs, so that the right S3 metadata gets set
+                        contentType = blob.getMetadata().getContentMetadata().getContentType();
+                        PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(container)
+                                .contentType(contentType)
+                                .key(name)
+                                .build();
+                        PutObjectPresignRequest putObjectPresignRequest = PutObjectPresignRequest.builder()
+                                .signatureDuration(expiration)
+                                .putObjectRequest(putObjectRequest).build();
 
-        Duration expiration = Duration.ofHours(1);
-        String container = blob.getMetadata().getContainer();
-        String name = blob.getMetadata().getName();
-        LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
-                new Object[] { container, name, httpMethod });
-        String contentType = null;
-        switch (httpMethod) {
-        case PUT:
-            //awsMethod = com.amazonaws.HttpMethod.PUT;
-            // Only set content type for upload URLs, so that the right S3 metadata gets set
-            contentType = blob.getMetadata().getContentMetadata().getContentType();
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(container)
-                    .contentType(contentType)
-                    .key(name)
-                    .build();
-            PutObjectPresignRequest putObjectPresignRequest = PutObjectPresignRequest.builder()
-                    .signatureDuration(expiration)
-                    .putObjectRequest(putObjectRequest).build();
+                        return presigner.presignPutObject(putObjectPresignRequest).url();
+                    case GET:
+                        GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(container).key(name).build();
+                        GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
+                                .signatureDuration(expiration)
+                                .getObjectRequest(getObjectRequest).build();
+                        URL getUrl = presigner.presignGetObject(getObjectPresignRequest).url();
+                        return getUrl;
+                    default:
+                        throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
+                }
 
-            return presigner.presignPutObject(putObjectPresignRequest).url();
-        case GET:
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(container).key(container).build();
-            GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
-                    .signatureDuration(expiration)
-                    .getObjectRequest(getObjectRequest).build();
-            return presigner.presignGetObject(getObjectPresignRequest).url();
-        default:
-            throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
+            }
         }
-
-
     }
 
     @Symbol("s3")

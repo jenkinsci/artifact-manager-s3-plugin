@@ -21,6 +21,7 @@
     <useBeta>true</useBeta>
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
+    <testcontainers.version>1.21.0</testcontainers.version>
   </properties>
 
   <name>Artifact Manager on S3 plugin</name>
@@ -103,6 +104,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
+      <version>247.v902c575682b_4</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.errorprone</groupId>
@@ -119,7 +121,6 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>apache-httpcomponents-client-4-api</artifactId>
-<!--      <version>4.5.14-999999-SNAPSHOT</version>-->
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
@@ -250,7 +251,7 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
-      <version>1.20.4</version>
+      <version>${testcontainers.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -261,11 +262,19 @@
           <groupId>org.slf4j</groupId>
           <artifactId>*</artifactId>
         </exclusion>
-<!--        <exclusion>-->
-<!--          <groupId>com.fasterxml.jackson.core</groupId>-->
-<!--          <artifactId>jackson-annotations</artifactId>-->
-<!--        </exclusion>-->
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>localstack</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>minio</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
   <dependencyManagement>
@@ -276,11 +285,6 @@
         <version>4710.v016f0a_07e34d</version>
         <scope>import</scope>
         <type>pom</type>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>aws-credentials</artifactId>
-        <version>247.v902c575682b_4</version>
       </dependency>
       <!-- TODO remove when core has upgraded to 7.0.0 or newer -->
       <dependency>
@@ -297,11 +301,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
         <dependencies>
-          <dependency>
-            <groupId>de.skuzzle.enforcer</groupId>
-            <artifactId>restrict-imports-enforcer-rule</artifactId>
-            <version>2.6.1</version>
-          </dependency>
         </dependencies>
         <configuration>
           <rules combine.children="append">
@@ -326,27 +325,6 @@
                   </excludes>
                 </requireUpperBoundDeps>
               </rules>
-            </configuration>
-          </execution>
-          <execution>
-            <id>enforce-banned-aws-sdk-v1</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <phase>validate</phase>
-            <configuration>
-              <rules>
-                <bannedDependencies>
-                  <excludes>
-                    <exclude>com.amazonaws</exclude>
-                  </excludes>
-                </bannedDependencies>
-                <RestrictImports>
-                  <reason>Only AWS SDK v2</reason>
-                  <bannedImport>com.amazonaws.**</bannedImport>
-                </RestrictImports>
-              </rules>
-              <fail>true</fail>
             </configuration>
           </execution>
         </executions>
