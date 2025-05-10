@@ -21,7 +21,6 @@
     <useBeta>true</useBeta>
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
-    <testcontainers.version>1.21.0</testcontainers.version>
   </properties>
 
   <name>Artifact Manager on S3 plugin</name>
@@ -45,7 +44,6 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>aws-global-configuration</artifactId>
-      <version>150.vff42b_7ec12fd</version>
     </dependency>
     <dependency>
       <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
@@ -104,7 +102,6 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>aws-credentials</artifactId>
-      <version>247.v902c575682b_4</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.errorprone</groupId>
@@ -251,7 +248,6 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
-      <version>${testcontainers.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -267,13 +263,11 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>localstack</artifactId>
-      <version>${testcontainers.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>minio</artifactId>
-      <version>${testcontainers.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -283,6 +277,13 @@
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-${jenkins.baseline}.x</artifactId>
         <version>4710.v016f0a_07e34d</version>
+        <scope>import</scope>
+        <type>pom</type>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-bom</artifactId>
+        <version>1.21.0</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
