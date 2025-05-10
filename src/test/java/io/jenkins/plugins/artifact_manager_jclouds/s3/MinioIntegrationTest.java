@@ -88,11 +88,9 @@ public class MinioIntegrationTest {
         } catch (Exception x) {
             Assume.assumeNoException("does not look like Docker is available", x);
         }
-        int port = 9000;
         minioServer = new MinIOContainer("minio/minio")
                 .withEnv("MINIO_ACCESS_KEY", ACCESS_KEY)
-                .withEnv("MINIO_SECRET_KEY", SECRET_KEY)
-                .withExposedPorts(port);
+                .withEnv("MINIO_SECRET_KEY", SECRET_KEY);
         minioServer.start();
 
         Integer mappedPort = minioServer.getFirstMappedPort();

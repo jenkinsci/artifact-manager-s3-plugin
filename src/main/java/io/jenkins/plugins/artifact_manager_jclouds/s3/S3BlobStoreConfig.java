@@ -323,7 +323,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         } else {
             AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
             if (amazonWebServicesCredentials != null) {
-                StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider .create(amazonWebServicesCredentials.resolveCredentials());
+                StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(amazonWebServicesCredentials.resolveCredentials());
                 builder = builder.credentialsProvider(credentialsProvider);
             } else {
                 throw new IllegalArgumentException("Cannot create S3Client as no credentials provided");

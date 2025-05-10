@@ -62,6 +62,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import org.jenkinsci.Symbol;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetUrlRequest;
@@ -222,6 +223,11 @@ public class S3BlobStore extends BlobStoreProvider {
                     .s3Client(s3Client);
             if (StringUtils.isNotBlank(customEndpoint)) {
                 presignerBuilder.endpointOverride(URI.create(customEndpoint));
+            }
+
+            String customRegion = getConfiguration().getCustomSigningRegion();
+            if(StringUtils.isNotBlank(customRegion)) {
+                presignerBuilder.region(Region.of(customRegion));
             }
 
             try (S3Presigner presigner = presignerBuilder.build()) {
