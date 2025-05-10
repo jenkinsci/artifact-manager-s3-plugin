@@ -117,21 +117,21 @@ public class LocalStackIntegrationTest {
         }
     }
     
-    private static void setUp(WithMinioServiceEndpoint withMinioServiceEndpoint) throws IOException {
+    private static void setUp(WithLocalStackServiceEndpoint withLocalStackServiceEndpoint) throws IOException {
         provider = new S3BlobStore();
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
-        credentialsConfig.setRegion(withMinioServiceEndpoint.region);
+        credentialsConfig.setRegion(withLocalStackServiceEndpoint.region);
         CredentialsProvider.lookupStores(Jenkins.get())
                 .iterator()
                 .next()
-                .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "MinioIntegrationTest", withMinioServiceEndpoint.accessKey,
-                        withMinioServiceEndpoint.secretKey, "MinioIntegrationTest"));
-        credentialsConfig.setCredentialsId("MinioIntegrationTest");
+                .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "LocalStackIntegrationTest", withLocalStackServiceEndpoint.accessKey,
+                        withLocalStackServiceEndpoint.secretKey, "LocalStackIntegrationTest"));
+        credentialsConfig.setCredentialsId("LocalStackIntegrationTest");
         
         config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
         config.setPrefix(CONTAINER_PREFIX);
-        config.setCustomEndpoint(withMinioServiceEndpoint.localStackServiceEndpoint);
+        config.setCustomEndpoint(withLocalStackServiceEndpoint.localStackServiceEndpoint);
         config.setUseHttp(true);
         config.setUsePathStyleUrl(true);
         config.setDisableSessionToken(true);
@@ -139,13 +139,13 @@ public class LocalStackIntegrationTest {
         client = config.getAmazonS3ClientBuilderWithCredentials().build();
     }
 
-    private static final class WithMinioServiceEndpoint implements RealJenkinsRule.Step {
+    private static final class WithLocalStackServiceEndpoint implements RealJenkinsRule.Step {
         private final String localStackServiceEndpoint;
         private final String accessKey;
         private final String secretKey;
         private final String region;
         private final RealJenkinsRule.Step delegate;
-        WithMinioServiceEndpoint(RealJenkinsRule.Step delegate) {
+        WithLocalStackServiceEndpoint(RealJenkinsRule.Step delegate) {
             // Serialize the endpoint into the step sent to the real JVM:
             this.localStackServiceEndpoint = LocalStackIntegrationTest.localStackServiceEndpoint;
             this.accessKey = LocalStackIntegrationTest.ACCESS_KEY;
@@ -166,7 +166,7 @@ public class LocalStackIntegrationTest {
     
     @Test
     public void canCreateBucket() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_canCreateBucket));
+        rr.then(new WithLocalStackServiceEndpoint(LocalStackIntegrationTest::_canCreateBucket));
     }
     private static void _canCreateBucket(JenkinsRule r) throws Throwable {
         String testBucketName = "jenkins-ci-data";
@@ -177,7 +177,7 @@ public class LocalStackIntegrationTest {
     
     @Test
     public void artifactArchive() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_artifactArchive));
+        rr.then(new WithLocalStackServiceEndpoint(LocalStackIntegrationTest::_artifactArchive));
     }
     private static void _artifactArchive(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-archive");
@@ -186,7 +186,7 @@ public class LocalStackIntegrationTest {
 
     @Test
     public void artifactArchiveAndDelete() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_artifactArchiveAndDelete));
+        rr.then(new WithLocalStackServiceEndpoint(LocalStackIntegrationTest::_artifactArchiveAndDelete));
     }
     private static void _artifactArchiveAndDelete(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-archive-and-delete");
@@ -195,7 +195,7 @@ public class LocalStackIntegrationTest {
     
     @Test
     public void artifactStash() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_artifactStash));
+        rr.then(new WithLocalStackServiceEndpoint(LocalStackIntegrationTest::_artifactStash));
     }
     private static void _artifactStash(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-stash");
@@ -204,7 +204,7 @@ public class LocalStackIntegrationTest {
 
     @Test
     public void artifactStashAndDelete() throws Throwable {
-        rr.then(new WithMinioServiceEndpoint(LocalStackIntegrationTest::_artifactStashAndDelete));
+        rr.then(new WithLocalStackServiceEndpoint(LocalStackIntegrationTest::_artifactStashAndDelete));
     }
     private static void _artifactStashAndDelete(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-stash-and-delete");
