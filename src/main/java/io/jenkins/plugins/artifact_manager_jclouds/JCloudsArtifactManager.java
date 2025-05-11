@@ -194,6 +194,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
             try {
                 for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
+                    listener.getLogger().println("URL: " + entry.getValue());
                     client.uploadFile(new File(f, entry.getKey()), contentTypes.get(entry.getKey()), entry.getValue(), listener);
                 }
             } catch (IOException e) {

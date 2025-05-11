@@ -273,7 +273,7 @@ eval $(aws configure export-credentials --format env)
 Alternately, you can test against MinIO:
 
 ```bash
-docker run --rm -e MINIO_ACCESS_KEY=dummy -e MINIO_SECRET_KEY=dummydummy -p 127.0.0.1:9000:9000 minio/minio server /data
+docker run --rm -e MINIO_ROOT_USER=dummy -e MINIO_ROOT_PASSWORD=dummydummy -p 127.0.0.1:9000:9000 minio/minio server /data
 ```
 
 creating AWS credentials with that access & secret key,
