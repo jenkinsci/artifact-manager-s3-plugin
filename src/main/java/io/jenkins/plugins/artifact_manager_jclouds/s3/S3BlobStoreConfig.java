@@ -84,8 +84,6 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
 
-    private static final boolean DO_NOT_CHECK_CUSTOM_ENDPOINT = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".doNotCheckCustomEndpoint");
-
     /**
      * Name of the S3 Bucket.
      */
@@ -246,7 +244,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     public String getResolvedCustomEndpoint() {
         if(StringUtils.isNotBlank(customEndpoint)) {
             String protocol;
-            if (getUseHttp()) {
+            if(getUseHttp()) {
                 protocol = "http";
             } else {
                 protocol = "https";

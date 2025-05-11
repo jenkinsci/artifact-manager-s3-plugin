@@ -106,6 +106,7 @@ import org.junit.AssumptionViolatedException;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
@@ -151,13 +152,12 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
             DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test"));
             Jenkins.get().addNode(agent);
             j.waitOnline(agent);
-            //try {
+            try {
                 agent.getChannel().call(new LoadS3Credentials());
                 fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
-            // FIXME exception
-            //} catch (SdkClientException x) {
-            //    System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
-            //}
+            } catch (SdkClientException x) {
+                System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
+            }
         }
     }
 
