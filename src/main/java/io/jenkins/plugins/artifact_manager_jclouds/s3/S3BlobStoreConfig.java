@@ -30,7 +30,6 @@ import java.net.URISyntaxException;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -54,6 +53,7 @@ import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfigura
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
 import org.jenkinsci.Symbol;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -63,7 +63,6 @@ import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
 import software.amazon.awssdk.services.s3.model.GetBucketLocationRequest;
-
 
 /**
  * Store the S3BlobStore configuration to save it on a separate file. This make that
@@ -320,13 +319,13 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         if (disableSessionToken) {
             builder = builder.credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials());
         } else {
-            AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
-            if (amazonWebServicesCredentials != null) {
-                StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(amazonWebServicesCredentials.resolveCredentials());
-                builder = builder.credentialsProvider(credentialsProvider);
+            AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
+                    .sessionCredentials(CredentialsAwsGlobalConfiguration.get().getRegion(),
+                            CredentialsAwsGlobalConfiguration.get().getCredentialsId());
+            if(awsSessionCredentials != null ) {
+                builder.credentialsProvider(StaticCredentialsProvider.create(awsSessionCredentials));
             } else {
-                // revert to AWS default mainly use only for testing
-                builder.credentialsProvider(StaticCredentialsProvider.create(DefaultCredentialsProvider.create().resolveCredentials()));
+                throw new IOException("No session AWS credentials found");
             }
         }
         return builder;

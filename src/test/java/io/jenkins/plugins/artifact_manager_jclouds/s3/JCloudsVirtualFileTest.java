@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Handler;
@@ -74,7 +75,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     @Override
     public void setup() throws Exception {
         tmpFile = tmp.newFile();
-        FileUtils.writeStringToFile(tmpFile, "test");
+        Files.writeString(tmpFile.toPath(), "test");
         filePath = getPrefix() + tmpFile.getName();
         Blob blob = blobStore.blobBuilder(filePath).payload(tmpFile).build();
 
@@ -115,7 +116,10 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     private JCloudsVirtualFile newJCloudsBlobStore(String path) {
-        return new JCloudsVirtualFile(new S3BlobStore(), getContainer(), path.replaceFirst("/$", ""));
+        S3BlobStore s3BlobStore = new S3BlobStore();
+        // no need to lookup credentials for all tests
+        s3BlobStore.setCredentialsSupplier(getCredentialsSupplier());
+        return new JCloudsVirtualFile(s3BlobStore, getContainer(), path.replaceFirst("/$", ""));
     }
 
     @Test

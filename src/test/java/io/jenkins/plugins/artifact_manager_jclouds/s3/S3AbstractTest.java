@@ -33,9 +33,12 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
 
+import com.google.common.base.Supplier;
 import org.apache.commons.lang.RandomStringUtils;
+import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.domain.Credentials;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -44,11 +47,12 @@ import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -59,14 +63,16 @@ public abstract class S3AbstractTest {
     protected static final String S3_DIR = System.getenv("S3_DIR");
     private static final String S3_REGION = System.getenv("S3_REGION");
 
-    protected BlobStoreProvider provider;
+    protected S3BlobStore provider;
+
+    protected static AwsCredentialsProvider ssoEnabledCredentialsProvider;
 
     @BeforeClass
     public static void live() {
         assumeThat("define $S3_BUCKET as explained in README", S3_BUCKET, notNullValue());
         assumeThat("define $S3_DIR as explained in README", S3_DIR, notNullValue());
 
-        AwsCredentialsProvider ssoEnabledCredentialsProvider = ProfileCredentialsProvider.create();
+        ssoEnabledCredentialsProvider = DefaultCredentialsProvider.builder().reuseLastProviderEnabled(true).build();
         S3BlobStoreConfig.clientBuilder = () -> S3Client.builder().credentialsProvider(ssoEnabledCredentialsProvider);
         S3ClientBuilder builder = S3BlobStoreConfig.clientBuilder.get();
         try (S3Client client = builder.build()) {
@@ -76,7 +82,7 @@ public abstract class S3AbstractTest {
             assumeNoException("failed to connect to S3 with current credentials", x);
         }
     }
-
+    
     @Rule
     public TemporaryFolder tmp = new TemporaryFolder();
 
@@ -108,11 +114,24 @@ public abstract class S3AbstractTest {
 
     @Before
     public void setupContext() throws Exception {
+
         provider = new S3BlobStore();
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(S3_BUCKET);
+
+        provider.setCredentialsSupplier(getCredentialsSupplier());
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(S3_REGION);
+//        if(CredentialsAwsGlobalConfiguration.get().getCredentials() == null) {
+//            AwsCredentials awsCredentials = ssoEnabledCredentialsProvider.resolveCredentials();
+//            CredentialsProvider.lookupStores(Jenkins.get())
+//                    .iterator()
+//                    .next()
+//                    .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, S3AbstractTest.class.getName(),
+//                            awsCredentials.accessKeyId(), awsCredentials.secretAccessKey(), S3AbstractTest.class.getName()));
+//            credentialsConfig.setCredentialsId(S3AbstractTest.class.getName());
+//        }
+
         loggerRule.recordPackage(JCloudsVirtualFile.class, Level.FINE);
 
         // run each test under its own dir
@@ -124,6 +143,22 @@ public abstract class S3AbstractTest {
         blobStore = context.getBlobStore();
 
         setup();
+    }
+
+    protected static Supplier<Credentials> getCredentialsSupplier() {
+        AwsCredentials awsCredentials = ssoEnabledCredentialsProvider.resolveCredentials();
+        Credentials credentials;
+        if(awsCredentials instanceof AwsSessionCredentials awsSessionCredentials) {
+            credentials = SessionCredentials.builder()
+                    .accessKeyId(awsSessionCredentials.accessKeyId())
+                    .secretAccessKey(awsSessionCredentials.secretAccessKey())
+                    .sessionToken(awsSessionCredentials.sessionToken())
+                    .build();
+        } else {
+            credentials = new Credentials(awsCredentials.accessKeyId(), awsCredentials.secretAccessKey());
+            S3BlobStoreConfig.get().setDisableSessionToken(true);
+        }
+        return () -> credentials;
     }
 
     public void setup() throws Exception {

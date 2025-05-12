@@ -29,13 +29,12 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.time.Duration;
-import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import jenkins.security.FIPS140;
@@ -61,10 +60,8 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import org.jenkinsci.Symbol;
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -155,19 +152,33 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     static boolean BREAK_CREDS;
 
+    private Supplier<Credentials> credentialsSupplier;
+
+    /**
+     * Make tests faster by not using CredentialsAwsGlobalConfiguration.get().sessionCredentials
+     * which can very slow especially when using EnvironmentVariableCredentialsProvider or SystemPropertyCredentialsProvider
+     */
+    @VisibleForTesting
+    protected void setCredentialsSupplier(Supplier<Credentials> credentialsSupplier) {
+        this.credentialsSupplier = credentialsSupplier;
+    }
+
     /**
      *
      * @return the proper credential supplier using the configuration settings.
      * @throws IOException in case of error.
      */
     private Supplier<Credentials> getCredentialsSupplier() throws IOException {
+        if(credentialsSupplier != null) {
+            return credentialsSupplier;
+        }
         // get user credentials from env vars, profiles,...
         String accessKeyId;
         String secretKey;
         String sessionToken;
-
+        AmazonWebServicesCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
         if (getConfiguration().getDisableSessionToken()) {
-            AmazonWebServicesCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
+
             if (awsCredentials == null) {
                 throw new IOException("No static AWS credentials found");
             }
@@ -175,23 +186,15 @@ public class S3BlobStore extends BlobStoreProvider {
             secretKey = awsCredentials.resolveCredentials().secretAccessKey();
             sessionToken = "";
         } else {
-            AmazonWebServicesCredentials credentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
-            AwsSessionCredentials awsSessionCredentials;
-            if (credentials == null) {
-                AwsCredentials awsCredentials = ProfileCredentialsProvider.create().resolveCredentials();
-                if (awsCredentials instanceof AwsSessionCredentials) {
-                    awsSessionCredentials = (AwsSessionCredentials) awsCredentials;
-                } else {
-                    throw new IOException("No AWS credentials found with session token, please check your AWS configuration");
-                }
+            AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
+                    .sessionCredentials(getRegion(), CredentialsAwsGlobalConfiguration.get().getCredentialsId());
+            if(awsSessionCredentials != null ) {
+                accessKeyId = awsSessionCredentials.accessKeyId();
+                secretKey = awsSessionCredentials.secretAccessKey();
+                sessionToken = awsSessionCredentials.sessionToken();
             } else {
-                awsSessionCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(getRegion(),
-                        credentials.getId());
+                throw new IOException("No session AWS credentials found");
             }
-
-            accessKeyId = awsSessionCredentials.accessKeyId();
-            secretKey = awsSessionCredentials.secretAccessKey();
-            sessionToken = awsSessionCredentials.sessionToken();
         }
 
         if (BREAK_CREDS) {
