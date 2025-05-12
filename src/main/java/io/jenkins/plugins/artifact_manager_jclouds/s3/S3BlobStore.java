@@ -177,8 +177,8 @@ public class S3BlobStore extends BlobStoreProvider {
         String accessKeyId;
         String secretKey;
         String sessionToken;
-        AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
         if (getConfiguration().getDisableSessionToken()) {
+            AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
             if (amazonWebServicesCredentials == null) {
                 throw new IOException("No static AWS credentials found");
             }
