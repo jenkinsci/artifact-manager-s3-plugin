@@ -33,12 +33,9 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
 
-import com.google.common.base.Supplier;
 import org.apache.commons.lang.RandomStringUtils;
-import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.domain.Credentials;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -49,9 +46,7 @@ import org.jvnet.hudson.test.LoggerRule;
 
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -119,18 +114,8 @@ public abstract class S3AbstractTest {
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(S3_BUCKET);
 
-        provider.setCredentialsSupplier(getCredentialsSupplier());
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(S3_REGION);
-//        if(CredentialsAwsGlobalConfiguration.get().getCredentials() == null) {
-//            AwsCredentials awsCredentials = ssoEnabledCredentialsProvider.resolveCredentials();
-//            CredentialsProvider.lookupStores(Jenkins.get())
-//                    .iterator()
-//                    .next()
-//                    .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, S3AbstractTest.class.getName(),
-//                            awsCredentials.accessKeyId(), awsCredentials.secretAccessKey(), S3AbstractTest.class.getName()));
-//            credentialsConfig.setCredentialsId(S3AbstractTest.class.getName());
-//        }
 
         loggerRule.recordPackage(JCloudsVirtualFile.class, Level.FINE);
 
@@ -143,22 +128,6 @@ public abstract class S3AbstractTest {
         blobStore = context.getBlobStore();
 
         setup();
-    }
-
-    protected static Supplier<Credentials> getCredentialsSupplier() {
-        AwsCredentials awsCredentials = ssoEnabledCredentialsProvider.resolveCredentials();
-        Credentials credentials;
-        if(awsCredentials instanceof AwsSessionCredentials awsSessionCredentials) {
-            credentials = SessionCredentials.builder()
-                    .accessKeyId(awsSessionCredentials.accessKeyId())
-                    .secretAccessKey(awsSessionCredentials.secretAccessKey())
-                    .sessionToken(awsSessionCredentials.sessionToken())
-                    .build();
-        } else {
-            credentials = new Credentials(awsCredentials.accessKeyId(), awsCredentials.secretAccessKey());
-            S3BlobStoreConfig.get().setDisableSessionToken(true);
-        }
-        return () -> credentials;
     }
 
     public void setup() throws Exception {

@@ -34,10 +34,8 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import groovy.transform.TailRecursive;
 import jenkins.security.FIPS140;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
@@ -153,26 +151,12 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     static boolean BREAK_CREDS;
 
-    private transient Supplier<Credentials> credentialsSupplier;
-
-    /**
-     * Make tests faster by not using CredentialsAwsGlobalConfiguration.get().sessionCredentials
-     * which can very slow especially when using EnvironmentVariableCredentialsProvider or SystemPropertyCredentialsProvider
-     */
-    @VisibleForTesting
-    protected void setCredentialsSupplier(Supplier<Credentials> credentialsSupplier) {
-        this.credentialsSupplier = credentialsSupplier;
-    }
-
     /**
      *
      * @return the proper credential supplier using the configuration settings.
      * @throws IOException in case of error.
      */
     private Supplier<Credentials> getCredentialsSupplier() throws IOException {
-        if(credentialsSupplier != null) {
-            return credentialsSupplier;
-        }
         // get user credentials from env vars, profiles,...
         String accessKeyId;
         String secretKey;

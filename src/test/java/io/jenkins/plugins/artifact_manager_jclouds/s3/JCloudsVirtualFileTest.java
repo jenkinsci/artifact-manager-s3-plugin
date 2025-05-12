@@ -117,8 +117,6 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
 
     private JCloudsVirtualFile newJCloudsBlobStore(String path) {
         S3BlobStore s3BlobStore = new S3BlobStore();
-        // no need to lookup credentials for all tests
-        s3BlobStore.setCredentialsSupplier(getCredentialsSupplier());
         return new JCloudsVirtualFile(s3BlobStore, getContainer(), path.replaceFirst("/$", ""));
     }
 
