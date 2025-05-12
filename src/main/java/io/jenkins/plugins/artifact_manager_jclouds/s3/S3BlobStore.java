@@ -61,6 +61,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import org.jenkinsci.Symbol;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -176,14 +177,14 @@ public class S3BlobStore extends BlobStoreProvider {
         String accessKeyId;
         String secretKey;
         String sessionToken;
-        AmazonWebServicesCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
+        AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
         if (getConfiguration().getDisableSessionToken()) {
-
-            if (awsCredentials == null) {
+            if (amazonWebServicesCredentials == null) {
                 throw new IOException("No static AWS credentials found");
             }
-            accessKeyId = awsCredentials.resolveCredentials().accessKeyId();
-            secretKey = awsCredentials.resolveCredentials().secretAccessKey();
+            AwsCredentials awsCredentials = amazonWebServicesCredentials.resolveCredentials();
+            accessKeyId = awsCredentials.accessKeyId();
+            secretKey = awsCredentials.secretAccessKey();
             sessionToken = "";
         } else {
             AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
