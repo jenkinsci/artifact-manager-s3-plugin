@@ -24,8 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -54,8 +52,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
 
-import com.amazonaws.SdkClientException;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
@@ -79,7 +75,6 @@ import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import java.io.Serializable;
-import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Set;
@@ -96,8 +91,6 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.Issue;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
@@ -110,6 +103,8 @@ import org.junit.AssumptionViolatedException;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.s3.S3Client;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -186,7 +181,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
         @Override
         public Void call() {
-            AmazonS3ClientBuilder.standard().build();
+            S3Client.builder().build();
             return null;
         }
     }

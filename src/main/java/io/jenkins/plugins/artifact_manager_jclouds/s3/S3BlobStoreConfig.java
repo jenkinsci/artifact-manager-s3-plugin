@@ -25,23 +25,18 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.Bucket;
 import com.google.common.annotations.VisibleForTesting;
-import com.amazonaws.services.s3.model.BucketAccelerateConfiguration;
-import com.amazonaws.services.s3.model.BucketAccelerateStatus;
-import com.amazonaws.services.s3.model.SetBucketAccelerateConfigurationRequest;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -59,6 +54,15 @@ import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfigura
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
 import org.jenkinsci.Symbol;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.model.Bucket;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
+import software.amazon.awssdk.services.s3.model.GetBucketLocationRequest;
 
 
 /**
@@ -274,51 +278,60 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     @VisibleForTesting
-    static Supplier<AmazonS3ClientBuilder> clientBuilder = AmazonS3ClientBuilder::standard;
+    static Supplier<S3ClientBuilder> clientBuilder = S3Client::builder;
 
     /**
     *
     * @return an AmazonS3ClientBuilder using the region or not, it depends if a region is configured or not.
     */
-    AmazonS3ClientBuilder getAmazonS3ClientBuilder() {
-        AmazonS3ClientBuilder ret = clientBuilder.get();
+    S3ClientBuilder getAmazonS3ClientBuilder() throws URISyntaxException {
+        S3ClientBuilder ret = clientBuilder.get();
 
-        if (StringUtils.isNotBlank(customEndpoint)) {
+        if (StringUtils.isNotBlank(getResolvedCustomEndpoint())) {
             String resolvedCustomSigningRegion = customSigningRegion;
             if (StringUtils.isBlank(resolvedCustomSigningRegion)) {
                 resolvedCustomSigningRegion = "us-east-1";
             }
-            ret = ret.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(getResolvedCustomEndpoint(), resolvedCustomSigningRegion));
+            ret = ret.endpointOverride(new URI(getResolvedCustomEndpoint())).region(Region.of(resolvedCustomSigningRegion));
         } else if (StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
-            ret = ret.withRegion(CredentialsAwsGlobalConfiguration.get().getRegion());
+            ret = ret.region(Region.of(CredentialsAwsGlobalConfiguration.get().getRegion()));
         } else {
-            ret = ret.withForceGlobalBucketAccessEnabled(true);
+            ret = ret.useArnRegion(true);
         }
-        ret = ret.withAccelerateModeEnabled(useTransferAcceleration);
+        ret = ret.accelerate(useTransferAcceleration);
 
         // TODO the client would automatically use path-style URLs under certain conditions; is it really necessary to override?
-        ret = ret.withPathStyleAccessEnabled(getUsePathStyleUrl());
+        ret = ret.forcePathStyle(getUsePathStyleUrl());
 
         return ret;
     }
 
     @VisibleForTesting
-    public AmazonS3ClientBuilder getAmazonS3ClientBuilderWithCredentials() throws IOException {
-        return getAmazonS3ClientBuilderWithCredentials(getDisableSessionToken());
+    public S3ClientBuilder getAmazonS3ClientBuilderWithCredentials() throws IOException {
+        try {
+            return getAmazonS3ClientBuilderWithCredentials(getDisableSessionToken());
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private AmazonS3ClientBuilder getAmazonS3ClientBuilderWithCredentials(boolean disableSessionToken) throws IOException {
-        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilder();
+    private S3ClientBuilder getAmazonS3ClientBuilderWithCredentials(boolean disableSessionToken) throws IOException, URISyntaxException {
+        S3ClientBuilder builder = getAmazonS3ClientBuilder();
         if (disableSessionToken) {
-            builder = builder.withCredentials(CredentialsAwsGlobalConfiguration.get().getCredentials());
+            builder = builder.credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials());
         } else {
-            AWSStaticCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
-            CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder));
-            builder = builder.withCredentials(credentialsProvider);
+            AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
+            if (amazonWebServicesCredentials != null) {
+                StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(amazonWebServicesCredentials.resolveCredentials());
+                builder = builder.credentialsProvider(credentialsProvider);
+            } else {
+                // revert to AWS default mainly use only for testing
+                builder.credentialsProvider(StaticCredentialsProvider.create(DefaultCredentialsProvider.create().resolveCredentials()));
+            }
         }
         return builder;
     }
-    
+
     public FormValidation doCheckContainer(@QueryParameter String container){
         FormValidation ret = FormValidation.ok();
         if (StringUtils.isBlank(container)){
@@ -375,19 +388,25 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
      * runtime exceptions are thrown by createBucket method.
      */
     public Bucket createS3Bucket(String name) throws IOException {
-        return createS3Bucket(name, getDisableSessionToken());
+        try {
+            return createS3Bucket(name, getDisableSessionToken());
+        } catch (URISyntaxException e) {
+            throw new IOException(e);
+        }
     }
 
-    private Bucket createS3Bucket(String name, boolean disableSessionToken) throws IOException {
-        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
+    private Bucket createS3Bucket(String name, boolean disableSessionToken) throws IOException, URISyntaxException {
+        S3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
         //Accelerated mode must be off in order to apply it to a bucket
-        AmazonS3 client = builder.withAccelerateModeEnabled(false).build();
-        Bucket bucket = client.createBucket(name);
-        if(useTransferAcceleration) {
-            client.setBucketAccelerateConfiguration(new SetBucketAccelerateConfigurationRequest(name,
-                new BucketAccelerateConfiguration(BucketAccelerateStatus.Enabled)));
+        try (S3Client client = builder.accelerate(false).build()) {
+            CreateBucketResponse response = client.createBucket(CreateBucketRequest.builder().bucket(name).build());
+            if(response.sdkHttpResponse().isSuccessful()) {
+                return Bucket.builder().name(name).build();
+            } else {
+                throw new IOException("Cannot create bucket with name:" + name
+                        + " response status : " + response.sdkHttpResponse().statusCode());
+            }
         }
-        return bucket;
     }
 
     @RequirePOST
@@ -403,10 +422,11 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ret;
     }
 
-    void checkGetBucketLocation(String container, boolean disableSessionToken) throws IOException {
-        AmazonS3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
-        AmazonS3 client = builder.build();
-        client.getBucketLocation(container);
+    void checkGetBucketLocation(String container, boolean disableSessionToken) throws IOException, URISyntaxException {
+        S3ClientBuilder builder = getAmazonS3ClientBuilderWithCredentials(disableSessionToken);
+        try (S3Client client = builder.build()) {
+            client.getBucketLocation(GetBucketLocationRequest.builder().bucket(container).build());
+        }
     }
 
     @RequirePOST
