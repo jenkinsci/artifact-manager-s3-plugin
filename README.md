@@ -270,13 +270,6 @@ aws sso login
 eval $(aws configure export-credentials --format env)
 ```
 
-If you are using SSO, pending integration of v2 this is not directly supported, so first run
-
-```bash
-aws sso login
-eval $(aws configure export-credentials --format env)
-```
-
 Alternately, you can test against MinIO:
 
 ```bash
