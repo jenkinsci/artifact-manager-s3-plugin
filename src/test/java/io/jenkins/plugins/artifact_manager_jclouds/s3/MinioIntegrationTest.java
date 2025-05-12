@@ -28,48 +28,22 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
-import java.io.IOException;
 import jenkins.model.Jenkins;
 
-import static org.hamcrest.Matchers.is;
-import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.MinIOContainer;
-import org.junit.Assume;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.RealJenkinsRule;
-import org.testcontainers.DockerClientFactory;
+import org.junit.Before;
 
 public class MinioIntegrationTest extends AbstractIntegrationTest {
-    private static final String ACCESS_KEY = "supersecure";
-    private static final String SECRET_KEY = "donttell";
     private static final String REGION = "us-east-1";
     
     private static MinIOContainer minioServer;
-    private static String minioServiceEndpoint;
-
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        // Beyond just isDockerAvailable, verify the OS:
-        try {
-            Assume.assumeThat("expect to run Docker on Linux containers", DockerClientFactory.instance().client().infoCmd().exec().getOsType(), is("linux"));
-        } catch (Exception x) {
-            Assume.assumeNoException("does not look like Docker is available", x);
-        }
-        minioServer = new MinIOContainer("minio/minio")
-                .withUserName(ACCESS_KEY)
-                .withPassword(SECRET_KEY);
+        minioServer = new MinIOContainer("minio/minio");
         minioServer.start();
-
-        Integer mappedPort = minioServer.getFirstMappedPort();
-        Testcontainers.exposeHostPorts(mappedPort);
-        minioServiceEndpoint = String.format("%s:%s", minioServer.getHost(), mappedPort);
-//        minioServiceEndpoint = "127.0.0.1:9000";
-        
-        image = ArtifactManagerTest.prepareImage();
     }
     
     @AfterClass
@@ -77,48 +51,31 @@ public class MinioIntegrationTest extends AbstractIntegrationTest {
         if (minioServer != null && minioServer.isRunning()) {
             minioServer.stop();
         }
-        if(client != null) {
-            client.close();
-        }
-    }
-    
-    private static void setUp(String minioServiceEndpoint) throws IOException {
-        provider = new S3BlobStore();
-        CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
-        credentialsConfig.setRegion(REGION);
-        CredentialsProvider.lookupStores(Jenkins.get())
-                .iterator()
-                .next()
-                .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "MinioIntegrationTest", ACCESS_KEY, SECRET_KEY, "MinioIntegrationTest"));
-        credentialsConfig.setCredentialsId("MinioIntegrationTest");
-        
-        config = S3BlobStoreConfig.get();
-        config.setContainer(CONTAINER_NAME);
-        config.setPrefix(CONTAINER_PREFIX);
-        config.setCustomEndpoint(minioServiceEndpoint);
-        config.setCustomSigningRegion(REGION);
-        config.setUseHttp(true);
-        config.setUsePathStyleUrl(true);
-        config.setDisableSessionToken(true);
-        client = config.getAmazonS3ClientBuilderWithCredentials().build();
     }
 
-    private static final class WithMinioServiceEndpoint implements RealJenkinsRule.Step {
-        private final String minioServiceEndpoint;
-        private final RealJenkinsRule.Step delegate;
-        WithMinioServiceEndpoint(RealJenkinsRule.Step delegate) {
-            // Serialize the endpoint into the step sent to the real JVM:
-            this.minioServiceEndpoint = MinioIntegrationTest.minioServiceEndpoint;
-            this.delegate = delegate;
-        }
-        @Override public void run(JenkinsRule r) throws Throwable {
-            setUp(minioServiceEndpoint);
-            delegate.run(r);
-        }
-    }
-    protected RealJenkinsRule.Step getStep(RealJenkinsRule.Step delegate) {
-        return new WithMinioServiceEndpoint(delegate);
+    @Before public void configure() throws Throwable {
+        rr.startJenkins();
+        var endpoint = minioServer.getS3URL().replaceFirst("^http://", "");
+        var username = minioServer.getUserName();
+        var password = minioServer.getPassword();
+        rr.run(r -> {
+            CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
+            credentialsConfig.setRegion(REGION);
+            CredentialsProvider.lookupStores(Jenkins.get())
+                    .iterator()
+                    .next()
+                    .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "MinioIntegrationTest", username, password, null));
+            credentialsConfig.setCredentialsId("MinioIntegrationTest");
+
+            var config = S3BlobStoreConfig.get();
+            config.setContainer(CONTAINER_NAME);
+            config.setPrefix(CONTAINER_PREFIX);
+            config.setCustomEndpoint(endpoint);
+            config.setCustomSigningRegion(REGION);
+            config.setUseHttp(true);
+            config.setUsePathStyleUrl(true);
+            config.setDisableSessionToken(true);
+        });
     }
 
 }
-

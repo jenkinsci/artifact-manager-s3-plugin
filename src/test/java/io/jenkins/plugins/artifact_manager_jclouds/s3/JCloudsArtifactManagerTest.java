@@ -41,7 +41,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import org.jenkinsci.test.acceptance.docker.DockerImage;
 import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -122,13 +121,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
     }
 
-    private static DockerImage image;
-
-    @BeforeClass
-    public static void doPrepareImage() throws Exception {
-        image = ArtifactManagerTest.prepareImage();
-    }
-
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
@@ -141,6 +133,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void agentPermissions() throws Exception {
+        var image = ArtifactManagerTest.prepareImage(); // TODO simplify to use Testcontainers directly
         assumeNotNull(image);
         System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
         try (JavaContainer container = image.start(JavaContainer.class).start()) {
@@ -160,22 +153,22 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Test
     public void artifactArchive() throws Exception {
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true, image);
+        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true, null);
     }
 
     @Test
     public void artifactArchiveAndDelete() throws Exception {
-        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true, image);
+        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true, null);
     }
 
     @Test
     public void artifactStash() throws Exception {
-        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true, image);
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true, null);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
-        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true, image);
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true, null);
     }
 
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
