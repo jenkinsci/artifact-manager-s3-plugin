@@ -291,7 +291,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         try {
             putBlob(blobStore.blobBuilder(key).payload("test").build());
 
-            final S3Client s3 = S3BlobStoreConfig.clientBuilder.get().build();
+            final S3Client s3 = S3Client.create();
             ListObjectsV2Response result = s3.listObjectsV2(ListObjectsV2Request.builder().bucket(getContainer()).build());
             List<S3Object> objects = result.contents();
             assertThat(objects, not(empty()));

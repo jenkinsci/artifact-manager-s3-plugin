@@ -27,7 +27,6 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
@@ -54,7 +53,6 @@ import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
 import org.jenkinsci.Symbol;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -276,15 +274,12 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         return ExtensionList.lookupSingleton(S3BlobStoreConfig.class);
     }
 
-    @VisibleForTesting
-    static Supplier<S3ClientBuilder> clientBuilder = S3Client::builder;
-
     /**
     *
     * @return an AmazonS3ClientBuilder using the region or not, it depends if a region is configured or not.
     */
     S3ClientBuilder getAmazonS3ClientBuilder() throws URISyntaxException {
-        S3ClientBuilder ret = clientBuilder.get();
+        S3ClientBuilder ret = S3Client.builder();
 
         if (StringUtils.isNotBlank(getResolvedCustomEndpoint())) {
             String resolvedCustomSigningRegion = customSigningRegion;

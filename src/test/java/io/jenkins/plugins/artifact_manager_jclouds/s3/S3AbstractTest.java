@@ -46,11 +46,8 @@ import org.jvnet.hudson.test.LoggerRule;
 
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
 public abstract class S3AbstractTest {
@@ -60,17 +57,12 @@ public abstract class S3AbstractTest {
 
     protected S3BlobStore provider;
 
-    protected static AwsCredentialsProvider ssoEnabledCredentialsProvider;
-
     @BeforeClass
     public static void live() {
         assumeThat("define $S3_BUCKET as explained in README", S3_BUCKET, notNullValue());
         assumeThat("define $S3_DIR as explained in README", S3_DIR, notNullValue());
 
-        ssoEnabledCredentialsProvider = DefaultCredentialsProvider.builder().reuseLastProviderEnabled(true).build();
-        S3BlobStoreConfig.clientBuilder = () -> S3Client.builder().credentialsProvider(ssoEnabledCredentialsProvider);
-        S3ClientBuilder builder = S3BlobStoreConfig.clientBuilder.get();
-        try (S3Client client = builder.build()) {
+        try (S3Client client = S3Client.create()) {
             assumeThat(client.headBucket(HeadBucketRequest.builder().bucket(S3_BUCKET).build()).sdkHttpResponse().isSuccessful(), is(true));
         } catch (SdkClientException x) {
             x.printStackTrace();
