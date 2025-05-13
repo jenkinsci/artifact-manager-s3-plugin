@@ -265,6 +265,13 @@
       <artifactId>minio</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- just a workaround for PCT execution -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>1.27.1</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>
