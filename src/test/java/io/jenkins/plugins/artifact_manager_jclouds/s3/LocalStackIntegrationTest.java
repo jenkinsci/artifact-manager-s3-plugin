@@ -29,52 +29,62 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.Jenkins;
-
+import org.apache.commons.lang.StringUtils;
+import org.jclouds.aws.domain.Region;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.testcontainers.containers.MinIOContainer;
-import org.junit.Before;
+import org.testcontainers.Testcontainers;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.utility.DockerImageName;
 
-public class MinioIntegrationTest extends AbstractIntegrationTest {
-    private static final String REGION = "us-east-1";
-    
-    private static MinIOContainer minioServer;
+import java.util.Locale;
+
+import org.junit.Before;
+import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
+
+public class LocalStackIntegrationTest extends AbstractIntegrationTest {
+    private static LocalStackContainer LOCALSTACK;
+
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        minioServer = new MinIOContainer("minio/minio");
-        minioServer.start();
+        LOCALSTACK = new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.4.0"))
+                .withServices(S3);
+        LOCALSTACK.start();
+        Integer mappedPort = LOCALSTACK.getFirstMappedPort();
+        Testcontainers.exposeHostPorts(mappedPort);
     }
     
     @AfterClass
     public static void shutDownClass() {
-        if (minioServer != null && minioServer.isRunning()) {
-            minioServer.stop();
+        if (LOCALSTACK != null && LOCALSTACK.isRunning()) {
+            LOCALSTACK.stop();
         }
     }
-
+    
     @Before public void configure() throws Throwable {
         rr.startJenkins();
-        var endpoint = minioServer.getS3URL().replaceFirst("^http://", "");
-        var username = minioServer.getUserName();
-        var password = minioServer.getPassword();
+        var endpoint = LOCALSTACK.getEndpoint().getHost() + ":" + LOCALSTACK.getEndpoint().getPort();
+        var username = LOCALSTACK.getAccessKey();
+        var password = LOCALSTACK.getSecretKey();
+        var region = LOCALSTACK.getRegion();
         rr.run(r -> {
             CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
-            credentialsConfig.setRegion(REGION);
+            credentialsConfig.setRegion(region);
             CredentialsProvider.lookupStores(Jenkins.get())
                     .iterator()
                     .next()
-                    .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "MinioIntegrationTest", username, password, null));
-            credentialsConfig.setCredentialsId("MinioIntegrationTest");
+                    .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "LocalStackIntegrationTest", username, password, null));
+            credentialsConfig.setCredentialsId("LocalStackIntegrationTest");
 
             var config = S3BlobStoreConfig.get();
             config.setContainer(CONTAINER_NAME);
             config.setPrefix(CONTAINER_PREFIX);
             config.setCustomEndpoint(endpoint);
-            config.setCustomSigningRegion(REGION);
             config.setUseHttp(true);
             config.setUsePathStyleUrl(true);
             config.setDisableSessionToken(true);
+            config.setCustomSigningRegion(StringUtils.isBlank(region) ? Region.US_EAST_1.toLowerCase(Locale.US) : region);
         });
     }
 

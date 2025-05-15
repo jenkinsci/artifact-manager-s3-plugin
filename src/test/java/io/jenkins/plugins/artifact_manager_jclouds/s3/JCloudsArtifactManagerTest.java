@@ -24,8 +24,6 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -43,7 +41,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import org.jenkinsci.test.acceptance.docker.DockerImage;
 import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -54,8 +51,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
 
-import com.amazonaws.SdkClientException;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.cloudbees.hudson.plugins.folder.Folder;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
@@ -79,7 +74,6 @@ import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import java.io.Serializable;
-import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Set;
@@ -96,8 +90,6 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.Issue;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
 import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject;
 import org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProjectTest;
@@ -110,6 +102,8 @@ import org.junit.AssumptionViolatedException;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.s3.S3Client;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -127,13 +121,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         }
     }
 
-    private static DockerImage image;
-
-    @BeforeClass
-    public static void doPrepareImage() throws Exception {
-        image = ArtifactManagerTest.prepareImage();
-    }
-
     @Rule
     public LoggerRule httpLogging = new LoggerRule();
 
@@ -146,6 +133,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void agentPermissions() throws Exception {
+        var image = ArtifactManagerTest.prepareImage(); // TODO simplify to use Testcontainers directly
         assumeNotNull(image);
         System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
         try (JavaContainer container = image.start(JavaContainer.class).start()) {
@@ -165,28 +153,28 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Test
     public void artifactArchive() throws Exception {
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true, image);
+        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true, null);
     }
 
     @Test
     public void artifactArchiveAndDelete() throws Exception {
-        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true, image);
+        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true, null);
     }
 
     @Test
     public void artifactStash() throws Exception {
-        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true, image);
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true, null);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
-        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true, image);
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true, null);
     }
 
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {
         @Override
         public Void call() {
-            AmazonS3ClientBuilder.standard().build();
+            S3Client.builder().build();
             return null;
         }
     }

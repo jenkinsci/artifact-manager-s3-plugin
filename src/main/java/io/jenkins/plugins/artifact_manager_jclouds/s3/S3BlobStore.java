@@ -28,15 +28,15 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Date;
+import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import jenkins.security.FIPS140;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
@@ -51,18 +51,25 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-import com.amazonaws.auth.AWSSessionCredentials;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.google.common.base.Supplier;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import org.jenkinsci.Symbol;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetUrlRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -154,24 +161,27 @@ public class S3BlobStore extends BlobStoreProvider {
         String accessKeyId;
         String secretKey;
         String sessionToken;
-        
         if (getConfiguration().getDisableSessionToken()) {
-            AmazonWebServicesCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
-            if (awsCredentials == null) {
+            AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
+            if (amazonWebServicesCredentials == null) {
                 throw new IOException("No static AWS credentials found");
             }
-            accessKeyId = awsCredentials.getCredentials().getAWSAccessKeyId();
-            secretKey = awsCredentials.getCredentials().getAWSSecretKey();
+            AwsCredentials awsCredentials = amazonWebServicesCredentials.resolveCredentials();
+            accessKeyId = awsCredentials.accessKeyId();
+            secretKey = awsCredentials.secretAccessKey();
             sessionToken = "";
         } else {
-            AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
-            AWSSessionCredentials awsCredentials = CredentialsAwsGlobalConfiguration.get().sessionCredentials(builder);
-
-            accessKeyId = awsCredentials.getAWSAccessKeyId();
-            secretKey = awsCredentials.getAWSSecretKey();
-            sessionToken = awsCredentials.getSessionToken();
+            AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
+                    .sessionCredentials(getRegion(), CredentialsAwsGlobalConfiguration.get().getCredentialsId());
+            if(awsSessionCredentials != null ) {
+                accessKeyId = awsSessionCredentials.accessKeyId();
+                secretKey = awsSessionCredentials.secretAccessKey();
+                sessionToken = awsSessionCredentials.sessionToken();
+            } else {
+                throw new IOException("No session AWS credentials found");
+            }
         }
-        
+
         if (BREAK_CREDS) {
             sessionToken = "<broken>";
         }
@@ -188,9 +198,9 @@ public class S3BlobStore extends BlobStoreProvider {
     @NonNull
     @Override
     public URI toURI(@NonNull String container, @NonNull String key) {
-        try {
-            AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilder();
-            URI uri = builder.build().getUrl(container, key).toURI();
+        try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilder().build()) {
+            GetUrlRequest getUrlRequest = GetUrlRequest.builder().key(key).bucket(container).build();
+            URI uri = s3Client.utilities().getUrl(getUrlRequest).toURI();
             LOGGER.fine(() -> container + " / " + key + " → " + uri);
             return uri;
         } catch (URISyntaxException e) {
@@ -204,34 +214,59 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     @Override
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
-        AmazonS3ClientBuilder builder = getConfiguration().getAmazonS3ClientBuilderWithCredentials();
-        
-        Date expiration = new Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
-        String container = blob.getMetadata().getContainer();
-        String name = blob.getMetadata().getName();
-        LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
-                new Object[] { container, name, httpMethod });
-        String contentType = null;
-        com.amazonaws.HttpMethod awsMethod;
-        switch (httpMethod) {
-        case PUT:
-            awsMethod = com.amazonaws.HttpMethod.PUT;
-            // Only set content type for upload URLs, so that the right S3 metadata gets set
-            contentType = blob.getMetadata().getContentMetadata().getContentType();
-            break;
-        case GET:
-            awsMethod = com.amazonaws.HttpMethod.GET;
-            break;
-        default:
-            throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
+
+        String customEndpoint = getConfiguration().getResolvedCustomEndpoint();
+        try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build()) {
+            S3Presigner.Builder presignerBuilder = S3Presigner.builder()
+                    .fipsEnabled(FIPS140.useCompliantAlgorithms())
+                    .credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials())
+                    .s3Client(s3Client);
+            if (StringUtils.isNotBlank(customEndpoint)) {
+                presignerBuilder.endpointOverride(URI.create(customEndpoint));
+            }
+
+            String customRegion = getConfiguration().getCustomSigningRegion();
+            if(StringUtils.isNotBlank(customRegion)) {
+                presignerBuilder.region(Region.of(customRegion));
+            }
+
+            S3Configuration s3Configuration = S3Configuration.builder()
+                    .pathStyleAccessEnabled(getConfiguration().getUsePathStyleUrl())
+                    .accelerateModeEnabled(getConfiguration().getUseTransferAcceleration())
+                    .build();
+            presignerBuilder.serviceConfiguration(s3Configuration);
+
+            try (S3Presigner presigner = presignerBuilder.build()) {
+                Duration expiration = Duration.ofHours(1);
+                String container = blob.getMetadata().getContainer();
+                String name = blob.getMetadata().getName();
+                LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
+                        new Object[]{container, name, httpMethod});
+                String contentType;
+                switch (httpMethod) {
+                    case PUT:
+                        // Only set content type for upload URLs, so that the right S3 metadata gets set
+                        contentType = blob.getMetadata().getContentMetadata().getContentType();
+                        PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(container)
+                                .contentType(contentType)
+                                .key(name)
+                                .build();
+                        PutObjectPresignRequest putObjectPresignRequest = PutObjectPresignRequest.builder()
+                                .signatureDuration(expiration)
+                                .putObjectRequest(putObjectRequest).build();
+                        return presigner.presignPutObject(putObjectPresignRequest).url();
+                    case GET:
+                        GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(container).key(name).build();
+                        GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
+                                .signatureDuration(expiration)
+                                .getObjectRequest(getObjectRequest).build();
+                        return presigner.presignGetObject(getObjectPresignRequest).url();
+                    default:
+                        throw new IOException("HTTP Method " + httpMethod + " not supported for S3");
+                }
+
+            }
         }
-
-        GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(container, name)
-            .withExpiration(expiration)
-            .withMethod(awsMethod)
-            .withContentType(contentType);
-
-        return builder.build().generatePresignedUrl(generatePresignedUrlRequest);
     }
 
     @Symbol("s3")

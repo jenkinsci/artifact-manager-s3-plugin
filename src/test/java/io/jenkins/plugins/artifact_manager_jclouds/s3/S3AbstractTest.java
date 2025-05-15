@@ -24,13 +24,14 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assume.*;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assume.assumeNoException;
+import static org.junit.Assume.assumeThat;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.apache.commons.lang.RandomStringUtils;
 import org.jclouds.blobstore.BlobStore;
@@ -43,44 +44,32 @@ import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 
-import com.amazonaws.SdkClientException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSCredentialsProviderChain;
-import com.amazonaws.auth.AnonymousAWSCredentials;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-
-import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
 public abstract class S3AbstractTest {
-
-    protected static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
-
     private static final String S3_BUCKET = System.getenv("S3_BUCKET");
     protected static final String S3_DIR = System.getenv("S3_DIR");
     private static final String S3_REGION = System.getenv("S3_REGION");
 
-    protected BlobStoreProvider provider;
+    protected S3BlobStore provider;
 
     @BeforeClass
     public static void live() {
         assumeThat("define $S3_BUCKET as explained in README", S3_BUCKET, notNullValue());
         assumeThat("define $S3_DIR as explained in README", S3_DIR, notNullValue());
-        AWSCredentialsProvider ssoEnabledCredentialsProvider = new AWSCredentialsProviderChain(DefaultAWSCredentialsProviderChain.getInstance(), new V2ProfileCredentialsProvider());
-        S3BlobStoreConfig.clientBuilder = () -> AmazonS3ClientBuilder.standard().withCredentials(ssoEnabledCredentialsProvider);
-        try {
-            AmazonS3ClientBuilder builder = S3BlobStoreConfig.clientBuilder.get();
-            assumeTrue(S3_BUCKET + " bucket does not exist", builder.build().doesBucketExistV2(S3_BUCKET));
-            builder.build().listObjects(S3_BUCKET);
-            assumeThat("can get credentials from environment", builder.getCredentials().getCredentials(), allOf(notNullValue(), not(isA(AnonymousAWSCredentials.class))));
+
+        try (S3Client client = S3Client.create()) {
+            assumeThat(client.headBucket(HeadBucketRequest.builder().bucket(S3_BUCKET).build()).sdkHttpResponse().isSuccessful(), is(true));
         } catch (SdkClientException x) {
             x.printStackTrace();
             assumeNoException("failed to connect to S3 with current credentials", x);
         }
     }
-
+    
     @Rule
     public TemporaryFolder tmp = new TemporaryFolder();
 
@@ -112,9 +101,11 @@ public abstract class S3AbstractTest {
 
     @Before
     public void setupContext() throws Exception {
+
         provider = new S3BlobStore();
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(S3_BUCKET);
+
         CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
         credentialsConfig.setRegion(S3_REGION);
 
