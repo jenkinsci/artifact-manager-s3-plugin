@@ -107,7 +107,7 @@
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>sso</artifactId>
       <!-- Not apparently packaged as a plugin, but anyway used only for developer testing: -->
-      <version>2.31.26</version>
+      <version>2.31.43</version>
       <scope>test</scope>
     </dependency>
     <dependency>
