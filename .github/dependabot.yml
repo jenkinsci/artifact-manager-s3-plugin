@@ -5,8 +5,6 @@ updates:
   schedule:
     interval: weekly
   open-pull-requests-limit: 10
-  reviewers:
-  - jglick
   ignore:
   - dependency-name: com.google.inject.extensions:guice-assistedinject
 - package-ecosystem: github-actions
