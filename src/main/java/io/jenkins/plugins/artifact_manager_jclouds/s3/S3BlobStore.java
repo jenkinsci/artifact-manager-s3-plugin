@@ -227,6 +227,9 @@ public class S3BlobStore extends BlobStoreProvider {
 
             String customRegion = getConfiguration().getCustomSigningRegion();
             if(StringUtils.isNotBlank(customRegion)) {
+                customRegion = CredentialsAwsGlobalConfiguration.get().getRegion();
+            }
+            if(StringUtils.isNotBlank(customRegion)) {
                 presignerBuilder.region(Region.of(customRegion));
             }
 
