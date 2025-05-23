@@ -55,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.MasterToSlaveFileCallable;
@@ -123,19 +124,23 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
         Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.values()), listener));
         LOGGER.fine(() -> "guessing content types: " + contentTypes);
-        Map<String, URL> artifactUrls = new HashMap<>();
+        Map<String, URL> artifactUrls = new ConcurrentHashMap<>();
         BlobStore blobStore = getContext().getBlobStore();
-
-        // Map artifacts to urls for upload
-        for (Map.Entry<String, String> entry : artifacts.entrySet()) {
+ // Map artifacts to urls for upload
+        artifacts.entrySet().parallelStream().forEach(entry -> {
+            try{
             String path = "artifacts/" + entry.getKey();
             String blobPath = getBlobPath(path);
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(provider.getContainer());
             blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
             artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
-        }
-
+            }
+            catch (Exception e) {
+                // at the very least you want to log the exception, otherwise debugging will be difficult
+                listener.getLogger().printf("ERROR in artifacts:  %s artifact %n", e);
+              }
+        });
         workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
@@ -192,13 +197,15 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
         @Override
         public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
-            try {
-                for (Map.Entry<String, URL> entry : artifactUrls.entrySet()) {
-                    client.uploadFile(new File(f, entry.getKey()), contentTypes.get(entry.getKey()), entry.getValue(), listener);
-                }
-            } finally {
-                listener.getLogger().flush();
-            }
+            artifactUrls.entrySet().parallelStream().forEach(entry -> {  // entry is a Map.Entry<String, URL>
+              try {
+                client.uploadFile(new File(f, entry.getKey()), contentTypes.get(entry.getKey()), entry.getValue(), listener);
+              } catch (Exception e) {
+                // at the very least you want to log the exception, otherwise debugging will be hard
+                  listener.getLogger().printf("ERROR in invoke (upload):  %s artifact %n", e);
+              }
+            });
+            listener.getLogger().flush();
             return null;
         }
     }
