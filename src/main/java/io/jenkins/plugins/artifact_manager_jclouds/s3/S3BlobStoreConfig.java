@@ -27,6 +27,7 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
@@ -54,7 +55,9 @@ import jenkins.security.FIPS140;
 import org.jenkinsci.Symbol;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.Bucket;
@@ -70,6 +73,8 @@ import software.amazon.awssdk.services.s3.model.GetBucketLocationRequest;
 @Symbol("s3")
 @Extension
 public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
+
+    private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfig.class.getName());
 
     private static final String BUCKET_REGEXP = "^([a-z]|(\\d(?!\\d{0,2}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})))([a-z\\d]|(\\.(?!(\\.|-)))|(-(?!\\.))){1,61}[a-z\\d\\.]$";
     private static final Pattern bucketPattern = Pattern.compile(BUCKET_REGEXP);
@@ -309,20 +314,35 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         }
     }
 
+    public Region getRegion() {
+        String regionStr = CredentialsAwsGlobalConfiguration.get().getRegion();
+        if (StringUtils.isBlank(regionStr)) {
+            try {
+                return new DefaultAwsRegionProviderChain().getRegion();
+            } catch (SdkClientException e) {
+                // need to revert to a default one.
+                LOGGER.warning("There is no region configured for this S3 bucket and aws sdk couldn't discover one so using default:" + Region.US_EAST_1);
+                return Region.US_EAST_1;
+            }
+        }
+        return Region.of(regionStr);
+    }
+
     private S3ClientBuilder getAmazonS3ClientBuilderWithCredentials(boolean disableSessionToken) throws IOException, URISyntaxException {
         S3ClientBuilder builder = getAmazonS3ClientBuilder();
         if (disableSessionToken) {
             builder = builder.credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials());
         } else {
+
             AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
-                    .sessionCredentials(CredentialsAwsGlobalConfiguration.get().getRegion(),
-                            CredentialsAwsGlobalConfiguration.get().getCredentialsId());
+                    .sessionCredentials(getRegion().id(), CredentialsAwsGlobalConfiguration.get().getCredentialsId());
             if(awsSessionCredentials != null ) {
                 builder.credentialsProvider(StaticCredentialsProvider.create(awsSessionCredentials));
             } else {
                 throw new IOException("No session AWS credentials found");
             }
         }
+        builder = builder.region(getRegion());
         return builder;
     }
 
