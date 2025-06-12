@@ -289,13 +289,15 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         if (StringUtils.isNotBlank(getResolvedCustomEndpoint())) {
             String resolvedCustomSigningRegion = customSigningRegion;
             if (StringUtils.isBlank(resolvedCustomSigningRegion)) {
-                resolvedCustomSigningRegion = "us-east-1";
+                // we must revert to a region if no custom defined
+                resolvedCustomSigningRegion = getRegion().id();
             }
             ret = ret.endpointOverride(new URI(getResolvedCustomEndpoint())).region(Region.of(resolvedCustomSigningRegion));
-        } else if (StringUtils.isNotBlank(CredentialsAwsGlobalConfiguration.get().getRegion())) {
-            ret = ret.region(Region.of(CredentialsAwsGlobalConfiguration.get().getRegion()));
         } else {
-            ret = ret.useArnRegion(true);
+            // not really sure of why this was used.. this should have a dedicated parameter
+            //ret = ret.useArnRegion(true);
+            // use same defaull algorithm as signer 
+            ret = ret.region(getRegion());
         }
         ret = ret.accelerate(useTransferAcceleration);
 
