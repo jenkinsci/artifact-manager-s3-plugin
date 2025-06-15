@@ -296,7 +296,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         } else {
             // not really sure of why this was used.. this should have a dedicated parameter
             //ret = ret.useArnRegion(true);
-            // use same defaull algorithm as signer 
+            // use same default algorithm as signer
             ret = ret.region(getRegion());
         }
         ret = ret.accelerate(useTransferAcceleration);
