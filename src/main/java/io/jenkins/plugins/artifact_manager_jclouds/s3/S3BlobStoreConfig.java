@@ -323,7 +323,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
                 return new DefaultAwsRegionProviderChain().getRegion();
             } catch (SdkClientException e) {
                 // need to revert to a default one.
-                LOGGER.warning("There is no region configured for this S3 bucket and aws sdk couldn't discover one so using default:" + Region.US_EAST_1);
+                LOGGER.warning("There is no region configured for this S3 bucket and aws sdk couldn't discover one so using default: " + Region.US_EAST_1);
                 return Region.US_EAST_1;
             }
         }
