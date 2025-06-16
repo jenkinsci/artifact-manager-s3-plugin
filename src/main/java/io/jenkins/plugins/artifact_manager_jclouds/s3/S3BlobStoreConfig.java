@@ -318,7 +318,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public Region getRegion() {
         String regionStr = CredentialsAwsGlobalConfiguration.get().getRegion();
-        if (StringUtils.isBlank(regionStr)) {
+        if (regionStr == null) {
             try {
                 return new DefaultAwsRegionProviderChain().getRegion();
             } catch (SdkClientException e) {
