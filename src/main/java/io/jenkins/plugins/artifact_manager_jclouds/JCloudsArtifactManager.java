@@ -39,7 +39,6 @@ import hudson.util.io.ArchiverFactory;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Functions;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
-import io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore;
 import io.jenkins.plugins.httpclient.RobustHTTPClient;
 import java.io.File;
 import java.io.IOException;
@@ -72,8 +71,6 @@ import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import static io.jenkins.plugins.artifact_manager_jclouds.TikaUtil.detectByTika;
 
@@ -126,34 +123,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
         Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.values()), listener));
         LOGGER.fine(() -> "guessing content types: " + contentTypes);
-        Map<String, URL> artifactUrls = new HashMap<>();
         BlobStore blobStore = getContext().getBlobStore();
-
-        if (provider instanceof S3BlobStore s3BlobStore) {
-            try (S3Client s3Client = s3BlobStore.getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
-                 S3Presigner s3Presigner = s3BlobStore.getS3Presigner(s3Client)) {
-                // Map artifacts to urls for upload
-                for (Map.Entry<String, String> entry : artifacts.entrySet()) {
-                    String path = "artifacts/" + entry.getKey();
-                    String blobPath = getBlobPath(path);
-                    Blob blob = blobStore.blobBuilder(blobPath).build();
-                    blob.getMetadata().setContainer(provider.getContainer());
-                    blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-                    artifactUrls.put(entry.getValue(), s3BlobStore.toExternalURL(blob, HttpMethod.PUT, s3Presigner));
-                }
-            }
-        } else {
-            // Map artifacts to urls for upload
-            for (Map.Entry<String, String> entry : artifacts.entrySet()) {
-                String path = "artifacts/" + entry.getKey();
-                String blobPath = getBlobPath(path);
-                Blob blob = blobStore.blobBuilder(blobPath).build();
-                blob.getMetadata().setContainer(provider.getContainer());
-                blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-                artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
-            }
-        }
-
+        Map<String, URL> artifactUrls = provider.artifactUrls(artifacts, contentTypes, blobStore, key);
         workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }

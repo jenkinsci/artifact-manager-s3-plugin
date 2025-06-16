@@ -29,6 +29,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -41,6 +43,7 @@ import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
+import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
@@ -234,7 +237,7 @@ public class S3BlobStore extends BlobStoreProvider {
         return presignerBuilder.build();
     }
 
-    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner) throws IOException {
+    private URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner) throws IOException {
         Duration expiration = Duration.ofHours(1);
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
@@ -270,35 +273,29 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     @Override
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
-
-        String customEndpoint = getConfiguration().getResolvedCustomEndpoint();
         try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build()) {
-            S3Presigner.Builder presignerBuilder = S3Presigner.builder()
-                    .fipsEnabled(FIPS140.useCompliantAlgorithms())
-                    .credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials())
-                    .s3Client(s3Client);
-            if (StringUtils.isNotBlank(customEndpoint)) {
-                presignerBuilder.endpointOverride(URI.create(customEndpoint));
-            }
-
-            String customRegion = getConfiguration().getCustomSigningRegion();
-            if(StringUtils.isBlank(customRegion)) {
-                customRegion = CredentialsAwsGlobalConfiguration.get().getRegion();
-            }
-            if(StringUtils.isNotBlank(customRegion)) {
-                presignerBuilder.region(Region.of(customRegion));
-            }
-
-            S3Configuration s3Configuration = S3Configuration.builder()
-                    .pathStyleAccessEnabled(getConfiguration().getUsePathStyleUrl())
-                    .accelerateModeEnabled(getConfiguration().getUseTransferAcceleration())
-                    .build();
-            presignerBuilder.serviceConfiguration(s3Configuration);
-
-            try (S3Presigner presigner = presignerBuilder.build()) {
+            try (S3Presigner presigner = getS3Presigner(s3Client)) {
                 return toExternalURL(blob, httpMethod, presigner);
             }
         }
+    }
+
+    @Override
+    public Map<String, URL> artifactUrls(Map<String, String> artifacts, Map<String, String> contentTypes, BlobStore blobStore, String key) throws IOException {
+        Map<String, URL> artifactUrls = new HashMap<>();
+        try (S3Client s3Client = this.getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
+             S3Presigner s3Presigner = this.getS3Presigner(s3Client)) {
+            // Map artifacts to urls for upload
+            for (Map.Entry<String, String> entry : artifacts.entrySet()) {
+                String path = "artifacts/" + entry.getKey();
+                String blobPath = getBlobPath(key, path);
+                Blob blob = blobStore.blobBuilder(blobPath).build();
+                blob.getMetadata().setContainer(this.getContainer());
+                blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
+                artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT, s3Presigner));
+            }
+        }
+        return artifactUrls;
     }
 
     @Symbol("s3")

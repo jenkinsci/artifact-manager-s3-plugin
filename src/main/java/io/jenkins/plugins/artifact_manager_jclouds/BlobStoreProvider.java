@@ -28,7 +28,10 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.kohsuke.accmod.Restricted;
@@ -97,6 +100,25 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     @Override
     public BlobStoreProviderDescriptor getDescriptor() {
         return (BlobStoreProviderDescriptor) super.getDescriptor();
+    }
+
+    public Map<String, URL> artifactUrls(Map<String, String> artifacts, Map<String, String> contentTypes, BlobStore blobStore, String key) throws IOException {
+        Map<String, URL> artifactUrls = new HashMap<>();
+        // Map artifacts to urls for upload
+        for (Map.Entry<String, String> entry : artifacts.entrySet()) {
+            String path = "artifacts/" + entry.getKey();
+            String blobPath = getBlobPath(key, path);
+            Blob blob = blobStore.blobBuilder(blobPath).build();
+            blob.getMetadata().setContainer(this.getContainer());
+            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
+            artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT));
+        }
+        return artifactUrls;
+    }
+
+
+    protected String getBlobPath(String key, String path) {
+        return String.format("%s%s/%s", this.getPrefix(), key, path);
     }
 
 }
