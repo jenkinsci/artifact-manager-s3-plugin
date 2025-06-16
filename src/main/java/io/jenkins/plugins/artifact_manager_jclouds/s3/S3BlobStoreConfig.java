@@ -335,7 +335,6 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         if (disableSessionToken) {
             builder = builder.credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials());
         } else {
-
             AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
                     .sessionCredentials(getRegion().id(), CredentialsAwsGlobalConfiguration.get().getCredentialsId());
             if(awsSessionCredentials != null ) {
