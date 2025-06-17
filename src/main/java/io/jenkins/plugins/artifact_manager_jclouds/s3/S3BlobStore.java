@@ -84,7 +84,7 @@ public class S3BlobStore extends BlobStoreProvider {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
 
     private static final long serialVersionUID = -8864075675579867370L;
-
+    
     @DataBoundConstructor
     public S3BlobStore() {
     }
