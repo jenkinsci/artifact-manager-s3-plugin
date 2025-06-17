@@ -273,10 +273,9 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     @Override
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
-        try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build()) {
-            try (S3Presigner presigner = getS3Presigner(s3Client)) {
-                return toExternalURL(blob, httpMethod, presigner);
-            }
+        try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
+             S3Presigner presigner = getS3Presigner(s3Client)) {
+            return toExternalURL(blob, httpMethod, presigner);
         }
     }
 
