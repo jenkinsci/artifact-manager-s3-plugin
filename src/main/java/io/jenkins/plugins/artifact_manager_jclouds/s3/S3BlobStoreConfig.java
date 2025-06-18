@@ -30,6 +30,7 @@ import java.net.URISyntaxException;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import jenkins.util.SystemProperties;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -56,6 +57,7 @@ import org.jenkinsci.Symbol;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -86,6 +88,11 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
+
+    static {
+        String timeout = SystemProperties.getString(S3BlobStoreConfig.class.getName() + "." + SdkSystemSetting.AWS_METADATA_SERVICE_TIMEOUT.property(), "10");
+        System.setProperty(SdkSystemSetting.AWS_METADATA_SERVICE_TIMEOUT.property(), timeout);
+    }
 
     /**
      * Name of the S3 Bucket.

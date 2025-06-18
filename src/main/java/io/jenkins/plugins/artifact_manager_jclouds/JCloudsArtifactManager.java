@@ -123,19 +123,8 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
         Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.values()), listener));
         LOGGER.fine(() -> "guessing content types: " + contentTypes);
-        Map<String, URL> artifactUrls = new HashMap<>();
         BlobStore blobStore = getContext().getBlobStore();
-
-        // Map artifacts to urls for upload
-        for (Map.Entry<String, String> entry : artifacts.entrySet()) {
-            String path = "artifacts/" + entry.getKey();
-            String blobPath = getBlobPath(path);
-            Blob blob = blobStore.blobBuilder(blobPath).build();
-            blob.getMetadata().setContainer(provider.getContainer());
-            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-            artifactUrls.put(entry.getValue(), provider.toExternalURL(blob, HttpMethod.PUT));
-        }
-
+        Map<String, URL> artifactUrls = provider.artifactUrls(artifacts, contentTypes, blobStore, key);
         workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
