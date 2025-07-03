@@ -29,7 +29,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
@@ -68,12 +70,20 @@ import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetUrlRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
 
 /**
  * Extension that customizes JCloudsBlobStore for AWS S3. Credentials are fetched from the environment, env vars, aws
@@ -85,6 +95,74 @@ public class S3BlobStore extends BlobStoreProvider {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
 
     private static final long serialVersionUID = -8864075675579867370L;
+
+    private class S3MultipartUploader implements MultipartUploader {
+        private final String uploadID;
+        private Blob blob;
+
+        private S3MultipartUploader(Blob blob, String uploadID) {
+            this.blob = blob;
+            this.uploadID = uploadID;
+        }
+
+        @NonNull
+        @Override
+        public URL toExternalURL(int partNumber) throws IOException {
+            return buildExternalURL(blob, HttpMethod.PUT, partNumber, uploadID);
+        }
+
+        @Override
+        public void complete(List<Part> etags) throws IOException {
+
+            if (blob == null) {
+                return;
+            }
+            String container = blob.getMetadata().getContainer();
+            String name = blob.getMetadata().getName();
+
+            List<CompletedPart> completedParts = new ArrayList<>();
+            for (Part part : etags) {
+                CompletedPart cPart = CompletedPart.builder()
+                    .partNumber(part.getPartNumber())
+                    .eTag(part.getETag())
+                    .build();
+                completedParts.add(cPart);
+            }
+
+            try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build()) {
+                s3Client.completeMultipartUpload(
+                    CompleteMultipartUploadRequest.builder()
+                        .bucket(container)
+                        .key(name)
+                        .uploadId(uploadID)
+                        .multipartUpload(CompletedMultipartUpload.builder().parts(completedParts).build())
+                        .build()
+                );
+                blob = null;
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (blob == null) {
+                return;
+            }
+            String container = blob.getMetadata().getContainer();
+            String name = blob.getMetadata().getName();
+
+            try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build()) {
+                s3Client.abortMultipartUpload(
+                    AbortMultipartUploadRequest.builder()
+                        .bucket(container)
+                        .key(name)
+                        .uploadId(uploadID)
+                        .build()
+                );
+                blob = null;
+            }
+            blob = null;
+        }
+    }
     
     @DataBoundConstructor
     public S3BlobStore() {
@@ -240,6 +318,10 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     private URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner) throws IOException {
+        return buildExternalURL(blob, httpMethod, 0, null, presigner);
+    }
+
+    private URL buildExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, int partNumber, String uploadID, S3Presigner presigner) throws IOException {
         Duration expiration = Duration.ofHours(1);
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
@@ -248,6 +330,20 @@ public class S3BlobStore extends BlobStoreProvider {
         String contentType;
         switch (httpMethod) {
             case PUT:
+                if (uploadID != null) {
+                    // We are handling multipart upload here
+                    UploadPartRequest uploadPartRequest = UploadPartRequest.builder()
+                            .bucket(container)
+                            .key(name)
+                            .uploadId(uploadID)
+                            .partNumber(partNumber)
+                            .build();
+                    UploadPartPresignRequest uploadPartPresignRequest = UploadPartPresignRequest.builder()
+                            .signatureDuration(expiration)
+                            .uploadPartRequest(uploadPartRequest).build();
+                    return presigner.presignUploadPart(uploadPartPresignRequest).url();
+                }
+
                 // Only set content type for upload URLs, so that the right S3 metadata gets set
                 contentType = blob.getMetadata().getContentMetadata().getContentType();
                 PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(container)
@@ -281,6 +377,13 @@ public class S3BlobStore extends BlobStoreProvider {
         }
     }
 
+    private URL buildExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, int partNumber, String uploadID) throws IOException {
+        try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
+             S3Presigner presigner = getS3Presigner(s3Client)) {
+            return buildExternalURL(blob, httpMethod, partNumber, uploadID, presigner);
+        }
+    }
+
     @Override
     public Map<String, URL> artifactUrls(Map<String, String> artifacts, Map<String, String> contentTypes, BlobStore blobStore, String key) throws IOException {
         Map<String, URL> artifactUrls = new HashMap<>();
@@ -297,6 +400,32 @@ public class S3BlobStore extends BlobStoreProvider {
             }
         }
         return artifactUrls;
+    }
+
+    @NonNull
+    public MultipartUploader initiateMultipartUpload(@NonNull Blob blob) throws IOException {
+        assert blob != null;
+
+        String container = blob.getMetadata().getContainer();
+        String name = blob.getMetadata().getName();
+        LOGGER.log(Level.FINE, "Initiate multipart upload for {0} / {1}",
+            new Object[]{container, name});
+
+        String contentType = blob.getMetadata().getContentMetadata().getContentType();
+
+        if (contentType == null)
+            contentType = "application/octet-stream";
+
+        try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build()) {
+            CreateMultipartUploadResponse response = s3Client.createMultipartUpload(
+                CreateMultipartUploadRequest.builder()
+                        .bucket(container)
+                        .key(name)
+                        .contentType(contentType)
+                        .build()
+            );
+            return new S3MultipartUploader(blob, response.uploadId());
+        }
     }
 
     @Symbol("s3")
