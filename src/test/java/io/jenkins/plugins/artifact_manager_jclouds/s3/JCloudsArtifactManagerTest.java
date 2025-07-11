@@ -28,8 +28,8 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.*;
 
 import java.io.IOException;
@@ -41,7 +41,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -133,42 +132,42 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void agentPermissions() throws Exception {
-        var image = ArtifactManagerTest.prepareImage(); // TODO simplify to use Testcontainers directly
-        assumeNotNull(image);
+        var container = ArtifactManagerTest.prepareImage();
+        assumeNotNull(container);
         System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
-        try (JavaContainer container = image.start(JavaContainer.class).start()) {
+
+        container.start();
+
+        try {
             SystemCredentialsProvider.getInstance().getDomainCredentialsMap().put(Domain.global(), Collections.singletonList(new UsernamePasswordCredentialsImpl(CredentialsScope.SYSTEM, "test", null, "test", "test")));
-            DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test"));
+            DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.getHost(), container.getMappedPort(22), "test"));
             Jenkins.get().addNode(agent);
             j.waitOnline(agent);
-            try {
-                agent.getChannel().call(new LoadS3Credentials());
-                fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
-            } catch (SdkClientException x) {
-                System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
-            }
+            assertThrows("did not expect to be able to connect to S3 from a Dockerized agent", SdkClientException.class, () -> agent.getChannel().call(new LoadS3Credentials())); // or AssumptionViolatedException?
+        } finally {
+            container.stop();
         }
     }
 
     @Test
     public void artifactArchive() throws Exception {
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true, null);
+        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true);
     }
 
     @Test
     public void artifactArchiveAndDelete() throws Exception {
-        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true, null);
+        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true);
     }
 
     @Test
     public void artifactStash() throws Exception {
-        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true, null);
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
-        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true, null);
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true);
     }
 
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {

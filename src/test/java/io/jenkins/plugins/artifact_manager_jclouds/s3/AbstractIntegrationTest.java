@@ -29,7 +29,7 @@ public abstract class AbstractIntegrationTest {
     protected static final String CONTAINER_PREFIX = "ci/";
 
     @BeforeClass
-    public static void assumeDocker() throws Exception {
+    public static void assumeDocker() {
         // Beyond just isDockerAvailable, verify the OS:
         try {
             Assume.assumeThat("expect to run Docker on Linux containers", DockerClientFactory.instance().client().infoCmd().exec().getOsType(), is("linux"));
@@ -54,7 +54,7 @@ public abstract class AbstractIntegrationTest {
 
     protected static void _artifactArchiveAndDelete(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-archive-and-delete");
-        ArtifactManagerTest.artifactArchiveAndDelete(jenkinsRule, getArtifactManagerFactory(true, null), true, null);
+        ArtifactManagerTest.artifactArchiveAndDelete(jenkinsRule, getArtifactManagerFactory(true, null), true);
     }
 
     protected static void createBucketWithAwsClient(String bucketName) throws IOException {
@@ -66,12 +66,12 @@ public abstract class AbstractIntegrationTest {
     protected static void _artifactArchive(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-archive");
         assertThat(client().headBucket(HeadBucketRequest.builder().bucket("artifact-archive").build()).sdkHttpResponse().isSuccessful(), is(true));
-        ArtifactManagerTest.artifactArchive(jenkinsRule, getArtifactManagerFactory(null, null), true, null);
+        ArtifactManagerTest.artifactArchive(jenkinsRule, getArtifactManagerFactory(null, null), true);
     }
 
     protected static void _artifactStashAndDelete(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-stash-and-delete");
-        ArtifactManagerTest.artifactStashAndDelete(jenkinsRule, getArtifactManagerFactory(null, true), true, null);
+        ArtifactManagerTest.artifactStashAndDelete(jenkinsRule, getArtifactManagerFactory(null, true), true);
     }
 
     protected static void _canCreateBucket(JenkinsRule r) throws Throwable {
@@ -84,7 +84,7 @@ public abstract class AbstractIntegrationTest {
 
     protected static void _artifactStash(JenkinsRule jenkinsRule) throws Throwable {
         createBucketWithAwsClient("artifact-stash");
-        ArtifactManagerTest.artifactStash(jenkinsRule, getArtifactManagerFactory(null, null), true, null);
+        ArtifactManagerTest.artifactStash(jenkinsRule, getArtifactManagerFactory(null, null), true);
     }
 
     @Test
