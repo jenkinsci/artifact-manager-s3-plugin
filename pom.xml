@@ -131,14 +131,10 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-api</artifactId>
-      <!-- TODO: remove -->
-      <version>1377.vf606866f592b_</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-api</artifactId>
-      <!-- TODO: remove -->
-      <version>1377.vf606866f592b_</version>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
@@ -157,6 +153,12 @@
           <artifactId>error_prone_annotations</artifactId>
         </exclusion>
       </exclusions>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>ssh-slaves</artifactId>
+      <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -281,6 +283,30 @@
         <groupId>com.google.inject.extensions</groupId>
         <artifactId>guice-assistedinject</artifactId>
         <version>6.0.0</version>
+      </dependency>
+      <!-- TODO https://github.com/jenkinsci/ssh-agents-plugin/pull/607 -->
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>ssh-slaves</artifactId>
+        <version>3.1069.v30991b_9a_4f68</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>ssh-slaves</artifactId>
+        <classifier>tests</classifier>
+        <version>3.1069.v30991b_9a_4f68</version>
+      </dependency>
+      <!-- TODO https://github.com/jenkinsci/workflow-api-plugin/pull/416 -->
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.workflow</groupId>
+        <artifactId>workflow-api</artifactId>
+        <version>999999-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.workflow</groupId>
+        <artifactId>workflow-api</artifactId>
+        <classifier>tests</classifier>
+        <version>999999-SNAPSHOT</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

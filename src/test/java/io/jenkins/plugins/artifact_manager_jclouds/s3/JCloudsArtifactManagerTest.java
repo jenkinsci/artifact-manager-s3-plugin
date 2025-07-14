@@ -51,10 +51,6 @@ import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
 
 import com.cloudbees.hudson.plugins.folder.Folder;
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import com.cloudbees.plugins.credentials.domains.Domain;
-import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import org.htmlunit.WebResponse;
 
 import hudson.ExtensionList;
@@ -66,10 +62,9 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Item;
 import hudson.model.Run;
+import hudson.model.Slave;
 import hudson.model.TaskListener;
-import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
-import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import java.io.Serializable;
@@ -103,6 +98,7 @@ import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
+import test.ssh_agent.OutboundAgent;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -132,20 +128,14 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void agentPermissions() throws Exception {
-        var container = ArtifactManagerTest.prepareImage();
-        assumeNotNull(container);
         System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
-
-        container.start();
-
-        try {
-            SystemCredentialsProvider.getInstance().getDomainCredentialsMap().put(Domain.global(), Collections.singletonList(new UsernamePasswordCredentialsImpl(CredentialsScope.SYSTEM, "test", null, "test", "test")));
-            DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.getHost(), container.getMappedPort(22), "test"));
-            Jenkins.get().addNode(agent);
+        try (var outboundAgent = new OutboundAgent()) {
+            var connectionDetails = outboundAgent.start();
+            assumeThat("cannot test this without Docker", connectionDetails, notNullValue());
+            OutboundAgent.createAgent(j, "remote", connectionDetails);
+            var agent = (Slave) j.jenkins.getNode("remote");
             j.waitOnline(agent);
-            assertThrows("did not expect to be able to connect to S3 from a Dockerized agent", SdkClientException.class, () -> agent.getChannel().call(new LoadS3Credentials())); // or AssumptionViolatedException?
-        } finally {
-            container.stop();
+            assertThrows("did not expect to be able to connect to S3 from a Dockerized agent", SdkClientException.class, () -> agent.getChannel().call(new LoadS3Credentials()));
         }
     }
 
