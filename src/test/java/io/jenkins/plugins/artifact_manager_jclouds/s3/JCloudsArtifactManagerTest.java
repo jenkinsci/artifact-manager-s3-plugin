@@ -28,8 +28,8 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.*;
 
 import java.io.IOException;
@@ -41,7 +41,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -52,10 +51,6 @@ import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
 
 import com.cloudbees.hudson.plugins.folder.Folder;
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import com.cloudbees.plugins.credentials.domains.Domain;
-import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import org.htmlunit.WebResponse;
 
 import hudson.ExtensionList;
@@ -67,10 +62,9 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Item;
 import hudson.model.Run;
+import hudson.model.Slave;
 import hudson.model.TaskListener;
-import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.remoting.Which;
-import hudson.slaves.DumbSlave;
 import hudson.tasks.ArtifactArchiver;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import java.io.Serializable;
@@ -104,6 +98,7 @@ import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
+import test.ssh_agent.OutboundAgent;
 
 public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
@@ -133,42 +128,36 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Test
     public void agentPermissions() throws Exception {
-        var image = ArtifactManagerTest.prepareImage(); // TODO simplify to use Testcontainers directly
-        assumeNotNull(image);
         System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
-        try (JavaContainer container = image.start(JavaContainer.class).start()) {
-            SystemCredentialsProvider.getInstance().getDomainCredentialsMap().put(Domain.global(), Collections.singletonList(new UsernamePasswordCredentialsImpl(CredentialsScope.SYSTEM, "test", null, "test", "test")));
-            DumbSlave agent = new DumbSlave("assumptions", "/home/test/slave", new SSHLauncher(container.ipBound(22), container.port(22), "test"));
-            Jenkins.get().addNode(agent);
+        try (var outboundAgent = new OutboundAgent()) {
+            var connectionDetails = outboundAgent.start();
+            assumeThat("cannot test this without Docker", connectionDetails, notNullValue());
+            OutboundAgent.createAgent(j, "remote", connectionDetails);
+            var agent = (Slave) j.jenkins.getNode("remote");
             j.waitOnline(agent);
-            try {
-                agent.getChannel().call(new LoadS3Credentials());
-                fail("did not expect to be able to connect to S3 from a Dockerized agent"); // or AssumptionViolatedException?
-            } catch (SdkClientException x) {
-                System.err.println("a Dockerized agent was unable to connect to S3, as expected: " + x);
-            }
+            assertThrows("did not expect to be able to connect to S3 from a Dockerized agent", SdkClientException.class, () -> agent.getChannel().call(new LoadS3Credentials()));
         }
     }
 
     @Test
     public void artifactArchive() throws Exception {
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
-        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true, null);
+        ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true);
     }
 
     @Test
     public void artifactArchiveAndDelete() throws Exception {
-        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true, null);
+        ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true);
     }
 
     @Test
     public void artifactStash() throws Exception {
-        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true, null);
+        ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true);
     }
 
     @Test
     public void artifactStashAndDelete() throws Exception {
-        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true, null);
+        ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true);
     }
 
     private static final class LoadS3Credentials extends MasterToSlaveCallable<Void, RuntimeException> {

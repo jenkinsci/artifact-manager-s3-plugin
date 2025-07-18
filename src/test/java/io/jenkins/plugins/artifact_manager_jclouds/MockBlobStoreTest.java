@@ -25,11 +25,13 @@
 package io.jenkins.plugins.artifact_manager_jclouds;
 
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
+import static org.junit.Assume.assumeFalse;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.testcontainers.DockerClientFactory;
 
 public class MockBlobStoreTest {
 
@@ -41,8 +43,9 @@ public class MockBlobStoreTest {
 
     @Test
     public void smokes() throws Exception {
-        ArtifactManagerTest.artifactArchiveAndDelete(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false, null);
-        ArtifactManagerTest.artifactStashAndDelete(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false, null);
+        assumeFalse("Does not work when Dockerized since the mock server is inaccessible from the container", DockerClientFactory.instance().isDockerAvailable());
+        ArtifactManagerTest.artifactArchiveAndDelete(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false);
+        ArtifactManagerTest.artifactStashAndDelete(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false);
     }
 
 }
