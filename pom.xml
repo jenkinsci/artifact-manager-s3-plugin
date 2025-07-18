@@ -282,29 +282,28 @@
         <artifactId>guice-assistedinject</artifactId>
         <version>6.0.0</version>
       </dependency>
-      <!-- TODO https://github.com/jenkinsci/ssh-agents-plugin/pull/607 -->
+      <!-- TODO until in BOM -->
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>ssh-slaves</artifactId>
-        <version>3.1069.v30991b_9a_4f68</version>
+        <version>3.1071.v0d059c7b_c555</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>ssh-slaves</artifactId>
         <classifier>tests</classifier>
-        <version>3.1069.v30991b_9a_4f68</version>
+        <version>3.1071.v0d059c7b_c555</version>
       </dependency>
-      <!-- TODO https://github.com/jenkinsci/workflow-api-plugin/pull/416 -->
       <dependency>
         <groupId>org.jenkins-ci.plugins.workflow</groupId>
         <artifactId>workflow-api</artifactId>
-        <version>1378.v9b_957b_52b_c74</version>
+        <version>1380.ve03e7a_63d139</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins.workflow</groupId>
         <artifactId>workflow-api</artifactId>
         <classifier>tests</classifier>
-        <version>1378.v9b_957b_52b_c74</version>
+        <version>1380.ve03e7a_63d139</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
