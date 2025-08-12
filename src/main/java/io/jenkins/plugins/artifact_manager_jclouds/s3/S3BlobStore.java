@@ -274,6 +274,19 @@ public class S3BlobStore extends BlobStoreProvider {
      */
     @Override
     public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
+        if (!getConfiguration().getGeneratePresignedUrls()) {
+            String container = blob.getMetadata().getContainer();
+            String name = blob.getMetadata().getName();
+            URI directUri = toURI(container, name);
+            try {
+                LOGGER.log(Level.FINE, "Generating direct URL for {0} / {1}: {2}",
+                        new Object[]{container, name, directUri});
+                return directUri.toURL();
+            } catch (Exception e) {
+                throw new IOException("Failed to generate direct URL", e);
+            }
+        }
+        
         try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
              S3Presigner presigner = getS3Presigner(s3Client)) {
             return toExternalURL(blob, httpMethod, presigner);
@@ -283,6 +296,21 @@ public class S3BlobStore extends BlobStoreProvider {
     @Override
     public Map<String, URL> artifactUrls(Map<String, String> artifacts, Map<String, String> contentTypes, BlobStore blobStore, String key) throws IOException {
         Map<String, URL> artifactUrls = new HashMap<>();
+        
+        if (!getConfiguration().getGeneratePresignedUrls()) {
+            for (Map.Entry<String, String> entry : artifacts.entrySet()) {
+                String path = "artifacts/" + entry.getKey();
+                String blobPath = getBlobPath(key, path);
+                URI directUri = toURI(this.getContainer(), blobPath);
+                try {
+                    artifactUrls.put(entry.getValue(), directUri.toURL());
+                } catch (Exception e) {
+                    throw new IOException("Failed to generate direct URL for artifact upload", e);
+                }
+            }
+            return artifactUrls;
+        }
+        
         try (S3Client s3Client = this.getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
              S3Presigner s3Presigner = this.getS3Presigner(s3Client)) {
             // Map artifacts to urls for upload

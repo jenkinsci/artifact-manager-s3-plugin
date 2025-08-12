@@ -120,6 +120,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     
     private final boolean deleteStashes;
 
+    private boolean generatePresignedUrls = true;
+
     /**
      * class to test configuration against Amazon S3 Bucket.
      */
@@ -132,7 +134,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         S3BlobStoreTester(String container, String prefix, boolean useHttp,
             boolean useTransferAcceleration, boolean usePathStyleUrl,
             boolean disableSessionToken, String customEndpoint,
-            String customSigningRegion) {
+            String customSigningRegion, boolean generatePresignedUrls) {
             config = new S3BlobStoreConfig();
             config.setContainer(container);
             config.setPrefix(prefix);
@@ -142,6 +144,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             config.setUseTransferAcceleration(useTransferAcceleration);
             config.setUsePathStyleUrl(usePathStyleUrl);
             config.setDisableSessionToken(disableSessionToken);
+            config.setGeneratePresignedUrls(generatePresignedUrls);
         }
 
         @Override
@@ -272,6 +275,16 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     public void setCustomSigningRegion(String customSigningRegion){
         this.customSigningRegion = customSigningRegion;
         checkValue(doCheckCustomSigningRegion(this.customSigningRegion));
+        save();
+    }
+
+    public boolean getGeneratePresignedUrls() {
+        return generatePresignedUrls;
+    }
+
+    @DataBoundSetter
+    public void setGeneratePresignedUrls(boolean generatePresignedUrls){
+        this.generatePresignedUrls = generatePresignedUrls;
         save();
     }
     
@@ -460,7 +473,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             @QueryParameter boolean usePathStyleUrl,
             @QueryParameter boolean disableSessionToken, 
             @QueryParameter String customEndpoint,
-            @QueryParameter String customSigningRegion) {
+            @QueryParameter String customSigningRegion,
+            @QueryParameter boolean generatePresignedUrls) {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
         if (FIPS140.useCompliantAlgorithms() && useHttp) {
@@ -469,7 +483,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         FormValidation ret = FormValidation.ok("success");
         S3BlobStore provider = new S3BlobStoreTester(container, prefix, 
                 useHttp, useTransferAcceleration,usePathStyleUrl,
-                disableSessionToken, customEndpoint, customSigningRegion);
+                disableSessionToken, customEndpoint, customSigningRegion, generatePresignedUrls);
         
         try {
             JCloudsVirtualFile jc = new JCloudsVirtualFile(provider, container, prefix.replaceFirst("/$", ""));

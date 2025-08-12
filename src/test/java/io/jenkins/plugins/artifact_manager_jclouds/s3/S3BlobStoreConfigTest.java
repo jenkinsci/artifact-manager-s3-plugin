@@ -30,6 +30,7 @@ public class S3BlobStoreConfigTest {
     public static final boolean USE_PATH_STYLE = true;
     public static final boolean USE_HTTP = true;
     public static final boolean DISABLE_SESSION_TOKEN = true;
+    public static final boolean GENERATE_PRESIGNED_URLS = false;
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -45,6 +46,7 @@ public class S3BlobStoreConfigTest {
         config.setUsePathStyleUrl(USE_PATH_STYLE);
         config.setUseHttp(USE_HTTP);
         config.setDisableSessionToken(DISABLE_SESSION_TOKEN);
+        config.setGeneratePresignedUrls(GENERATE_PRESIGNED_URLS);
 
         JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(artifactManagerFactory);
@@ -67,6 +69,7 @@ public class S3BlobStoreConfigTest {
         assertEquals(USE_PATH_STYLE, S3BlobStoreConfig.get().getUsePathStyleUrl());
         assertEquals(USE_HTTP, S3BlobStoreConfig.get().getUseHttp());
         assertEquals(DISABLE_SESSION_TOKEN, S3BlobStoreConfig.get().getDisableSessionToken());
+        assertEquals(GENERATE_PRESIGNED_URLS, S3BlobStoreConfig.get().getGeneratePresignedUrls());
     }
 
     @Test(expected = Failure.class)
@@ -133,5 +136,17 @@ public class S3BlobStoreConfigTest {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
         assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckUseHttp(false).kind , FormValidation.Kind.OK);
+    }
+
+    @Test
+    public void checkGeneratePresignedUrlsDefaultAndSetterGetter() {
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        assertTrue("generatePresignedUrls should default to true", config.getGeneratePresignedUrls());
+        
+        config.setGeneratePresignedUrls(false);
+        assertEquals("generatePresignedUrls should be false after setting", false, config.getGeneratePresignedUrls());
+        
+        config.setGeneratePresignedUrls(true);
+        assertEquals("generatePresignedUrls should be true after setting", true, config.getGeneratePresignedUrls());
     }
 }
