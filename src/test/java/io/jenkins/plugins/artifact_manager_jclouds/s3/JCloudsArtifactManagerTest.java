@@ -362,27 +362,20 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     public void testDirectUrlGeneration() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         
-        S3BlobStoreConfig config = S3BlobStoreConfig.get();
-        boolean originalSetting = config.getGeneratePresignedUrls();
+        S3BlobStoreConfig.get().setGeneratePresignedUrls(false);
         
-        try {
-            config.setGeneratePresignedUrls(false);
-            
-            WorkflowJob p = j.createProject(WorkflowJob.class, "p");
-            p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'test.txt', text: 'content'; archiveArtifacts 'test.txt'}", true));
-            WorkflowRun b = j.buildAndAssertSuccess(p);
-            
-            URL url = b.getArtifactManager().root().child("test.txt").toExternalURL();
-            String urlString = url.toString();
-            
-            assertTrue("URL should not contain presigned parameters when generatePresignedUrls is false", 
-                       !urlString.contains("X-Amz-Algorithm") && 
-                       !urlString.contains("X-Amz-Credential") &&
-                       !urlString.contains("X-Amz-Signature"));
-                       
-        } finally {
-            config.setGeneratePresignedUrls(originalSetting);
-        }
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'test.txt', text: 'content'; archiveArtifacts 'test.txt'}", true));
+        WorkflowRun b = j.buildAndAssertSuccess(p);
+        
+        URL url = b.getArtifactManager().root().child("test.txt").toExternalURL();
+        String urlString = url.toString();
+        
+        assertThat("URL should not contain presigned parameters when generatePresignedUrls is false", 
+                   urlString, 
+                   allOf(not(containsString("X-Amz-Algorithm")),
+                         not(containsString("X-Amz-Credential")),
+                         not(containsString("X-Amz-Signature"))));
     }
 
     public static class ArchiveArtifactWithCustomPathStep extends Step implements Serializable {
