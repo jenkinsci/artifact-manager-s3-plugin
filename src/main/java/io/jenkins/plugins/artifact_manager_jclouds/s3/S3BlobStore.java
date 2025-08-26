@@ -58,6 +58,7 @@ import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials
 import com.google.common.base.Supplier;
 
 import hudson.Extension;
+import hudson.Util;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
@@ -91,7 +92,7 @@ public class S3BlobStore extends BlobStoreProvider {
 
     @Override
     public String getPrefix() {
-        return getConfiguration().getPrefix();
+        return Util.fixNull(getConfiguration().getPrefix());
     }
 
     @Override

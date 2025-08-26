@@ -37,6 +37,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -174,13 +175,14 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         save();
     }
 
+    @CheckForNull
     public String getPrefix() {
         return prefix;
     }
 
     @DataBoundSetter
     public void setPrefix(String prefix){
-        this.prefix = prefix;
+        this.prefix = Util.fixEmptyAndTrim(prefix);
         checkValue(doCheckPrefix(prefix));
         save();
     }
