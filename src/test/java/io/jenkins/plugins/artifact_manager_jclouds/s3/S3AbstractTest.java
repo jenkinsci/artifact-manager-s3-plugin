@@ -24,11 +24,9 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assume.assumeNoException;
-import static org.junit.Assume.assumeThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.File;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
@@ -36,71 +34,57 @@ import java.util.logging.Level;
 import org.apache.commons.lang.RandomStringUtils;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
+
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
 
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
-public abstract class S3AbstractTest {
+@WithJenkins
+abstract class S3AbstractTest {
+
     private static final String S3_BUCKET = System.getenv("S3_BUCKET");
     protected static final String S3_DIR = System.getenv("S3_DIR");
     private static final String S3_REGION = System.getenv("S3_REGION");
 
-    protected S3BlobStore provider;
+    @TempDir
+    protected File tmp;
 
-    @BeforeClass
-    public static void live() {
-        assumeThat("define $S3_BUCKET as explained in README", S3_BUCKET, notNullValue());
-        assumeThat("define $S3_DIR as explained in README", S3_DIR, notNullValue());
+    protected final LogRecorder loggerRule = new LogRecorder();
 
-        try (S3Client client = S3Client.create()) {
-            assumeThat(client.headBucket(HeadBucketRequest.builder().bucket(S3_BUCKET).build()).sdkHttpResponse().isSuccessful(), is(true));
-        } catch (SdkClientException x) {
-            x.printStackTrace();
-            assumeNoException("failed to connect to S3 with current credentials", x);
-        }
-    }
-    
-    @Rule
-    public TemporaryFolder tmp = new TemporaryFolder();
-
-    @Rule
-    public LoggerRule loggerRule = new LoggerRule();
-
-    @Rule
-    public JenkinsRule j = new JenkinsRule();
+    protected JenkinsRule j;
 
     protected BlobStoreContext context;
     protected BlobStore blobStore;
     private String prefix;
 
-    public static String getContainer() {
-        return S3_BUCKET;
+
+    protected S3BlobStore provider;
+
+    @BeforeAll
+    static void beforeAll() {
+        assumeTrue(S3_BUCKET != null, "define $S3_BUCKET as explained in README");
+        assumeTrue(S3_DIR != null, "define $S3_DIR as explained in README");
+
+        try (S3Client client = S3Client.create()) {
+            assumeTrue(client.headBucket(HeadBucketRequest.builder().bucket(S3_BUCKET).build()).sdkHttpResponse().isSuccessful());
+        } catch (SdkClientException x) {
+            assumeTrue(false, "failed to connect to S3 with current credentials: " + x);
+        }
     }
 
-    /**
-     * To run each test in its own subdir
-     */
-    public static String generateUniquePrefix() {
-        return String.format("%s%s-%s/", S3_DIR, ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT),
-                RandomStringUtils.randomAlphabetic(4).toLowerCase());
-    }
-
-    protected String getPrefix() {
-        return prefix;
-    }
-
-    @Before
-    public void setupContext() throws Exception {
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) throws Exception {
+        j = rule;
 
         provider = new S3BlobStore();
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
@@ -118,23 +102,30 @@ public abstract class S3AbstractTest {
         context = provider.getContext();
 
         blobStore = context.getBlobStore();
-
-        setup();
     }
 
-    public void setup() throws Exception {
-    }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    public void afterEach() throws Exception {
         if (context != null) {
             context.close();
         }
-    }
-
-    @After
-    public void deleteBlobs() throws Exception {
         JCloudsVirtualFile.delete(provider, blobStore, prefix);
     }
 
+    protected static String getContainer() {
+        return S3_BUCKET;
+    }
+
+    /**
+     * To run each test in its own subdir
+     */
+    protected static String generateUniquePrefix() {
+        return String.format("%s%s-%s/", S3_DIR, ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT),
+                RandomStringUtils.randomAlphabetic(4).toLowerCase());
+    }
+
+    protected String getPrefix() {
+        return prefix;
+    }
 }

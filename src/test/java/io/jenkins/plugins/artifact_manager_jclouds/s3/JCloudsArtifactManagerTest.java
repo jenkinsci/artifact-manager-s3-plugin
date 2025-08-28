@@ -27,27 +27,26 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serial;
 import java.util.logging.Level;
 
+import jenkins.plugins.git.junit.jupiter.WithGitSampleRepo;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.BuildWatcher;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
 import org.jvnet.hudson.test.TestBuilder;
 
 import com.cloudbees.hudson.plugins.folder.Folder;
@@ -92,71 +91,67 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
-import org.junit.AssumptionViolatedException;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
+import org.jvnet.hudson.test.junit.jupiter.BuildWatcherExtension;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import test.ssh_agent.OutboundAgent;
 
-public class JCloudsArtifactManagerTest extends S3AbstractTest {
+@WithJenkins
+@WithGitSampleRepo
+class JCloudsArtifactManagerTest extends S3AbstractTest {
 
-    @ClassRule
-    public static BuildWatcher buildWatcher = new BuildWatcher();
+    @SuppressWarnings("unused")
+    @RegisterExtension
+    private static final BuildWatcherExtension BUILD_WATCHER = new BuildWatcherExtension();
 
-    @BeforeClass
-    public static void live() {
-        try {
-            S3AbstractTest.live();
-        } catch (AssumptionViolatedException x) {
-            // TODO Surefire seems to not display these at all?
-            x.printStackTrace();
-            throw x;
-        }
+    private final LogRecorder httpLogging = new LogRecorder();
+    
+    private GitSampleRepoRule sampleRepo;
+
+    @BeforeEach
+    void beforeEach(GitSampleRepoRule repo) {
+        sampleRepo = repo;
     }
-
-    @Rule
-    public LoggerRule httpLogging = new LoggerRule();
-
-    @Rule
-    public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
-
+    
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
         return new JCloudsArtifactManagerFactory(new CustomBehaviorBlobStoreProvider(provider, deleteArtifacts, deleteStashes));
     }
 
     @Test
-    public void agentPermissions() throws Exception {
+    void agentPermissions() throws Exception {
         System.err.println("verifying that while the master can connect to S3, a Dockerized agent cannot");
         try (var outboundAgent = new OutboundAgent()) {
             var connectionDetails = outboundAgent.start();
-            assumeThat("cannot test this without Docker", connectionDetails, notNullValue());
+            assumeTrue(connectionDetails != null, "cannot test this without Docker");
             OutboundAgent.createAgent(j, "remote", connectionDetails);
             var agent = (Slave) j.jenkins.getNode("remote");
             j.waitOnline(agent);
-            assertThrows("did not expect to be able to connect to S3 from a Dockerized agent", SdkClientException.class, () -> agent.getChannel().call(new LoadS3Credentials()));
+            assertThrows(SdkClientException.class, () -> agent.getChannel().call(new LoadS3Credentials()), "did not expect to be able to connect to S3 from a Dockerized agent");
         }
     }
 
     @Test
-    public void artifactArchive() throws Exception {
+    void artifactArchive() throws Exception {
         // To demo class loading performance: loggerRule.record(SlaveComputer.class, Level.FINEST);
         ArtifactManagerTest.artifactArchive(j, getArtifactManagerFactory(null, null), true);
     }
 
     @Test
-    public void artifactArchiveAndDelete() throws Exception {
+    void artifactArchiveAndDelete() throws Exception {
         ArtifactManagerTest.artifactArchiveAndDelete(j, getArtifactManagerFactory(true, null), true);
     }
 
     @Test
-    public void artifactStash() throws Exception {
+    void artifactStash() throws Exception {
         ArtifactManagerTest.artifactStash(j, getArtifactManagerFactory(null, null), true);
     }
 
     @Test
-    public void artifactStashAndDelete() throws Exception {
+    void artifactStashAndDelete() throws Exception {
         ArtifactManagerTest.artifactStashAndDelete(j, getArtifactManagerFactory(null, true), true);
     }
 
@@ -169,7 +164,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     }
 
     @Test
-    public void artifactBrowsingPerformance() throws Exception {
+    void artifactBrowsingPerformance() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         FreeStyleProject p = j.createFreeStyleProject();
         p.getBuildersList().add(new TestBuilder() {
@@ -205,7 +200,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Issue({"JENKINS-51390", "JCLOUDS-1200"})
     @Test
-    public void serializationProblem() throws Exception {
+    void serializationProblem() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f', text: 'content'; archiveArtifacts 'f'; dir('d') {try {unarchive mapping: ['f': 'f']} catch (x) {sleep 1; echo(/caught $x/)}}}", true));
@@ -221,7 +216,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Issue({"JENKINS-52151", "JENKINS-60040"})
     @Test
-    public void slashyBranches() throws Exception {
+    void slashyBranches() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(true, true));
         sampleRepo.init();
         sampleRepo.git("checkout", "-b", "dev/main");
@@ -257,7 +252,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Issue("JENKINS-56004")
     @Test
-    public void nonAdmin() throws Exception {
+    void nonAdmin() throws Exception {
         CredentialsAwsGlobalConfiguration.get().setCredentialsId("bogus"); // force sessionCredentials to call getCredentials
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         Folder d = j.createProject(Folder.class, "d");
@@ -279,7 +274,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
 
     @Issue("JENKINS-50772")
     @Test
-    public void contentType() throws Exception {
+    void contentType() throws Exception {
         String text = "some regular text";
         String html = "<html><header></header><body>Test file contents</body></html>";
         String json = "{\"key\":\"value\"}";
@@ -306,7 +301,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     }
 
     @Test
-    public void archiveWithDistinctArchiveAndWorkspacePaths() throws Exception {
+    void archiveWithDistinctArchiveAndWorkspacePaths() throws Exception {
         String text = "some regular text";
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
 
@@ -325,8 +320,8 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         assertThat(response.getContentType(), equalTo("text/plain"));
     }
 
-    //@Test
-    public void archiveSingleLargeFile() throws Exception {
+    @Test
+    void archiveSingleLargeFile() throws Exception {
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(getArtifactManagerFactory(null, null));
         FreeStyleProject p = j.createFreeStyleProject();
         p.getBuildersList().add(new TestBuilder() {
@@ -337,38 +332,36 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
                 long length = 2L * 1024 * 1024 * 1024;
                 final FilePath src = new FilePath(Which.jarFile(Jenkins.class));
 
-                final OutputStream out = target.write();
-                try {
+                try (OutputStream out = target.write()) {
                     do {
                         IOUtils.copy(src.read(), out);
                     } while (target.length() < length);
-                } finally {
-                    out.close();
                 }
                 return true;
             }
         });
         p.getPublishersList().add(new ArtifactArchiver("**/*"));
         FreeStyleBuild build = j.buildAndAssertSuccess(p);
-        InputStream out = build.getArtifactManager().root().child("out").open();
-        try {
-            IOUtils.copy(out, new NullOutputStream());
-        } finally {
-            out.close();
+        try (InputStream out = build.getArtifactManager().root().child("out").open()) {
+            IOUtils.copy(out, NullOutputStream.INSTANCE);
         }
     }
 
+    @SuppressWarnings("unused")
     public static class ArchiveArtifactWithCustomPathStep extends Step implements Serializable {
+        @Serial
         private static final long serialVersionUID = 1L;
         private final String archivePath;
         private final String workspacePath;
+
         @DataBoundConstructor
         public ArchiveArtifactWithCustomPathStep(String archivePath, String workspacePath) {
             this.archivePath = archivePath;
             this.workspacePath = workspacePath;
         }
+
         @Override
-        public StepExecution start(StepContext context) throws Exception {
+        public StepExecution start(StepContext context) {
             return StepExecutions.synchronousNonBlocking(context, context2 -> {
                 context.get(Run.class).pickArtifactManager().archive(
                         context.get(FilePath.class),
@@ -378,12 +371,15 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
                 return null;
             });
         }
+
         @TestExtension("archiveWithDistinctArchiveAndWorkspacePaths")
         public static class DescriptorImpl extends StepDescriptor {
+
             @Override
             public String getFunctionName() {
                 return "archiveWithCustomPath";
             }
+
             @Override
             public Set<? extends Class<?>> getRequiredContext() {
                 return Set.of(FilePath.class, Launcher.class, TaskListener.class);

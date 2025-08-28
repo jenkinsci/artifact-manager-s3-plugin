@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
@@ -47,40 +48,41 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.PageSet;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.rest.internal.InvokeHttpMethod;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
 import org.jvnet.hudson.test.Issue;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LogRecorder;
 
 import java.net.ProtocolException;
 
 import jenkins.util.VirtualFile;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.jclouds.http.HttpResponseException;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-public class JCloudsVirtualFileTest extends S3AbstractTest {
+@WithJenkins
+class JCloudsVirtualFileTest extends S3AbstractTest {
 
-    protected static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFileTest.class.getName());
 
-    protected File tmpFile;
-    protected String filePath, missingFilePath, weirdCharactersPath;
-    protected JCloudsVirtualFile root, subdir, vf, missing, weirdCharacters, weirdCharactersMissing;
-    @Rule
-    public LoggerRule httpLogging = new LoggerRule();
+    private File tmpFile;
+    private String filePath, missingFilePath, weirdCharactersPath;
+    private JCloudsVirtualFile root, subdir, vf, missing, weirdCharacters, weirdCharactersMissing;
+
+    private final LogRecorder httpLogging = new LogRecorder();
 
     @Override
-    public void setup() throws Exception {
-        tmpFile = tmp.newFile();
+    void beforeEach(JenkinsRule rule) throws Exception {
+        super.beforeEach(rule);
+
+        tmpFile = File.createTempFile("junit", null, tmp);
         Files.writeString(tmpFile.toPath(), "test");
         filePath = getPrefix() + tmpFile.getName();
         Blob blob = blobStore.blobBuilder(filePath).payload(tmpFile).build();
@@ -127,13 +129,13 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     @Test
-    public void child() throws Exception {
+    void child() throws Exception {
         assertTrue(subdir.child(tmpFile.getName()).exists());
         assertFalse(subdir.child(missing.getName()).exists());
     }
 
     @Test
-    public void exists() throws Exception {
+    void exists() throws Exception {
         assertTrue(root.exists());
         assertTrue(subdir.exists());
         assertTrue(vf.exists());
@@ -143,7 +145,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     @Test
-    public void getName() throws Exception {
+    void getName() {
         String[] s = getPrefix().split("/");
         assertEquals(s[s.length - 1], subdir.getName());
         assertEquals(tmpFile.getName(), vf.getName());
@@ -151,14 +153,14 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     @Test
-    public void getParent() throws Exception {
+    void getParent() {
         assertEquals(root, subdir.getParent().getParent());
         assertEquals(subdir, vf.getParent());
         assertEquals(subdir, missing.getParent());
     }
 
     @Test
-    public void isDirectory() throws Exception {
+    void isDirectory() throws Exception {
         assertTrue(root.isDirectory());
         assertTrue(subdir.isDirectory());
         assertFalse(vf.isDirectory());
@@ -177,7 +179,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     @Test
-    public void isFile() throws Exception {
+    void isFile() throws Exception {
         assertFalse(root.isFile());
         assertFalse(subdir.isFile());
         assertTrue(vf.isFile());
@@ -187,7 +189,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     @Test
-    public void lastModified() throws Exception {
+    void lastModified() throws Exception {
         assertEquals(0, root.lastModified());
         assertEquals(0, subdir.lastModified());
         assertNotEquals(0, vf.lastModified());
@@ -195,7 +197,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     @Test
-    public void length() throws Exception {
+    void length() throws Exception {
         assertEquals(0, root.length());
         assertEquals(0, subdir.length());
         assertEquals(tmpFile.length(), vf.length());
@@ -203,20 +205,19 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     private void assertVirtualFileArrayEquals(VirtualFile[] expected, VirtualFile[] actual) {
-        assertArrayEquals("Expected: " + Arrays.toString(expected) + " Actual: " + Arrays.toString(actual), expected,
-                actual);
+        assertArrayEquals(expected,
+                actual,
+                "Expected: " + Arrays.toString(expected) + " Actual: " + Arrays.toString(actual));
     }
 
     @Test
-    public void list() throws Exception {
+    void list() throws Exception {
         assertVirtualFileArrayEquals(new JCloudsVirtualFile[] { vf, weirdCharacters }, subdir.list());
         assertVirtualFileArrayEquals(new JCloudsVirtualFile[0], vf.list());
         assertVirtualFileArrayEquals(new JCloudsVirtualFile[0], missing.list());
     }
 
-    @Test
-    @SuppressWarnings("deprecation")
-    public void listGlob() throws Exception {
+    @Test @SuppressWarnings("deprecation") void listGlob() throws Exception {
         assertThat(subdir.list("**/**"), arrayContainingInAnyOrder(vf.getName(), weirdCharacters.getName()));
         assertArrayEquals(new String[] { vf.getName() }, subdir.list(tmpFile.getName().substring(0, 4) + "*"));
         assertArrayEquals(new String[0], subdir.list("**/something**"));
@@ -225,7 +226,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     @Test
-    public void pagedListing() throws Exception {
+    void pagedListing() throws Exception {
         for (int i = 0; i < 10; i++) {
             String iDir = getPrefix() + "sprawling/i" + i + "/";
             for (int j = 0; j < 10; j++) {
@@ -241,7 +242,8 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         Logger.getLogger(InvokeHttpMethod.class.getName()).addHandler(new Handler() {
             {setLevel(Level.FINE);}
             int count;
-            @Override public void publish(LogRecord record) {
+            @Override
+            public void publish(LogRecord record) {
                 if (record.getMessage().contains("invoking GetBucketLocation")) {
                     new Exception("calling GetBucketLocation #" + count++).printStackTrace();
                     if (count > 1) {
@@ -249,8 +251,11 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
                     }
                 }
             }
-            @Override public void flush() {}
-            @Override public void close() throws SecurityException {}
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() throws SecurityException {}
         });
         // Default list page size for S3 is 1000 blobs; we have 1010 plus the two created for all tests, so should hit a second page.
         assertThat(subdir.list("sprawling/**/k3", null, true), iterableWithSize(100));
@@ -258,7 +263,7 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
     }
 
     @Test
-    public void open() throws Exception {
+    void open() throws Exception {
         try (InputStream is = subdir.open()) {
             fail("Should not open a dir");
         } catch (FileNotFoundException e) {
@@ -270,12 +275,12 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
             // expected
         }
         try (InputStream is = vf.open()) {
-            assertEquals(FileUtils.readFileToString(tmpFile), IOUtils.toString(is));
+            assertEquals(FileUtils.readFileToString(tmpFile, StandardCharsets.UTF_8), IOUtils.toString(is, StandardCharsets.UTF_8));
         }
     }
 
     @Test
-    public void toURI() throws Exception {
+    void toURI() {
         assertEquals(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), urlEncodeParts(getPrefix().replaceFirst("/$", ""))), subdir.toURI().toString());
         assertEquals(String.format("https://%s.s3.amazonaws.com/%s", getContainer(), urlEncodeParts(filePath)), vf.toURI().toString());
         // weird chars
@@ -285,13 +290,14 @@ public class JCloudsVirtualFileTest extends S3AbstractTest {
         CredentialsAwsGlobalConfiguration.get().setRegion("us-west-1");
         assertEquals(String.format("https://%s.s3.us-west-1.amazonaws.com/what/ever", getContainer()), newJCloudsBlobStore("what/ever").toURI().toString());
     }
-    private static String urlEncodeParts(String s) throws Exception {
-        return URLEncoder.encode(s, "UTF-8").replaceAll("%2F", "/");
+
+    private static String urlEncodeParts(String s) {
+        return URLEncoder.encode(s, StandardCharsets.UTF_8).replaceAll("%2F", "/");
     }
 
     @Test
-    @Issue({ "JENKINS-50591", "JCLOUDS-1401" })
-    public void testAmpersand() throws Exception {
+    @Issue({"JENKINS-50591", "JCLOUDS-1401"})
+    void testAmpersand() {
         String key = getPrefix() + "xxx#?:&$'\"<>čॐ";
 
         try {
