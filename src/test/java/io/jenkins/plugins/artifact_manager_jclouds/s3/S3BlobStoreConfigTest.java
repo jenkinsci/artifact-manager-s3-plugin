@@ -2,8 +2,9 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.logging.Logger;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import org.jvnet.hudson.test.JenkinsRule;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
@@ -11,14 +12,14 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory
 import hudson.model.Failure;
 import hudson.util.FormValidation;
 import jenkins.model.ArtifactManagerConfiguration;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class S3BlobStoreConfigTest {
+@WithJenkins
+class S3BlobStoreConfigTest {
 
     private static final Logger LOGGER = Logger.getLogger(S3BlobStoreConfigTest.class.getName());
 
@@ -31,11 +32,15 @@ public class S3BlobStoreConfigTest {
     public static final boolean USE_HTTP = true;
     public static final boolean DISABLE_SESSION_TOKEN = true;
 
-    @Rule
-    public JenkinsRule j = new JenkinsRule();
+    private JenkinsRule j;
+
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        j = rule;
+    }
 
     @Test
-    public void checkConfigurationManually() throws Exception {
+    void checkConfigurationManually() throws Exception {
         S3BlobStore provider = new S3BlobStore();
         S3BlobStoreConfig config = S3BlobStoreConfig.get();
         config.setContainer(CONTAINER_NAME);
@@ -69,69 +74,68 @@ public class S3BlobStoreConfigTest {
         assertEquals(DISABLE_SESSION_TOKEN, S3BlobStoreConfig.get().getDisableSessionToken());
     }
 
-    @Test(expected = Failure.class)
-    public void checkContainerWrongConfiguration() {
+    @Test
+    void checkContainerWrongConfiguration() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        descriptor.setContainer("/wrong-container-name");
-        fail();
+        assertThrows(Failure.class, () -> descriptor.setContainer("/wrong-container-name"));
     }
 
     @Test
-    public void checkValidationsContainer() {
+    void checkValidationsContainer() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        assertEquals(descriptor.doCheckContainer("aaa").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckContainer("aaa12345678901234567890123456789012345678901234568901234567890")
-                             .kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckContainer("name.1name.name1").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckContainer("name-1name-name1").kind, FormValidation.Kind.OK);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckContainer("aaa").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckContainer("aaa12345678901234567890123456789012345678901234568901234567890")
+                .kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckContainer("name.1name.name1").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckContainer("name-1name-name1").kind);
 
-        assertEquals(descriptor.doCheckContainer("AAA").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("A_A").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("Name").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("-name").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer(".name").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("_name").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("192.168.1.100").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("name-Name").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("name-namE").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("name_").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckContainer("/name").kind, FormValidation.Kind.ERROR);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("AAA").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("A_A").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("Name").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("-name").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer(".name").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("_name").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("192.168.1.100").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("name-Name").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("name-namE").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("name_").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckContainer("/name").kind);
     }
 
     @Test
-    public void checkValidationsPrefix() {
+    void checkValidationsPrefix() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        assertEquals(descriptor.doCheckPrefix("").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckPrefix("folder/").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckPrefix("folder").kind, FormValidation.Kind.ERROR);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckPrefix("").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckPrefix("folder/").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckPrefix("folder").kind);
     }
 
     @Test
-    public void checkValidationCustomEndPoint() {
+    void checkValidationCustomEndPoint() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        assertEquals(descriptor.doCheckCustomEndpoint("").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndpoint("server").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndpoint("server.organisation.tld").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndpoint("server:8080").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndpoint("server.organisation.tld:8080").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndpoint("s3-server.organisation.tld").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomEndpoint("-server.organisation.tld").kind, FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckCustomEndpoint(".server.organisation.tld").kind, FormValidation.Kind.ERROR);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckCustomEndpoint("").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckCustomEndpoint("server").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckCustomEndpoint("server.organisation.tld").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckCustomEndpoint("server:8080").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckCustomEndpoint("server.organisation.tld:8080").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckCustomEndpoint("s3-server.organisation.tld").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckCustomEndpoint("-server.organisation.tld").kind);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckCustomEndpoint(".server.organisation.tld").kind);
     }
 
     @Test
-    public void checkValidationCustomSigningRegion() {
+    void checkValidationCustomSigningRegion() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        assertEquals(descriptor.doCheckCustomSigningRegion("anystring").kind, FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckCustomSigningRegion("").kind, FormValidation.Kind.OK);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckCustomSigningRegion("anystring").kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckCustomSigningRegion("").kind);
         descriptor.setCustomEndpoint("server");
         assertTrue(descriptor.doCheckCustomSigningRegion("").getMessage().contains("us-east-1"));
     }
 
     @Test
-    public void checkValidationUseHttpsWithFipsDisabled() {
+    void checkValidationUseHttpsWithFipsDisabled() {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.OK);
-        assertEquals(descriptor.doCheckUseHttp(false).kind , FormValidation.Kind.OK);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckUseHttp(true).kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckUseHttp(false).kind);
     }
 }
