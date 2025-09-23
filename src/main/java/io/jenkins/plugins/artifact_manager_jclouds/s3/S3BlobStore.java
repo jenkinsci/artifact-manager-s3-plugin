@@ -403,8 +403,10 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     @NonNull
-    public MultipartUploader initiateMultipartUpload(@NonNull Blob blob) throws IOException {
-        assert blob != null;
+    public MultipartUploader initiateMultipartUpload(@NonNull Blob blob) throws IllegalArgumentException, IOException {
+        if (blob == null) {
+            throw new IllegalArgumentException("blob cannot be null");
+        }
 
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();

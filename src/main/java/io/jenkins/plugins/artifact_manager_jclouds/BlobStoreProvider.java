@@ -56,6 +56,7 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     }
 
     public static final class Part implements Serializable {
+        private static final long serialVersionUID = 1L;
         private final int partNumber;
         private final String eTag;
 

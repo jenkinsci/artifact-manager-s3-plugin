@@ -227,6 +227,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     }
 
     private static class RequestFileSizes extends MasterToSlaveFileCallable<Map<String, Long>> {
+        private static final long serialVersionUID = 1L;
         private final Set<String> files;
 
         RequestFileSizes(Collection<String> files) {
@@ -244,6 +245,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
     }
 
     private static class UploadPartTask implements Serializable {
+        private static final long serialVersionUID = 1L;
         private final URL url;
         private final String path;
         private final long offset;
@@ -333,7 +335,20 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         // We don't care about content-type when stashing files
         blob.getMetadata().getContentMetadata().setContentType(null);
         long multipartSize = S3BlobStoreConfig.get().getMultipartSize();
-        Object[] stashInfo = workspace.act(new Stash(provider.toURI(provider.getContainer(), path), includes, excludes, useDefaultExcludes, allowEmpty, WorkspaceList.tempDir(workspace).getRemote(), listener));
+        FilePath tempDir = WorkspaceList.tempDir(workspace);
+        if (tempDir == null) {
+            throw new IOException("Unable to determine temporary directory for workspace");
+        }
+        Object[] stashInfo = workspace.act(
+            new Stash(
+                provider.toURI(provider.getContainer(), path),
+                includes,
+                excludes,
+                useDefaultExcludes,
+                allowEmpty,
+                tempDir.getRemote(),
+                listener)
+            );
         String fileName = (String) stashInfo[0];
         long fileSize = (long) stashInfo[1];
 
