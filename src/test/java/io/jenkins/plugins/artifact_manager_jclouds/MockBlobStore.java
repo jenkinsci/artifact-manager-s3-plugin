@@ -26,13 +26,17 @@ package io.jenkins.plugins.artifact_manager_jclouds;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpEntity;
@@ -85,6 +89,56 @@ public final class MockBlobStore extends BlobStoreProvider {
         specialHandlers.put(method + ":" + key, handler);
     }
 
+    /**
+     * Parse URL query parameters from a URI string using Java stdlib
+     */
+    private static Map<String, String> parseQueryParams(String uri) {
+        Map<String, String> params = new HashMap<>();
+        try {
+            URI parsedUri = new URI(uri);
+            String query = parsedUri.getQuery();
+            if (query != null) {
+                for (String param : query.split("&")) {
+                    String[] keyValue = param.split("=", 2);
+                    if (keyValue.length == 2) {
+                        String key = URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8.name());
+                        String value = URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8.name());
+                        params.put(key, value);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Return empty map for malformed URIs
+        }
+        return params;
+    }
+
+    /**
+     * Extract container and key from URI path using Java stdlib
+     */
+    private static String[] extractContainerAndKey(String uri) {
+        try {
+            URI parsedUri = new URI(uri);
+            String path = parsedUri.getPath();
+            
+            // Remove leading slash
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            
+            int firstSlash = path.indexOf('/');
+            if (firstSlash == -1) {
+                return null;
+            }
+            
+            String container = path.substring(0, firstSlash);
+            String key = path.substring(firstSlash + 1);
+            return new String[]{container, key};
+        } catch (URISyntaxException e) {
+            return null;
+        }
+    }
+
     @Override
     public synchronized BlobStoreContext getContext() throws IOException {
         if (context == null) {
@@ -92,17 +146,46 @@ public final class MockBlobStore extends BlobStoreProvider {
             HttpServer server = ServerBootstrap.bootstrap().
                 registerHandler("*", (HttpRequest request, HttpResponse response, HttpContext _context) -> {
                     String method = request.getRequestLine().getMethod();
-                    Matcher m = Pattern.compile("/([^/]+)/(.+)[?]method=" + method).matcher(request.getRequestLine().getUri());
-                    if (!m.matches()) {
-                        throw new IllegalStateException();
+                    String uri = request.getRequestLine().getUri();
+                    
+                    Map<String, String> queryParams = parseQueryParams(uri);
+                    String[] containerAndKey = extractContainerAndKey(uri);
+                    String container = containerAndKey[0];
+                    String key = containerAndKey[1];
+                    
+                    if (containerAndKey == null || !method.equals(queryParams.get("method"))) {
+                        throw new IllegalStateException("Unexpected URI format: " + uri);
                     }
-                    String container = m.group(1);
-                    String key = m.group(2);
+                        
                     HttpRequestHandler specialHandler = specialHandlers.remove(method + ":" + key);
                     if (specialHandler != null) {
                         specialHandler.handle(request, response, _context);
                         return;
                     }
+
+                    // Handle multipart upload requests
+                    if (queryParams.containsKey("uploadId") && queryParams.containsKey("partNumber")) {
+                        String uploadId = queryParams.get("uploadId");
+                        int partNumber = Integer.parseInt(queryParams.get("partNumber"));
+                        
+                        if ("PUT".equals(method)) {
+                            HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
+                            byte[] data = IOUtils.toByteArray(entity.getContent());
+                            
+                            // Store the part data with a unique key
+                            String partKey = uploadId + "-part-" + partNumber;
+                            uploadedParts.put(partKey, data);
+                            
+                            response.setStatusCode(200);
+                            response.setHeader("ETag", "\"mock-etag-" + uploadId + "-" + partNumber + "\"");
+                            LOGGER.log(Level.INFO, "Uploaded part {0} ({1} bytes) for multipart upload {2} to {3}:{4}", 
+                                new Object[]{partNumber, data.length, uploadId, container, key});
+                            return;
+                        } else {
+                            throw new IllegalStateException();
+                        }
+                    }
+
                     BlobStore blobStore = context.getBlobStore();
                     switch (method) {
                         case "GET": {
@@ -167,10 +250,103 @@ public final class MockBlobStore extends BlobStoreProvider {
         return true;
     }
 
+    private static final AtomicInteger uploadIdCounter = new AtomicInteger(0);
+    private static final Map<String, MockMultipartUpload> activeUploads = new ConcurrentHashMap<>();
+    private static final Map<String, byte[]> uploadedParts = new ConcurrentHashMap<>();
+
     @Override
     public MultipartUploader initiateMultipartUpload(Blob blob) throws IOException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'initiateMultipartUpload'");
+        String uploadId = "upload-" + uploadIdCounter.incrementAndGet();
+        MockMultipartUpload upload = new MockMultipartUpload(uploadId, blob, baseURL, context);
+        activeUploads.put(uploadId, upload);
+        return upload;
+    }
+
+    /**
+     * Mock implementation of multipart upload
+     */
+    private static class MockMultipartUpload implements MultipartUploader {
+        private final String uploadId;
+        private final Blob blob;
+        private final URL baseURL;
+        private final BlobStoreContext context;
+        private boolean completed = false;
+
+        MockMultipartUpload(String uploadId, Blob blob, URL baseURL, BlobStoreContext context) {
+            this.uploadId = uploadId;
+            this.blob = blob;
+            this.baseURL = baseURL;
+            this.context = context;
+        }
+
+        @Override
+        public URL toExternalURL(int partNumber) throws IOException {
+            if (baseURL == null) {
+                throw new IOException("Mock server not initialized");
+            }
+            // Generate URL for multipart upload part
+            return new URL(baseURL, blob.getMetadata().getContainer() + "/" + 
+                         blob.getMetadata().getName() + "?method=PUT&uploadId=" + uploadId + "&partNumber=" + partNumber);
+        }
+
+        @Override
+        public void complete(List<Part> parts) throws IOException {
+            if (completed) {
+                throw new IOException("Upload already completed");
+            }
+            completed = true;
+            activeUploads.remove(uploadId);
+            
+            // Combine all uploaded parts in order
+            BlobStore blobStore = context.getBlobStore();
+            String container = blob.getMetadata().getContainer();
+            String key = blob.getMetadata().getName();
+            
+            // Calculate total size and combine parts
+            int totalSize = 0;
+            for (Part part : parts) {
+                String partKey = uploadId + "-part-" + part.getPartNumber();
+                byte[] partData = uploadedParts.get(partKey);
+                if (partData != null) {
+                    totalSize += partData.length;
+                }
+            }
+            
+            // Combine all parts into one byte array
+            byte[] combinedData = new byte[totalSize];
+            int offset = 0;
+            for (Part part : parts) {
+                String partKey = uploadId + "-part-" + part.getPartNumber();
+                byte[] partData = uploadedParts.remove(partKey); // Remove after use
+                if (partData != null) {
+                    System.arraycopy(partData, 0, combinedData, offset, partData.length);
+                    offset += partData.length;
+                }
+            }
+            
+            // Create and store the combined blob
+            Blob combinedBlob = blobStore.blobBuilder(key).payload(combinedData).build();
+            if (!blobStore.containerExists(container)) {
+                blobStore.createContainerInLocation(null, container);
+            }
+            blobStore.putBlob(container, combinedBlob);
+            
+            LOGGER.log(Level.INFO, "Completed multipart upload {0} with {1} parts ({2} total bytes) for {3}:{4}", 
+                new Object[]{uploadId, parts.size(), combinedData.length, container, key});
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (!completed) {
+                activeUploads.remove(uploadId);
+                
+                // Clean up any uploaded parts for this upload
+                uploadedParts.entrySet().removeIf(entry -> entry.getKey().startsWith(uploadId + "-part-"));
+                
+                LOGGER.log(Level.INFO, "Aborted multipart upload {0} for {1}:{2}", 
+                    new Object[]{uploadId, blob.getMetadata().getContainer(), blob.getMetadata().getName()});
+            }
+        }
     }
 
 }
