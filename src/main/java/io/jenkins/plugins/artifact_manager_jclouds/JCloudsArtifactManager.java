@@ -49,6 +49,7 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.http.Header;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
 import org.jclouds.blobstore.BlobStore;
@@ -297,8 +298,10 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
                             return client.execute(put);
                         }, (response) -> {
-                            parts.add(new BlobStoreProvider.Part(task.partNumber,
-                                response.getFirstHeader("ETag").getValue()));
+                            Header etag = response.getFirstHeader("ETag");
+                            if (etag != null) {
+                                parts.add(new BlobStoreProvider.Part(task.partNumber, etag.getValue()));
+                            }
                         }, listener);
                 }
             } finally {
