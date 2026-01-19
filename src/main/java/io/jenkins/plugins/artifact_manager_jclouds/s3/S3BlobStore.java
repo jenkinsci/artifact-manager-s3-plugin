@@ -39,7 +39,6 @@ import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import jenkins.security.FIPS140;
-import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
@@ -124,9 +123,9 @@ public class S3BlobStore extends BlobStoreProvider {
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
             Properties props = new Properties();
-            boolean hasCustomEndpoint = StringUtils.isNotBlank(getConfiguration().getResolvedCustomEndpoint());
+            boolean hasCustomEndpoint = !(getConfiguration().getResolvedCustomEndpoint() != null && getConfiguration().getResolvedCustomEndpoint().isBlank());
 
-            if(StringUtils.isNotBlank(getRegion())) {
+            if(!getRegion().isBlank()) {
                 props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
             }
             if (hasCustomEndpoint) {
@@ -219,15 +218,15 @@ public class S3BlobStore extends BlobStoreProvider {
                 .region(getConfiguration().getRegion())
                 .credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials())
                 .s3Client(s3Client);
-        if (StringUtils.isNotBlank(customEndpoint)) {
+        if (customEndpoint != null && !customEndpoint.isBlank()) {
             presignerBuilder.endpointOverride(URI.create(customEndpoint));
         }
 
         String customRegion = getConfiguration().getCustomSigningRegion();
-        if(StringUtils.isBlank(customRegion)) {
+        if(customRegion.isBlank()) {
             customRegion = getConfiguration().getRegion().id();
         }
-        if(StringUtils.isNotBlank(customRegion)) {
+        if(!customRegion.isBlank()) {
             presignerBuilder.region(Region.of(customRegion));
         }
 
@@ -313,7 +312,7 @@ public class S3BlobStore extends BlobStoreProvider {
          * @return true if a container is configured.
          */
         public boolean isConfigured(){
-            return StringUtils.isNotBlank(S3BlobStoreConfig.get().getContainer());
+            return !S3BlobStoreConfig.get().getContainer().isBlank();
         }
 
     }
