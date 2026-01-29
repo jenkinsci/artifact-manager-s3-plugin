@@ -253,7 +253,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
     
     public String getResolvedCustomEndpoint() {
-        if(!customEndpoint.isBlank()) {
+        if(customEndpoint == null || !customEndpoint.isBlank()) {
             String protocol;
             if(getUseHttp()) {
                 protocol = "http";
@@ -297,7 +297,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         String resolvedCustomEndpoint = getResolvedCustomEndpoint();
         if (resolvedCustomEndpoint != null && !resolvedCustomEndpoint.isBlank()) {
             String resolvedCustomSigningRegion = customSigningRegion;
-            if (resolvedCustomSigningRegion.isBlank()) {
+            if (resolvedCustomSigningRegion == null || resolvedCustomSigningRegion.isBlank()) {
                 // we must revert to a region if no custom defined
                 resolvedCustomSigningRegion = getRegion().id();
             }

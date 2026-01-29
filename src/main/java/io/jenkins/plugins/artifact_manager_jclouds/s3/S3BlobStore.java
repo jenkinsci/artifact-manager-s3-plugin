@@ -123,7 +123,8 @@ public class S3BlobStore extends BlobStoreProvider {
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
         try {
             Properties props = new Properties();
-            boolean hasCustomEndpoint = !(getConfiguration().getResolvedCustomEndpoint() != null && getConfiguration().getResolvedCustomEndpoint().isBlank());
+            String resolvedCustomEndpoint = getConfiguration().getResolvedCustomEndpoint();
+            boolean hasCustomEndpoint = resolvedCustomEndpoint == null || !resolvedCustomEndpoint.isBlank();
 
             if(!getRegion().isBlank()) {
                 props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
@@ -131,7 +132,7 @@ public class S3BlobStore extends BlobStoreProvider {
             if (hasCustomEndpoint) {
                 // We need to set the endpoint here and in the builder or listing
                 // will still use s3.amazonaws.com
-                props.setProperty(LocationConstants.ENDPOINT, getConfiguration().getResolvedCustomEndpoint());
+                props.setProperty(LocationConstants.ENDPOINT, resolvedCustomEndpoint);
             }
             props.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, Boolean.toString(!getConfiguration().getUsePathStyleUrl()));
 
@@ -140,7 +141,7 @@ public class S3BlobStore extends BlobStoreProvider {
                     .overrides(props);
 
             if (hasCustomEndpoint) {
-                builder = builder.endpoint(getConfiguration().getResolvedCustomEndpoint());
+                builder = builder.endpoint(resolvedCustomEndpoint);
             }
 
             return builder.buildView(BlobStoreContext.class);
