@@ -31,7 +31,6 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import jenkins.util.SystemProperties;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -254,7 +253,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
     
     public String getResolvedCustomEndpoint() {
-        if(StringUtils.isNotBlank(customEndpoint)) {
+        if(customEndpoint == null || !customEndpoint.isBlank()) {
             String protocol;
             if(getUseHttp()) {
                 protocol = "http";
@@ -295,13 +294,14 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     S3ClientBuilder getAmazonS3ClientBuilder() throws URISyntaxException {
         S3ClientBuilder ret = S3Client.builder();
 
-        if (StringUtils.isNotBlank(getResolvedCustomEndpoint())) {
+        String resolvedCustomEndpoint = getResolvedCustomEndpoint();
+        if (resolvedCustomEndpoint != null && !resolvedCustomEndpoint.isBlank()) {
             String resolvedCustomSigningRegion = customSigningRegion;
-            if (StringUtils.isBlank(resolvedCustomSigningRegion)) {
+            if (resolvedCustomSigningRegion == null || resolvedCustomSigningRegion.isBlank()) {
                 // we must revert to a region if no custom defined
                 resolvedCustomSigningRegion = getRegion().id();
             }
-            ret = ret.endpointOverride(new URI(getResolvedCustomEndpoint())).region(Region.of(resolvedCustomSigningRegion));
+            ret = ret.endpointOverride(new URI(resolvedCustomEndpoint)).region(Region.of(resolvedCustomSigningRegion));
         } else {
             // not really sure of why this was used.. this should have a dedicated parameter
             //ret = ret.useArnRegion(true);
@@ -358,7 +358,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckContainer(@QueryParameter String container){
         FormValidation ret = FormValidation.ok();
-        if (StringUtils.isBlank(container)){
+        if (container.isBlank()){
             ret = FormValidation.warning("The container name cannot be empty");
         } else if (!bucketPattern.matcher(container).matches()){
             ret = FormValidation.error("The S3 Bucket name does not match S3 bucket rules");
@@ -368,7 +368,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckPrefix(@QueryParameter String prefix){
         FormValidation ret;
-        if (StringUtils.isBlank(prefix)) {
+        if (prefix.isBlank()) {
             ret = FormValidation.ok("Artifacts will be stored in the root folder of the S3 Bucket.");
         } else if (prefix.endsWith("/")) {
             ret = FormValidation.ok();
@@ -380,7 +380,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckCustomSigningRegion(@QueryParameter String customSigningRegion) {
         FormValidation ret;
-        if (StringUtils.isBlank(customSigningRegion) && StringUtils.isNotBlank(customEndpoint)) {
+        if (customSigningRegion != null && customSigningRegion.isBlank() && (customEndpoint == null || !customEndpoint.isBlank())) {
             ret = FormValidation.ok("'us-east-1' will be used when a custom endpoint is configured and custom signing region is blank.");
         } else {
             ret = FormValidation.ok();
@@ -390,7 +390,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckCustomEndpoint(@QueryParameter String customEndpoint) {
         FormValidation ret = FormValidation.ok();
-        if (!StringUtils.isBlank(customEndpoint) && !endPointPattern.matcher(customEndpoint).matches()) {
+        if (!customEndpoint.isBlank() && !endPointPattern.matcher(customEndpoint).matches()) {
             ret = FormValidation.error("Custom Endpoint may not be valid.");
         }
         return ret;
@@ -441,7 +441,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             createS3Bucket(container, disableSessionToken);
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
-            ret = FormValidation.error(StringUtils.abbreviate(msg, 200));
+            ret = FormValidation.error(msg == null || msg.length() <= 200 ? msg : msg.substring(0, 200 - 3) + "...");
         }
         return ret;
     }
@@ -478,7 +478,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             jc.list();
         } catch (Throwable t){
             String msg = processExceptionMessage(t);
-            ret = FormValidation.error(t, StringUtils.abbreviate(msg, 200));
+            ret = FormValidation.error(t, msg == null || msg.length() <= 200 ? msg : msg.substring(0, 200 - 3) + "...");
         }
         try {
             provider.getConfiguration().checkGetBucketLocation(container, disableSessionToken);
