@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>5.18</version>
+    <version>5.2102.v5f5fe09fccf1</version>
     <relativePath />
   </parent>
   <groupId>io.jenkins.plugins</groupId>
@@ -17,9 +17,11 @@
     <changelist>999999-SNAPSHOT</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.504</jenkins.baseline>
-    <jenkins.version>${jenkins.baseline}.1</jenkins.version>
+    <jenkins.version>${jenkins.baseline}.3</jenkins.version>
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
+    <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
+    <hpi.bundledArtifacts>aws-s3,guice-assistedinject,jakarta.ws.rs-api,jclouds-blobstore,jclouds-core,s3,sts,tika-core</hpi.bundledArtifacts>
   </properties>
 
   <name>Artifact Manager on S3 plugin</name>
@@ -43,6 +45,12 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>aws-global-configuration</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.sun.xml.bind</groupId>
+          <artifactId>jaxb-impl</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
@@ -59,7 +67,7 @@
     <dependency>
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
-      <version>3.1.0</version>
+      <version>3.2.3</version>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>
@@ -119,7 +127,7 @@
     <dependency>
       <groupId>org.eclipse.jdt</groupId>
       <artifactId>org.eclipse.jdt.annotation</artifactId>
-      <version>2.3.0</version>
+      <version>2.4.100</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -265,7 +273,7 @@
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-${jenkins.baseline}.x</artifactId>
-        <version>5015.vb_52d36583443</version>
+        <version>5622.vc9c3051619f5</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
@@ -306,17 +314,6 @@
         <artifactId>ssh-slaves</artifactId>
         <classifier>tests</classifier>
         <version>3.1071.v0d059c7b_c555</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins.workflow</groupId>
-        <artifactId>workflow-api</artifactId>
-        <version>1380.ve03e7a_63d139</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins.workflow</groupId>
-        <artifactId>workflow-api</artifactId>
-        <classifier>tests</classifier>
-        <version>1380.ve03e7a_63d139</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
