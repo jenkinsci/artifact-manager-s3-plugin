@@ -29,13 +29,14 @@ import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
-import static org.junit.Assert.*;
-import org.junit.Test;
 
-public class MockApiMetadataTest {
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class MockApiMetadataTest {
 
     @Test
-    public void smokes() throws Exception {
+    void smokes() {
         BlobStoreContext bsc = ContextBuilder.newBuilder("mock").buildView(BlobStoreContext.class);
         BlobStore bs = bsc.getBlobStore();
         bs.createContainerInLocation(null, "container");
@@ -43,5 +44,4 @@ public class MockApiMetadataTest {
         bs.putBlob("container", blob);
         assertEquals("file.txt", bs.list("container").stream().map(StorageMetadata::getName).collect(Collectors.joining(":")));
     }
-
 }

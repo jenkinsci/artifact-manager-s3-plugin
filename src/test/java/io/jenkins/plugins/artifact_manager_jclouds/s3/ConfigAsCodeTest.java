@@ -30,20 +30,21 @@ import io.jenkins.plugins.casc.ConfigurationAsCode;
 import java.util.List;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.ArtifactManagerFactory;
-import static org.junit.Assert.*;
-import org.junit.Rule;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class ConfigAsCodeTest {
-
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+@WithJenkins
+class ConfigAsCodeTest {
 
     @Issue("JENKINS-52304")
     @Test
-    public void smokes() throws Exception {
+    void smokes(JenkinsRule r) {
         ConfigurationAsCode.get().configure(ConfigAsCodeTest.class.getResource("configuration-as-code.yml").toString());
         List<ArtifactManagerFactory> artifactManagerFactories = ArtifactManagerConfiguration.get().getArtifactManagerFactories();
         assertEquals(1, artifactManagerFactories.size());
@@ -53,9 +54,8 @@ public class ConfigAsCodeTest {
         assertEquals("jenkins_data/", S3BlobStoreConfig.get().getPrefix());
         assertEquals("internal-s3.company.org", S3BlobStoreConfig.get().getCustomEndpoint());
         assertEquals("us-west-2", S3BlobStoreConfig.get().getCustomSigningRegion());
-        assertEquals(true, S3BlobStoreConfig.get().getUsePathStyleUrl());
-        assertEquals(true, S3BlobStoreConfig.get().getUseHttp());
-        assertEquals(true, S3BlobStoreConfig.get().getDisableSessionToken());
+        assertTrue(S3BlobStoreConfig.get().getUsePathStyleUrl());
+        assertTrue(S3BlobStoreConfig.get().getUseHttp());
+        assertTrue(S3BlobStoreConfig.get().getDisableSessionToken());
     }
-
 }

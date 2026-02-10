@@ -45,16 +45,19 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.BuildWatcher;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.BuildWatcherExtension;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 /**
  * Explores responses to edge cases such as server errors and hangs.
@@ -72,222 +75,221 @@ import org.jvnet.hudson.test.LoggerRule;
  * </ul>
  */
 @Issue("JENKINS-50597")
-public class NetworkTest {
+@WithJenkins
+class NetworkTest {
 
-    @ClassRule
-    public static BuildWatcher buildWatcher = new BuildWatcher();
+    @SuppressWarnings("unused")
+    @RegisterExtension
+    private static final BuildWatcherExtension BUILD_WATCHER = new BuildWatcherExtension();
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    private final LogRecorder logger = new LogRecorder();
 
-    @Rule
-    public LoggerRule loggerRule = new LoggerRule();
+    private JenkinsRule j;
 
-    @Before
-    public void configureManager() throws Exception {
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) throws Exception {
+        j = rule;
+
         MockBlobStore mockBlobStore = new MockBlobStore();
         mockBlobStore.getContext().getBlobStore().createContainerInLocation(null, mockBlobStore.getContainer());
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(new JCloudsArtifactManagerFactory(mockBlobStore));
-    }
 
-    @Before
-    public void createAgent() throws Exception {
-        r.createSlave("remote", null, null);
+        j.createSlave("remote", null, null);
     }
 
     @Test
-    public void unrecoverableErrorArchiving() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void unrecoverableErrorArchiving() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 403, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains("ERROR: Failed to upload", b);
-        r.assertLogContains("/container/p/1/artifacts/f?…, response: 403 simulated 403 failure, body: Detailed explanation of 403.", b);
-        r.assertLogNotContains("Retrying upload", b);
-        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+        WorkflowRun b = j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        j.assertLogContains("ERROR: Failed to upload", b);
+        j.assertLogContains("/container/p/1/artifacts/f?…, response: 403 simulated 403 failure, body: Detailed explanation of 403.", b);
+        j.assertLogNotContains("Retrying upload", b);
+        j.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
     }
 
     @Test
-    public void recoverableErrorArchiving() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void recoverableErrorArchiving() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
-        r.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
-        r.assertLogContains("Retrying upload", b);
-        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+        WorkflowRun b = j.buildAndAssertSuccess(p);
+        j.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
+        j.assertLogContains("Retrying upload", b);
+        j.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
     }
 
     @Test
-    public void networkExceptionArchiving() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void networkExceptionArchiving() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 0, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
+        WorkflowRun b = j.buildAndAssertSuccess(p);
         // currently prints a ‘java.net.SocketException: Connection reset’ but not sure if we really care
-        r.assertLogContains("Retrying upload", b);
-        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+        j.assertLogContains("Retrying upload", b);
+        j.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
     }
 
     @Test
-    public void repeatedRecoverableErrorArchiving() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void repeatedRecoverableErrorArchiving() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         JCloudsArtifactManager.client = new RobustHTTPClient();
         JCloudsArtifactManager.client.setStopAfterAttemptNumber(3);
         try {
             failIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f", 500, 3);
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-            WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-            r.assertLogContains("ERROR: Failed to upload", b);
-            r.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
-            r.assertLogContains("Retrying upload", b);
-            r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+            WorkflowRun b = j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+            j.assertLogContains("ERROR: Failed to upload", b);
+            j.assertLogContains("/container/p/1/artifacts/f?…, response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
+            j.assertLogContains("Retrying upload", b);
+            j.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
         } finally {
             JCloudsArtifactManager.client = new RobustHTTPClient();
         }
     }
 
     @Test
-    public void hangArchiving() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void hangArchiving() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         JCloudsArtifactManager.client = new RobustHTTPClient();
         JCloudsArtifactManager.client.setTimeout(5, TimeUnit.SECONDS);
         try {
             hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-            WorkflowRun b = r.buildAndAssertSuccess(p);
-            r.assertLogContains("Retrying upload", b);
-            r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+            WorkflowRun b = j.buildAndAssertSuccess(p);
+            j.assertLogContains("Retrying upload", b);
+            j.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
             // Also from master:
             hangIn(BlobStoreProvider.HttpMethod.PUT, "p/2/artifacts/f");
-            p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-            b = r.buildAndAssertSuccess(p);
-            r.assertLogContains("Retrying upload", b);
-            r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
+            p.setDefinition(new CpsFlowDefinition("node('" + j.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+            b = j.buildAndAssertSuccess(p);
+            j.assertLogContains("Retrying upload", b);
+            j.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
         } finally {
             JCloudsArtifactManager.client = new RobustHTTPClient();
         }
     }
 
     @Test
-    public void interruptedArchiving() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void interruptedArchiving() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         hangIn(BlobStoreProvider.HttpMethod.PUT, "p/1/artifacts/f");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
-        r.waitForMessage("Archiving artifacts", b);
+        j.waitForMessage("Archiving artifacts", b);
         Thread.sleep(2000); // wait for hangIn to sleep; OK if occasionally it has not gotten there yet, we still expect the same result
         b.getExecutor().interrupt();
-        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(b));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(b));
         // Currently prints a stack trace of java.lang.InterruptedException; good enough.
         // Check the same from a timeout within the build, rather than a user abort, and also from master just for fun:
         hangIn(BlobStoreProvider.HttpMethod.PUT, "p/2/artifacts/f");
-        p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; timeout(time: 3, unit: 'SECONDS') {archiveArtifacts 'f'}}", true));
-        r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
+        p.setDefinition(new CpsFlowDefinition("node('" + j.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; timeout(time: 3, unit: 'SECONDS') {archiveArtifacts 'f'}}", true));
+        j.assertLogContains(new TimeoutStepExecution.ExceededTimeout(null).getShortDescription(), j.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
     @Test
-    public void unrecoverableErrorUnstashing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void unrecoverableErrorUnstashing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         failIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", 403, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
-        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains("ERROR: Failed to download", b);
-        r.assertLogContains("/container/p/1/stashes/f.tgz?…", b);
-        r.assertLogContains("response: 403 simulated 403 failure, body: Detailed explanation of 403.", b);
-        r.assertLogNotContains("Retrying download", b);
-        r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
+        WorkflowRun b = j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        j.assertLogContains("ERROR: Failed to download", b);
+        j.assertLogContains("/container/p/1/stashes/f.tgz?…", b);
+        j.assertLogContains("response: 403 simulated 403 failure, body: Detailed explanation of 403.", b);
+        j.assertLogNotContains("Retrying download", b);
+        j.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
     }
 
     @Test
-    public void recoverableErrorUnstashing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void recoverableErrorUnstashing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         failIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", 500, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
-        r.assertLogContains("/container/p/1/stashes/f.tgz?…", b);
-        r.assertLogContains("response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
-        r.assertLogContains("Retrying download", b);
-        r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
+        WorkflowRun b = j.buildAndAssertSuccess(p);
+        j.assertLogContains("/container/p/1/stashes/f.tgz?…", b);
+        j.assertLogContains("response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
+        j.assertLogContains("Retrying download", b);
+        j.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
     }
 
     @Test
-    public void networkExceptionUnstashing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void networkExceptionUnstashing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         // failIn does not work: URL connection gets a 200 status despite a ConnectionClosedException being thrown; a new connection is made.
         MockBlobStore.speciallyHandle(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", (request, response, context) -> {});
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
-        r.assertLogContains("Retrying download", b);
+        WorkflowRun b = j.buildAndAssertSuccess(p);
+        j.assertLogContains("Retrying download", b);
         // Currently catches an error from FilePath.untarFrom: java.io.IOException: Failed to extract input stream
-        r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
+        j.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
     }
 
     @Test
-    public void repeatedRecoverableErrorUnstashing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void repeatedRecoverableErrorUnstashing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         JCloudsArtifactManager.client = new RobustHTTPClient();
         JCloudsArtifactManager.client.setStopAfterAttemptNumber(3);
         try {
             failIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz", 500, 3);
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
-            WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-            r.assertLogContains("ERROR: Failed to download", b);
-            r.assertLogContains("/container/p/1/stashes/f.tgz?…", b);
-            r.assertLogContains("response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
-            r.assertLogContains("Retrying download", b);
-            r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
+            WorkflowRun b = j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+            j.assertLogContains("ERROR: Failed to download", b);
+            j.assertLogContains("/container/p/1/stashes/f.tgz?…", b);
+            j.assertLogContains("response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
+            j.assertLogContains("Retrying download", b);
+            j.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
         } finally {
             JCloudsArtifactManager.client = new RobustHTTPClient();
         }
     }
 
     @Test
-    public void hangUnstashing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void hangUnstashing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         JCloudsArtifactManager.client = new RobustHTTPClient();
         JCloudsArtifactManager.client.setTimeout(5, TimeUnit.SECONDS);
         try {
             hangIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz");
             p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
-            WorkflowRun b = r.buildAndAssertSuccess(p);
-            r.assertLogContains("Retrying download", b);
-            r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
+            WorkflowRun b = j.buildAndAssertSuccess(p);
+            j.assertLogContains("Retrying download", b);
+            j.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
             hangIn(BlobStoreProvider.HttpMethod.GET, "p/2/stashes/f.tgz");
-            p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
-            b = r.buildAndAssertSuccess(p);
-            r.assertLogContains("Retrying download", b);
-            r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
+            p.setDefinition(new CpsFlowDefinition("node('" + j.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
+            b = j.buildAndAssertSuccess(p);
+            j.assertLogContains("Retrying download", b);
+            j.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.flow.StashManager.unstash", b);
         } finally {
             JCloudsArtifactManager.client = new RobustHTTPClient();
         }
     }
 
     @Test
-    public void interruptedUnstashing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void interruptedUnstashing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         hangIn(BlobStoreProvider.HttpMethod.GET, "p/1/stashes/f.tgz");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
-        r.waitForMessage("[Pipeline] unstash", b);
+        j.waitForMessage("[Pipeline] unstash", b);
         Thread.sleep(2000);
         b.getExecutor().interrupt();
-        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(b));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(b));
         hangIn(BlobStoreProvider.HttpMethod.GET, "p/2/stashes/f.tgz");
-        p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; stash 'f'; timeout(time: 3, unit: 'SECONDS') {unstash 'f'}}", true));
-        r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
+        p.setDefinition(new CpsFlowDefinition("node('" + j.jenkins.getSelfLabel().getName() + "') {writeFile file: 'f', text: '.'; stash 'f'; timeout(time: 3, unit: 'SECONDS') {unstash 'f'}}", true));
+        j.assertLogContains(new TimeoutStepExecution.ExceededTimeout(null).getShortDescription(), j.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
     @Test
-    public void recoverableErrorUnarchiving() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void recoverableErrorUnarchiving() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         failIn(BlobStoreProvider.HttpMethod.GET, "p/1/artifacts/f", 500, 0);
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; unarchive mapping: ['f': 'f']}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
-        r.assertLogContains("/container/p/1/artifacts/f?…", b);
-        r.assertLogContains("response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
-        r.assertLogContains("Retrying download", b);
-        r.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.steps.ArtifactUnarchiverStepExecution.run", b);
+        WorkflowRun b = j.buildAndAssertSuccess(p);
+        j.assertLogContains("/container/p/1/artifacts/f?…", b);
+        j.assertLogContains("response: 500 simulated 500 failure, body: Detailed explanation of 500.", b);
+        j.assertLogContains("Retrying download", b);
+        j.assertLogNotContains("\tat org.jenkinsci.plugins.workflow.steps.ArtifactUnarchiverStepExecution.run", b);
     }
 
     // TBD if jclouds, or its S3 provider, is capable of differentiating recoverable from nonrecoverable errors. The error simulated here:
@@ -299,20 +301,20 @@ public class NetworkTest {
     // followed by a org.jclouds.http.HttpResponseException: Network is unreachable (connect failed) connecting to GET …
     // Also not testing hangs here since org.jclouds.Constants.PROPERTY_SO_TIMEOUT/PROPERTY_CONNECTION_TIMEOUT probably handle this.
     @Test
-    public void errorListing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void errorListing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "sorry");});
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; unarchive mapping: ['f': 'f']}", true));
-        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains(ContainerNotFoundException.class.getName(), b);
+        WorkflowRun b = j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        j.assertLogContains(ContainerNotFoundException.class.getName(), b);
         // Currently prints a stack trace, OK.
     }
 
     // Interrupts during a network operation seem to have no effect; when retrying during network disconnection,
     // BackoffLimitedRetryHandler.imposeBackoffExponentialDelay throws InterruptedException wrapped in RuntimeException.
     @Test
-    public void interruptedListing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void interruptedListing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {
             try {
                 Thread.sleep(Long.MAX_VALUE);
@@ -321,28 +323,28 @@ public class NetworkTest {
             }
         });
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'; timeout(time: 3, unit: 'SECONDS') {unarchive mapping: ['f': 'f']}}", true));
-        r.assertLogContains(new TimeoutStepExecution.ExceededTimeout().getShortDescription(), r.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
+        j.assertLogContains(new TimeoutStepExecution.ExceededTimeout(null).getShortDescription(), j.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0)));
     }
 
     @Test
-    public void errorCleaningArtifacts() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).record(GlobalBuildDiscarderListener.class, Level.WARNING).capture(10);
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void errorCleaningArtifacts() throws Exception {
+        logger.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).record(GlobalBuildDiscarderListener.class, Level.WARNING).capture(10);
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-        r.buildAndAssertSuccess(p);
+        j.buildAndAssertSuccess(p);
         p.setBuildDiscarder(new LogRotator(-1, -1, -1, 0));
         MockApiMetadata.handleRemoveBlob("container", "p/1/artifacts/f", () -> {throw new ContainerNotFoundException("container", "sorry about your artifacts");});
-        r.buildAndAssertSuccess(p);
+        j.buildAndAssertSuccess(p);
         expectLogMessage("container not found: sorry about your artifacts");
     }
 
     @Test
-    public void errorCleaningStashes() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).capture(10);
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void errorCleaningStashes() throws Exception {
+        logger.record(WorkflowRun.class, Level.WARNING).record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING).capture(10);
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'stuff'}", true));
         MockApiMetadata.handleRemoveBlob("container", "p/1/stashes/stuff.tgz", () -> {throw new ContainerNotFoundException("container", "sorry about your stashes");});
-        WorkflowRun b = r.buildAndAssertSuccess(p);
+        WorkflowRun b = j.buildAndAssertSuccess(p);
         if (!JenkinsRule.getLog(b).contains("container not found: sorry about your stashes")) {
             // TODO delete after https://github.com/jenkinsci/workflow-job-plugin/pull/357
             expectLogMessage("container not found: sorry about your stashes");
@@ -352,15 +354,15 @@ public class NetworkTest {
     // Interrupts probably never delivered during HTTP requests (maybe depends on servlet container?).
     // Hangs would be handled by jclouds code.
     @Test
-    public void errorBrowsing() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+    void errorBrowsing() throws Exception {
+        WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
+        WorkflowRun b = j.buildAndAssertSuccess(p);
         MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "sorry");});
-        JenkinsRule.WebClient wc = r.createWebClient();
+        JenkinsRule.WebClient wc = j.createWebClient();
         {
             System.err.println("build root");
-            loggerRule.record(Run.class, Level.WARNING).capture(10);
+            logger.record(Run.class, Level.WARNING).capture(10);
             wc.getPage(b);
             expectLogMessage("container not found: sorry");
         }
@@ -368,7 +370,7 @@ public class NetworkTest {
             System.err.println("artifact root");
             MockApiMetadata.handleGetBlobKeysInsideContainer("container", () -> {throw new ContainerNotFoundException("container", "really sorry");});
             try {
-                loggerRule.record(InstallUncaughtExceptionHandler.class, Level.WARNING).capture(10);
+                logger.record(InstallUncaughtExceptionHandler.class, Level.WARNING).capture(10);
                 wc.getPage(b, "artifact/");
                 fail("Currently DirectoryBrowserSupport throws up storage exceptions.");
             } catch (FailingHttpStatusCodeException x) {
@@ -383,7 +385,7 @@ public class NetworkTest {
     }
 
     private void expectLogMessage(String message) throws InterruptedException {
-        while (loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).noneMatch(t -> t.contains(message))) {
+        while (logger.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).noneMatch(t -> t.contains(message))) {
             Thread.sleep(100);
         }
     }
@@ -406,9 +408,8 @@ public class NetworkTest {
             try {
                 Thread.sleep(Long.MAX_VALUE);
             } catch (InterruptedException x) {
-                assert false : x; // on the server side, should not happen
+                fail(x); // on the server side, should not happen
             }
         });
     }
-
 }
