@@ -112,6 +112,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private boolean useTransferAcceleration;
 
     private boolean disableSessionToken;
+
+    private boolean disablePresignedUrls;
     
     private String customEndpoint;
     
@@ -239,6 +241,16 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     @DataBoundSetter
     public void setDisableSessionToken(boolean disableSessionToken){
         this.disableSessionToken = disableSessionToken;
+        save();
+    }
+
+    public boolean getDisablePresignedUrls() {
+        return disablePresignedUrls;
+    }
+
+    @DataBoundSetter
+    public void setDisablePresignedUrls(boolean disablePresignedUrls){
+        this.disablePresignedUrls = disablePresignedUrls;
         save();
     }
     

@@ -119,6 +119,11 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     @Override
+    public boolean isDisablePresignedUrls() {
+        return getConfiguration().getDisablePresignedUrls();
+    }
+
+    @Override
     public BlobStoreContext getContext() throws IOException {
         LOGGER.log(Level.FINEST, "Building context");
         ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
