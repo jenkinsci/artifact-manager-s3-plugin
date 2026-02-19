@@ -30,6 +30,7 @@ public class S3BlobStoreConfigTest {
     public static final boolean USE_PATH_STYLE = true;
     public static final boolean USE_HTTP = true;
     public static final boolean DISABLE_SESSION_TOKEN = true;
+    public static final boolean DISABLE_PRESIGNED_URLS = true;
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -45,6 +46,7 @@ public class S3BlobStoreConfigTest {
         config.setUsePathStyleUrl(USE_PATH_STYLE);
         config.setUseHttp(USE_HTTP);
         config.setDisableSessionToken(DISABLE_SESSION_TOKEN);
+        config.setDisablePresignedUrls(DISABLE_PRESIGNED_URLS);
 
         JCloudsArtifactManagerFactory artifactManagerFactory = new JCloudsArtifactManagerFactory(provider);
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(artifactManagerFactory);
@@ -59,6 +61,12 @@ public class S3BlobStoreConfigTest {
         checkFieldValues(config);
     }
 
+    @Test
+    public void disablePresignedUrlsDefaultIsFalse() {
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        assertEquals(false, config.getDisablePresignedUrls());
+    }
+
     private void checkFieldValues(S3BlobStoreConfig configuration) {
         assertEquals(CONTAINER_NAME, configuration.getContainer());
         assertEquals(CONTAINER_PREFIX, configuration.getPrefix());
@@ -67,6 +75,7 @@ public class S3BlobStoreConfigTest {
         assertEquals(USE_PATH_STYLE, S3BlobStoreConfig.get().getUsePathStyleUrl());
         assertEquals(USE_HTTP, S3BlobStoreConfig.get().getUseHttp());
         assertEquals(DISABLE_SESSION_TOKEN, S3BlobStoreConfig.get().getDisableSessionToken());
+        assertEquals(DISABLE_PRESIGNED_URLS, S3BlobStoreConfig.get().getDisablePresignedUrls());
     }
 
     @Test(expected = Failure.class)
