@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,6 +44,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.StreamSupport;
 
+import jenkins.util.SystemProperties;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.BlobStores;
@@ -150,7 +152,7 @@ public class JCloudsVirtualFile extends VirtualFile {
 
     @Override
     public URL toExternalURL() throws IOException {
-        return provider.toExternalURL(getBlob(), HttpMethod.GET);
+        return provider.toExternalURL(getBlob(), HttpMethod.GET, Duration.ofSeconds(SystemProperties.getInteger(JCloudsVirtualFile.class.getName() + ".EXPIRATION_SECONDS", 60)));
     }
 
     @Override

@@ -239,8 +239,7 @@ public class S3BlobStore extends BlobStoreProvider {
         return presignerBuilder.build();
     }
 
-    private URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner) throws IOException {
-        Duration expiration = Duration.ofHours(1);
+    private URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner, @NonNull Duration expiration) throws IOException {
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
         LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
@@ -248,6 +247,9 @@ public class S3BlobStore extends BlobStoreProvider {
         String contentType;
         switch (httpMethod) {
             case PUT:
+                if (expiration.isZero()) {
+                    throw new IllegalArgumentException("Expiration time must be greater than zero for PUT");
+                }
                 // Only set content type for upload URLs, so that the right S3 metadata gets set
                 contentType = blob.getMetadata().getContentMetadata().getContentType();
                 PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(container)
@@ -259,6 +261,9 @@ public class S3BlobStore extends BlobStoreProvider {
                         .putObjectRequest(putObjectRequest).build();
                 return presigner.presignPutObject(putObjectPresignRequest).url();
             case GET:
+                if (expiration.isZero()) {
+                    return blob.getMetadata().getUri().toURL();
+                }
                 GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(container).key(name).build();
                 GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
                         .signatureDuration(expiration)
@@ -274,10 +279,10 @@ public class S3BlobStore extends BlobStoreProvider {
      *      Pre-signed Object URL using AWS SDK for Java</a>
      */
     @Override
-    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
+    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, Duration expiration) throws IOException {
         try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
              S3Presigner presigner = getS3Presigner(s3Client)) {
-            return toExternalURL(blob, httpMethod, presigner);
+            return toExternalURL(blob, httpMethod, presigner, expiration);
         }
     }
 
@@ -293,7 +298,7 @@ public class S3BlobStore extends BlobStoreProvider {
                 Blob blob = blobStore.blobBuilder(blobPath).build();
                 blob.getMetadata().setContainer(this.getContainer());
                 blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-                artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT, s3Presigner));
+                artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT, s3Presigner, Duration.ofHours(1)));
             }
         }
         return artifactUrls;
