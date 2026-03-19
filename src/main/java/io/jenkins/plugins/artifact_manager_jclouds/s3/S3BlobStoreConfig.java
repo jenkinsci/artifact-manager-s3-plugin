@@ -326,6 +326,14 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
 
     public Region getRegion() {
+        // Short-circuit for custom endpoints (e.g., MinIO, LocalStack).
+        // AWS region auto-detection is expensive and irrelevant for non-AWS services.
+        if (StringUtils.isNotBlank(customEndpoint)) {
+            if (StringUtils.isNotBlank(customSigningRegion)) {
+                return Region.of(customSigningRegion);
+            }
+            return Region.US_EAST_1;
+        }
         String regionStr = CredentialsAwsGlobalConfiguration.get().getRegion();
         if (regionStr == null) {
             try {
@@ -352,7 +360,6 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
                 throw new IOException("No session AWS credentials found");
             }
         }
-        builder = builder.region(getRegion());
         return builder;
     }
 

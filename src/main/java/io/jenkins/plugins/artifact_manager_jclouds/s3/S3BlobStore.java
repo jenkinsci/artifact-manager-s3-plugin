@@ -216,7 +216,6 @@ public class S3BlobStore extends BlobStoreProvider {
         String customEndpoint = getConfiguration().getResolvedCustomEndpoint();
         S3Presigner.Builder presignerBuilder = S3Presigner.builder()
                 .fipsEnabled(FIPS140.useCompliantAlgorithms())
-                .region(getConfiguration().getRegion())
                 .credentialsProvider(CredentialsAwsGlobalConfiguration.get().getCredentials())
                 .s3Client(s3Client);
         if (StringUtils.isNotBlank(customEndpoint)) {
@@ -225,7 +224,7 @@ public class S3BlobStore extends BlobStoreProvider {
 
         String customRegion = getConfiguration().getCustomSigningRegion();
         if(StringUtils.isBlank(customRegion)) {
-            customRegion = getConfiguration().getRegion().id();
+            customRegion = getRegion();
         }
         if(StringUtils.isNotBlank(customRegion)) {
             presignerBuilder.region(Region.of(customRegion));
