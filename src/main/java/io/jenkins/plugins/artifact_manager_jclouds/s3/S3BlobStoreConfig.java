@@ -30,8 +30,8 @@ import java.net.URISyntaxException;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import jenkins.util.SystemProperties;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -41,24 +41,21 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Util;
 import hudson.model.Failure;
 import hudson.util.FormValidation;
-
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsVirtualFile;
 import io.jenkins.plugins.aws.global_configuration.AbstractAwsGlobalConfiguration;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
-
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
-import org.jenkinsci.Symbol;
+import jenkins.util.SystemProperties;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.SdkSystemSetting;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -89,6 +86,8 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     private static boolean DELETE_ARTIFACTS = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteArtifacts");
     @SuppressWarnings("FieldMayBeFinal")
     private static boolean DELETE_STASHES = Boolean.getBoolean(S3BlobStoreConfig.class.getName() + ".deleteStashes");
+    @SuppressWarnings("FieldMayBeFinal")
+    private static long MULTIPART_SIZE = Long.getLong(S3BlobStoreConfig.class.getName() + ".multipartSize", 100 * 1024 * 1024);
 
     static {
         String timeout = SystemProperties.getString(S3BlobStoreConfig.class.getName() + "." + SdkSystemSetting.AWS_METADATA_SERVICE_TIMEOUT.property(), "10");
@@ -191,6 +190,10 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
         if (formValidation.kind == FormValidation.Kind.ERROR) {
             throw new Failure(formValidation.getMessage());
         }
+    }
+
+    public long getMultipartSize() {
+        return MULTIPART_SIZE;
     }
 
     public boolean isDeleteArtifacts() {
