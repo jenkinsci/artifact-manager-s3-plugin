@@ -24,6 +24,7 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
@@ -154,6 +155,7 @@ public final class MockBlobStore extends BlobStoreProvider {
     }
 
     @Override
+    @NonNull
     public URL toExternalURL(Blob blob, HttpMethod httpMethod, Duration expiration) throws IOException {
         return new URL(baseURL, blob.getMetadata().getContainer() + "/" + blob.getMetadata().getName() + "?method=" + httpMethod);
     }

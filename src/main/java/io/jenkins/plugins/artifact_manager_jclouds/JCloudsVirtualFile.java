@@ -152,7 +152,7 @@ public class JCloudsVirtualFile extends VirtualFile {
 
     @Override
     public URL toExternalURL() throws IOException {
-        return provider.toExternalURL(getBlob(), HttpMethod.GET, Duration.ofSeconds(SystemProperties.getInteger(JCloudsVirtualFile.class.getName() + ".EXPIRATION_SECONDS", 60)));
+        return provider.toExternalURL(getBlob(), HttpMethod.GET, SystemProperties.getDuration(JCloudsVirtualFile.class.getName() + ".externalUrlDuration", Duration.ofMinutes(1)));
     }
 
     @Override
