@@ -242,8 +242,20 @@ public class S3BlobStore extends BlobStoreProvider {
     private URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner, @NonNull Duration expiration) throws IOException {
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
-        LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
-                new Object[]{container, name, httpMethod});
+        if (expiration.getSeconds() <= 0) {
+            // Requests that are pre-signed by SigV4 algorithm are valid for at least 1 second and at most 7 days. The expiration duration set on the current request [PT0S] does not meet these bounds.
+            expiration = Duration.ofSeconds(1);
+            LOGGER.log(Level.FINE, "Received an invalid duration for {0} / {1} for method {2}, setting to 1 second: {3}",
+                    new Object[]{container, name, httpMethod, expiration});
+        }
+        if (!expiration.minusDays(7).isNegative()) {
+            // https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html#PresignedUrl-Expiration
+            expiration = Duration.ofDays(7);
+            LOGGER.log(Level.FINE, "Received an invalid duration for {0} / {1} for method {2}, setting to 7 days: {3}",
+                    new Object[]{container, name, httpMethod, expiration});
+        }
+        LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2} with duration {3}",
+                new Object[]{container, name, httpMethod, expiration});
         String contentType;
         switch (httpMethod) {
             case PUT:
