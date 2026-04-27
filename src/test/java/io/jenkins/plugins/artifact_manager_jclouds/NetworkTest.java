@@ -74,6 +74,11 @@ import org.jvnet.hudson.test.LoggerRule;
 @Issue("JENKINS-50597")
 public class NetworkTest {
 
+    static {
+        // Set small multipart size for all multipart tests before S3BlobStoreConfig is loaded
+        System.setProperty("io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.multipartSize", "50");
+    }
+
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
 
@@ -88,6 +93,15 @@ public class NetworkTest {
         MockBlobStore mockBlobStore = new MockBlobStore();
         mockBlobStore.getContext().getBlobStore().createContainerInLocation(null, mockBlobStore.getContainer());
         ArtifactManagerConfiguration.get().getArtifactManagerFactories().add(new JCloudsArtifactManagerFactory(mockBlobStore));
+    }
+
+    @Before
+    public void configureS3() throws Exception {
+        // Configure S3BlobStoreConfig for tests that might need it
+        // This ensures S3BlobStoreConfig.get() works in tests
+        io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig config = 
+            io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.get();
+        config.setContainer("test-container");
     }
 
     @Before
@@ -382,6 +396,60 @@ public class NetworkTest {
         }
     }
 
+    @Test
+    public void multipartUploadRecoverableError() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        
+        // Fail the first part upload with recoverable error
+        failMultipartUpload("p/1/artifacts/large.txt", 1, 500, 0);
+        
+        // Create a 100-byte file (will be split into 2 parts with 50-byte multipart size)
+        p.setDefinition(new CpsFlowDefinition("node('remote') {" + createLargeFile(100) + "; archiveArtifacts 'large.txt'}", true));
+        
+        WorkflowRun b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("response: 500 simulated 500 failure", b);
+        r.assertLogContains("Retrying upload", b);
+        r.assertLogContains("Uploaded 1 artifact(s)", b);
+    }
+
+    @Test
+    public void multipartUploadUnrecoverableError() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        
+        // Fail the first part upload with unrecoverable error
+        failMultipartUpload("p/1/artifacts/large.txt", 1, 403, 0);
+        
+        // Create a 120-byte file (will be split into 3 parts with 50-byte multipart size)
+        p.setDefinition(new CpsFlowDefinition("node('remote') {" + createLargeFile(120) + "; archiveArtifacts 'large.txt'}", true));
+        
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("ERROR: Failed to upload", b);
+        r.assertLogContains("response: 403 simulated 403 failure", b);
+        r.assertLogNotContains("Retrying upload", b);
+    }
+
+    @Test
+    public void multipartUploadHang() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        
+        JCloudsArtifactManager.client = new RobustHTTPClient();
+        JCloudsArtifactManager.client.setTimeout(5, TimeUnit.SECONDS);
+        
+        try {
+            // Hang the first part upload
+            hangMultipartUpload("p/1/artifacts/large.txt", 1);
+            
+            // Create a 150-byte file (will be split into 3 parts with 50-byte multipart size)
+            p.setDefinition(new CpsFlowDefinition("node('remote') {" + createLargeFile(150) + "; archiveArtifacts 'large.txt'}", true));
+            
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+            r.assertLogContains("Retrying upload", b);
+            r.assertLogContains("Uploaded 1 artifact(s)", b);
+        } finally {
+            JCloudsArtifactManager.client = new RobustHTTPClient();
+        }
+    }
+
     private void expectLogMessage(String message) throws InterruptedException {
         while (loggerRule.getRecords().stream().map(LogRecord::getThrown).filter(Objects::nonNull).map(Functions::printThrowable).noneMatch(t -> t.contains(message))) {
             Thread.sleep(100);
@@ -401,6 +469,26 @@ public class NetworkTest {
         });
     }
 
+    /**
+     * Fail multipart uploads for a specific key and part number
+     */
+    private static void failMultipartUpload(String key, int partNumber, int code, int repeats) {
+        MockBlobStore.speciallyHandle(BlobStoreProvider.HttpMethod.PUT, key, (request, response, context) -> {
+            String uri = request.getRequestLine().getUri();
+            // Only fail if this is a multipart request for the specified part
+            if (uri.contains("uploadId=") && uri.contains("partNumber=" + partNumber)) {
+                if (repeats > 0) {
+                    failMultipartUpload(key, partNumber, code, repeats - 1);
+                }
+                if (code == 0) {
+                    throw new ConnectionClosedException("Refusing to even send a status code for multipart " + key);
+                }
+                response.setStatusLine(new BasicStatusLine(HttpVersion.HTTP_1_0, code, "simulated " + code + " failure"));
+                response.setEntity(new StringEntity("Detailed explanation of " + code + "."));
+            }
+        });
+    }
+
     private static void hangIn(BlobStoreProvider.HttpMethod method, String key) {
         MockBlobStore.speciallyHandle(method, key, (request, response, context) -> {
             try {
@@ -411,4 +499,34 @@ public class NetworkTest {
         });
     }
 
+    /**
+     * Hang multipart uploads for a specific key and part number
+     */
+    private static void hangMultipartUpload(String key, int partNumber) {
+        MockBlobStore.speciallyHandle(BlobStoreProvider.HttpMethod.PUT, key, (request, response, context) -> {
+            String uri = request.getRequestLine().getUri();
+            // Only hang if this is a multipart request for the specified part
+            if (uri.contains("uploadId=") && uri.contains("partNumber=" + partNumber)) {
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException x) {
+                    // Expected when timeout occurs
+                }
+            }
+        });
+    }
+
+    /**
+     * Create a file of specified size for testing multipart uploads
+     * @param size file size in bytes
+     * @return file content creation script
+     */
+    private static String createLargeFile(int size) {
+        // Create a file with 'X' repeated to reach the desired size
+        StringBuilder content = new StringBuilder();
+        for (int i = 0; i < size; i++) {
+            content.append('X');
+        }
+        return "writeFile file: 'large.txt', text: '" + content.toString() + "'";
+    }
 }
