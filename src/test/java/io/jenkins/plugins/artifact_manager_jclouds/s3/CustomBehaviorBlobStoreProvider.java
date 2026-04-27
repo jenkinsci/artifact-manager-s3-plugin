@@ -82,5 +82,4 @@ public class CustomBehaviorBlobStoreProvider extends BlobStoreProvider {
     public BlobStoreProviderDescriptor getDescriptor() {
         return delegate.getDescriptor();
     }
-
 }
