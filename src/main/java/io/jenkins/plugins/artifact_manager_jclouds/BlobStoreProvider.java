@@ -68,6 +68,16 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     /** A constant to define whether we should delete stashes or leave them to be managed on the blob service side. */
     public abstract boolean isDeleteStashes();
 
+    /**
+     * Whether pre-signed URLs should be disabled for artifact browsing.
+     * When true, artifacts are streamed through the Jenkins controller instead
+     * of redirecting to a pre-signed S3 URL, which preserves relative links
+     * in HTML reports.
+     */
+    public boolean isDisablePresignedUrls() {
+        return false;
+    }
+
     /** Creates the jclouds handle for working with blob. */
     @NonNull
     public abstract BlobStoreContext getContext() throws IOException;
