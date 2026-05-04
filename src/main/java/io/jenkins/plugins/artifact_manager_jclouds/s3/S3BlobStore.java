@@ -39,6 +39,7 @@ import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import jenkins.security.FIPS140;
+import jenkins.util.SystemProperties;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
@@ -85,7 +86,7 @@ public class S3BlobStore extends BlobStoreProvider {
     private static final Logger LOGGER = Logger.getLogger(S3BlobStore.class.getName());
 
     private static final long serialVersionUID = -8864075675579867370L;
-    
+
     @DataBoundConstructor
     public S3BlobStore() {
     }
@@ -238,12 +239,23 @@ public class S3BlobStore extends BlobStoreProvider {
         return presignerBuilder.build();
     }
 
-    private URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner) throws IOException {
-        Duration expiration = Duration.ofHours(1);
+    private URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner, @NonNull Duration expiration) throws IOException {
         String container = blob.getMetadata().getContainer();
         String name = blob.getMetadata().getName();
-        LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
-                new Object[]{container, name, httpMethod});
+        if (expiration.getSeconds() <= 0) {
+            // Requests that are pre-signed by SigV4 algorithm are valid for at least 1 second and at most 7 days. The expiration duration set on the current request [PT0S] does not meet these bounds.
+            expiration = Duration.ofSeconds(1);
+            LOGGER.log(Level.FINE, "Received an invalid duration for {0} / {1} for method {2}, setting to 1 second: {3}",
+                    new Object[]{container, name, httpMethod, expiration});
+        }
+        if (!expiration.minusDays(7).isNegative()) {
+            // https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html#PresignedUrl-Expiration
+            expiration = Duration.ofDays(7);
+            LOGGER.log(Level.FINE, "Received an invalid duration for {0} / {1} for method {2}, setting to 7 days: {3}",
+                    new Object[]{container, name, httpMethod, expiration});
+        }
+        LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2} with duration {3}",
+                new Object[]{container, name, httpMethod, expiration});
         String contentType;
         switch (httpMethod) {
             case PUT:
@@ -273,10 +285,11 @@ public class S3BlobStore extends BlobStoreProvider {
      *      Pre-signed Object URL using AWS SDK for Java</a>
      */
     @Override
-    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
+    @NonNull
+    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, Duration expiration) throws IOException {
         try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
              S3Presigner presigner = getS3Presigner(s3Client)) {
-            return toExternalURL(blob, httpMethod, presigner);
+            return toExternalURL(blob, httpMethod, presigner, expiration);
         }
     }
 
@@ -292,7 +305,7 @@ public class S3BlobStore extends BlobStoreProvider {
                 Blob blob = blobStore.blobBuilder(blobPath).build();
                 blob.getMetadata().setContainer(this.getContainer());
                 blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-                artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT, s3Presigner));
+                artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT, s3Presigner, SystemProperties.getDuration(S3BlobStore.class.getName() + ".artifactUrlDuration", Duration.ofHours(1))));
             }
         }
         return artifactUrls;

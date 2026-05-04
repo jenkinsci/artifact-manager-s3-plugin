@@ -51,6 +51,7 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -59,6 +60,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
+import jenkins.util.SystemProperties;
 import jenkins.util.VirtualFile;
 import org.apache.http.client.methods.HttpGet;
 import org.jclouds.blobstore.BlobStore;
@@ -217,7 +219,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         blob.getMetadata().setContainer(provider.getContainer());
         // We don't care about content-type when stashing files
         blob.getMetadata().getContentMetadata().setContentType(null);
-        URL url = provider.toExternalURL(blob, HttpMethod.PUT);
+        URL url = provider.toExternalURL(blob, HttpMethod.PUT, SystemProperties.getDuration(JCloudsArtifactManager.class.getName() + ".stashDuration", Duration.ofHours(1)));
         FilePath tempDir = WorkspaceList.tempDir(workspace);
         if (tempDir == null) {
             throw new AbortException("Could not make temporary directory in " + workspace);
@@ -287,7 +289,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             throw new AbortException(
                     String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
         }
-        URL url = provider.toExternalURL(blob, HttpMethod.GET);
+        URL url = provider.toExternalURL(blob, HttpMethod.GET, SystemProperties.getDuration(JCloudsArtifactManager.class.getName() + ".unstashDuration", Duration.ofHours(1)));
         workspace.act(new Unstash(url, listener));
         listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
     }
