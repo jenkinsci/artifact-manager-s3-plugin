@@ -28,9 +28,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+import jenkins.util.SystemProperties;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
@@ -91,11 +93,15 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
      *            blob to generate the URL for
      * @param httpMethod
      *            HTTP method to create a URL for (downloads or uploads)
+     * @param duration
+     *            The expected duration that the URL is to be valid for.
+     *            Implementations without a concept of URL expiration can ignore this.
+     *            Implementations can limit validity inside required bounds if the argument is too small/big, but impractical/broken arguments should be honored whenq possible.
      * @return the URL
      * @throws IOException
      */
     @NonNull
-    public abstract URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException;
+    public abstract URL toExternalURL(Blob blob, HttpMethod httpMethod, Duration duration) throws IOException;
 
     @Override
     public BlobStoreProviderDescriptor getDescriptor() {
@@ -111,7 +117,7 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
             Blob blob = blobStore.blobBuilder(blobPath).build();
             blob.getMetadata().setContainer(this.getContainer());
             blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-            artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT));
+            artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT, SystemProperties.getDuration(BlobStoreProvider.class.getName() + ".artifactUrlDuration", Duration.ofHours(1))));
         }
         return artifactUrls;
     }

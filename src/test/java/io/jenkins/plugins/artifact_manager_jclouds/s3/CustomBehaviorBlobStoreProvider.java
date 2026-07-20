@@ -24,11 +24,13 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 
@@ -74,8 +76,9 @@ public class CustomBehaviorBlobStoreProvider extends BlobStoreProvider {
     }
 
     @Override
-    public URL toExternalURL(Blob blob, BlobStoreProvider.HttpMethod httpMethod) throws IOException {
-        return delegate.toExternalURL(blob, httpMethod);
+    @NonNull
+    public URL toExternalURL(Blob blob, HttpMethod httpMethod, Duration duration) throws IOException {
+        return delegate.toExternalURL(blob, httpMethod, duration);
     }
 
     @Override
