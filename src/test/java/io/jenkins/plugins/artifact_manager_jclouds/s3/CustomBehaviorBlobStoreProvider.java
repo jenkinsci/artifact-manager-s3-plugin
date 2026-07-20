@@ -83,4 +83,10 @@ public class CustomBehaviorBlobStoreProvider extends BlobStoreProvider {
         return delegate.getDescriptor();
     }
 
+    @Override
+    public MultipartUploader initiateMultipartUpload(Blob blob) throws IOException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'initiateMultipartUpload'");
+    }
+
 }
