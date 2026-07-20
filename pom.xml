@@ -20,6 +20,7 @@
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
+    <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
     <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
     <hpi.bundledArtifacts>aws-s3,guice-assistedinject,jakarta.ws.rs-api,jclouds-blobstore,jclouds-core,s3,sts,tika-core</hpi.bundledArtifacts>
   </properties>
@@ -276,6 +277,19 @@
         <version>5622.vc9c3051619f5</version>
         <scope>import</scope>
         <type>pom</type>
+      </dependency>
+      <!-- remove when available in bom -->
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.workflow</groupId>
+        <artifactId>workflow-api</artifactId>
+        <version>1410.v26b_795fedd30</version>
+      </dependency>
+      <!-- remove when available in bom -->
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.workflow</groupId>
+        <artifactId>workflow-api</artifactId>
+        <version>1410.v26b_795fedd30</version>
+        <classifier>tests</classifier>
       </dependency>
       <dependency>
         <groupId>org.testcontainers</groupId>

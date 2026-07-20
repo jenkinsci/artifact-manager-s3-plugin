@@ -1,30 +1,30 @@
 package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.RealJenkinsRule;
 import hudson.util.FormValidation;
-import static org.junit.Assert.assertEquals;
+import org.jvnet.hudson.test.junit.jupiter.RealJenkinsExtension;
 
-import java.io.IOException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
-public class S3BlobStoreConfigFipsEnabledTest {
+class S3BlobStoreConfigFipsEnabledTest {
 
-    @Rule
-    public RealJenkinsRule rule = new RealJenkinsRule().omitPlugins("eddsa-api").javaOptions("-Djenkins.security.FIPS140.COMPLIANCE=true");
+    @RegisterExtension
+    private final RealJenkinsExtension extension = new RealJenkinsExtension().omitPlugins("eddsa-api").javaOptions("-Djenkins.security.FIPS140.COMPLIANCE=true");
 
 
     @Test
-    public void checkUseHttpsWithFipsEnabledTest() throws Throwable {
-        rule.then(S3BlobStoreConfigFipsEnabledTest::checkUseHttpsWithFipsEnabled);
+    void checkUseHttpsWithFipsEnabledTest() throws Throwable {
+        extension.then(S3BlobStoreConfigFipsEnabledTest::checkUseHttpsWithFipsEnabled);
     }
 
 
-    private static void checkUseHttpsWithFipsEnabled(JenkinsRule r) throws IOException {
+    private static void checkUseHttpsWithFipsEnabled(JenkinsRule r) {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
-        assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.ERROR);
-        assertEquals(descriptor.doCheckUseHttp(false).kind , FormValidation.Kind.OK);
+        assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckUseHttp(true).kind);
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckUseHttp(false).kind);
     }
 }

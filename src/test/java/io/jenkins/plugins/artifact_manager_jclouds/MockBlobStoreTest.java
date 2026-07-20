@@ -25,27 +25,35 @@
 package io.jenkins.plugins.artifact_manager_jclouds;
 
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
-import static org.junit.Assume.assumeFalse;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.BuildWatcher;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.BuildWatcherExtension;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.testcontainers.DockerClientFactory;
 
-public class MockBlobStoreTest {
+@WithJenkins
+class MockBlobStoreTest {
 
-    @ClassRule
-    public static BuildWatcher buildWatcher = new BuildWatcher();
+    @SuppressWarnings("unused")
+    @RegisterExtension
+    private static final BuildWatcherExtension BUILD_WATCHER = new BuildWatcherExtension();
 
-    @Rule
-    public JenkinsRule j = new JenkinsRule();
+    private JenkinsRule j;
+
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        j = rule;
+    }
 
     @Test
-    public void smokes() throws Exception {
-        assumeFalse("Does not work when Dockerized since the mock server is inaccessible from the container", DockerClientFactory.instance().isDockerAvailable());
+    void smokes() throws Exception {
+        assumeFalse(DockerClientFactory.instance().isDockerAvailable(), "Does not work when Dockerized since the mock server is inaccessible from the container");
         ArtifactManagerTest.artifactArchiveAndDelete(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false);
         ArtifactManagerTest.artifactStashAndDelete(j, new JCloudsArtifactManagerFactory(new MockBlobStore()), false);
     }
-
 }

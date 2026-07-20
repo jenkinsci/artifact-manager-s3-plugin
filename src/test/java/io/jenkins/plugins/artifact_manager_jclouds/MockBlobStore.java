@@ -25,6 +25,7 @@
 package io.jenkins.plugins.artifact_manager_jclouds;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.net.URI;
 import java.net.URL;
 import java.util.Map;
@@ -57,6 +58,7 @@ import org.jclouds.blobstore.domain.StorageMetadata;
  */
 public final class MockBlobStore extends BlobStoreProvider {
 
+    @Serial
     private static final long serialVersionUID = 42L;
     private static final Logger LOGGER = Logger.getLogger(MockBlobStore.class.getName());
 
@@ -166,5 +168,4 @@ public final class MockBlobStore extends BlobStoreProvider {
     public boolean isDeleteStashes() {
         return true;
     }
-
 }

@@ -208,7 +208,6 @@ public final class MockApiMetadata extends BaseApiMetadata {
             return blob;
         }
 
-        @SuppressWarnings("deprecation")
         @Override
         public String putBlob(String containerName, Blob blob) throws IOException {
             {
@@ -257,7 +256,5 @@ public final class MockApiMetadata extends BaseApiMetadata {
         public String getSeparator() {
             return "/";
         }
-
     }
-
 }

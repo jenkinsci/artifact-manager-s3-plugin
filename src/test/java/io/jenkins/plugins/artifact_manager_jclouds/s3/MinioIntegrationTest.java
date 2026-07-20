@@ -30,30 +30,33 @@ import com.cloudbees.plugins.credentials.domains.Domain;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.Jenkins;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.testcontainers.containers.MinIOContainer;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 
-public class MinioIntegrationTest extends AbstractIntegrationTest {
+import org.testcontainers.containers.MinIOContainer;
+
+class MinioIntegrationTest extends AbstractIntegrationTest {
+
     private static final String REGION = "us-east-1";
     
     private static MinIOContainer minioServer;
 
-    @BeforeClass
-    public static void setUpClass() throws Exception {
+    @BeforeAll
+    static void beforeAll() {
         minioServer = new MinIOContainer("minio/minio");
         minioServer.start();
     }
-    
-    @AfterClass
-    public static void shutDownClass() {
+
+    @AfterAll
+    static void afterAll() {
         if (minioServer != null && minioServer.isRunning()) {
             minioServer.stop();
         }
     }
 
-    @Before public void configure() throws Throwable {
+    @BeforeEach
+    void beforeEach() throws Throwable {
         rr.startJenkins();
         var endpoint = minioServer.getS3URL().replaceFirst("^http://", "");
         var username = minioServer.getUserName();
@@ -77,5 +80,4 @@ public class MinioIntegrationTest extends AbstractIntegrationTest {
             config.setDisableSessionToken(true);
         });
     }
-
 }

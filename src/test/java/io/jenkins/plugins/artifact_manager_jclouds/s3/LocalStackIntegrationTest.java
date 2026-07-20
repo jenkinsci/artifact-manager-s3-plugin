@@ -31,43 +31,46 @@ import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfigura
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.jclouds.aws.domain.Region;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+
 import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.Locale;
 
-import org.junit.Before;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
-public class LocalStackIntegrationTest extends AbstractIntegrationTest {
-    private static LocalStackContainer LOCALSTACK;
+class LocalStackIntegrationTest extends AbstractIntegrationTest {
 
+    private static LocalStackContainer localstack;
 
-    @BeforeClass
-    public static void setUpClass() throws Exception {
-        LOCALSTACK = new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.4.0"))
+    @BeforeAll
+    static void beforeAll() {
+        localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.4.0"))
                 .withServices(S3);
-        LOCALSTACK.start();
-        Integer mappedPort = LOCALSTACK.getFirstMappedPort();
+        localstack.start();
+        Integer mappedPort = localstack.getFirstMappedPort();
         Testcontainers.exposeHostPorts(mappedPort);
     }
-    
-    @AfterClass
-    public static void shutDownClass() {
-        if (LOCALSTACK != null && LOCALSTACK.isRunning()) {
-            LOCALSTACK.stop();
+
+    @AfterAll
+    static void afterAll() {
+        if (localstack != null && localstack.isRunning()) {
+            localstack.stop();
         }
     }
-    
-    @Before public void configure() throws Throwable {
+
+    @BeforeEach
+    void beforeEach() throws Throwable {
         rr.startJenkins();
-        var endpoint = LOCALSTACK.getEndpoint().getHost() + ":" + LOCALSTACK.getEndpoint().getPort();
-        var username = LOCALSTACK.getAccessKey();
-        var password = LOCALSTACK.getSecretKey();
-        var region = LOCALSTACK.getRegion();
+        var endpoint = localstack.getEndpoint().getHost() + ":" + localstack.getEndpoint().getPort();
+        var username = localstack.getAccessKey();
+        var password = localstack.getSecretKey();
+        var region = localstack.getRegion();
         rr.run(r -> {
             CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
             credentialsConfig.setRegion(region);
@@ -87,5 +90,4 @@ public class LocalStackIntegrationTest extends AbstractIntegrationTest {
             config.setCustomSigningRegion(StringUtils.isBlank(region) ? Region.US_EAST_1.toLowerCase(Locale.US) : region);
         });
     }
-
 }
