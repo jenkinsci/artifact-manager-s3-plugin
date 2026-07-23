@@ -253,7 +253,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
     }
     
     public String getResolvedCustomEndpoint() {
-        if(customEndpoint == null || !customEndpoint.isBlank()) {
+        if(customEndpoint != null && !customEndpoint.isBlank()) {
             String protocol;
             if(getUseHttp()) {
                 protocol = "http";
@@ -380,7 +380,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckCustomSigningRegion(@QueryParameter String customSigningRegion) {
         FormValidation ret;
-        if (customSigningRegion != null && customSigningRegion.isBlank() && (customEndpoint == null || !customEndpoint.isBlank())) {
+        if ((customSigningRegion == null || customSigningRegion.isBlank()) && customEndpoint != null && !customEndpoint.isBlank()) {
             ret = FormValidation.ok("'us-east-1' will be used when a custom endpoint is configured and custom signing region is blank.");
         } else {
             ret = FormValidation.ok();
@@ -390,7 +390,7 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
 
     public FormValidation doCheckCustomEndpoint(@QueryParameter String customEndpoint) {
         FormValidation ret = FormValidation.ok();
-        if (!customEndpoint.isBlank() && !endPointPattern.matcher(customEndpoint).matches()) {
+        if (customEndpoint != null && !customEndpoint.isBlank() && !endPointPattern.matcher(customEndpoint).matches()) {
             ret = FormValidation.error("Custom Endpoint may not be valid.");
         }
         return ret;

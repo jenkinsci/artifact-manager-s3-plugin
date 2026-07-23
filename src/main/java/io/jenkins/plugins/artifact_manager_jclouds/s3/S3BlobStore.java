@@ -124,7 +124,7 @@ public class S3BlobStore extends BlobStoreProvider {
         try {
             Properties props = new Properties();
             String resolvedCustomEndpoint = getConfiguration().getResolvedCustomEndpoint();
-            boolean hasCustomEndpoint = resolvedCustomEndpoint == null || !resolvedCustomEndpoint.isBlank();
+            boolean hasCustomEndpoint = resolvedCustomEndpoint != null && !resolvedCustomEndpoint.isBlank();
 
             if(!getRegion().isBlank()) {
                 props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
@@ -224,7 +224,7 @@ public class S3BlobStore extends BlobStoreProvider {
         }
 
         String customRegion = getConfiguration().getCustomSigningRegion();
-        if(customRegion.isBlank()) {
+        if(customRegion == null || customRegion.isBlank()) {
             customRegion = getConfiguration().getRegion().id();
         }
         if(!customRegion.isBlank()) {
@@ -313,7 +313,8 @@ public class S3BlobStore extends BlobStoreProvider {
          * @return true if a container is configured.
          */
         public boolean isConfigured(){
-            return !S3BlobStoreConfig.get().getContainer().isBlank();
+            String container = S3BlobStoreConfig.get().getContainer();
+            return container != null && !container.isBlank();
         }
 
     }
