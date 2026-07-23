@@ -2,6 +2,7 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.logging.Logger;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -11,6 +12,8 @@ import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory
 import hudson.model.Failure;
 import hudson.util.FormValidation;
 import jenkins.model.ArtifactManagerConfiguration;
+
+import software.amazon.awssdk.regions.Region;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
@@ -126,6 +129,39 @@ public class S3BlobStoreConfigTest {
         assertEquals(descriptor.doCheckCustomSigningRegion("").kind, FormValidation.Kind.OK);
         descriptor.setCustomEndpoint("server");
         assertTrue(descriptor.doCheckCustomSigningRegion("").getMessage().contains("us-east-1"));
+    }
+
+    @Test
+    public void getRegionWithCustomEndpointAndSigningRegion() {
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        config.setCustomEndpoint("minio.example.com:9000");
+        config.setCustomSigningRegion("eu-west-1");
+        assertEquals(Region.of("eu-west-1"), config.getRegion());
+    }
+
+    @Test
+    public void getRegionWithCustomEndpointAndBlankSigningRegion() {
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        config.setCustomEndpoint("minio.example.com:9000");
+        config.setCustomSigningRegion("");
+        assertEquals(Region.US_EAST_1, config.getRegion());
+    }
+
+    @Test
+    public void getRegionWithCustomEndpointAndNullSigningRegion() {
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        config.setCustomEndpoint("minio.example.com:9000");
+        config.setCustomSigningRegion(null);
+        assertEquals(Region.US_EAST_1, config.getRegion());
+    }
+
+    @Test
+    @Ignore("because we rely on aws sdk autodetection of region, and for some people the auto detect can return somehting different")
+    public void getRegionWithoutCustomEndpoint() {
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        config.setCustomEndpoint("");
+        Region region = config.getRegion();
+        assertEquals(Region.US_EAST_1, region);
     }
 
     @Test
