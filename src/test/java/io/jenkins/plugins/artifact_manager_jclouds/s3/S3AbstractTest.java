@@ -31,9 +31,9 @@ import static org.junit.Assume.assumeThat;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 import java.util.logging.Level;
 
-import org.apache.commons.lang.RandomStringUtils;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.junit.After;
@@ -92,7 +92,7 @@ public abstract class S3AbstractTest {
      */
     public static String generateUniquePrefix() {
         return String.format("%s%s-%s/", S3_DIR, ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT),
-                RandomStringUtils.randomAlphabetic(4).toLowerCase());
+                UUID.randomUUID().toString().substring(0, 4).toLowerCase());
     }
 
     protected String getPrefix() {
