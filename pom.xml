@@ -242,10 +242,6 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
-          <groupId>org.apache.commons</groupId>
-          <artifactId>commons-compress</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>*</artifactId>
         </exclusion>
@@ -259,13 +255,6 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>minio</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <!-- just a workaround for PCT execution -->
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-compress</artifactId>
-      <version>1.28.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
