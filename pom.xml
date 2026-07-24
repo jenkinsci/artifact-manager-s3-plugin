@@ -263,9 +263,8 @@
     </dependency>
     <!-- just a workaround for PCT execution -->
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-compress</artifactId>
-      <version>1.28.0</version>
+      <groupId>io.jenkins.plugins</groupId>
+      <artifactId>commons-compress-api</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
