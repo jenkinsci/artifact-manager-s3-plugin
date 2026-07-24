@@ -62,6 +62,7 @@ public final class MockBlobStore extends BlobStoreProvider {
 
     private transient BlobStoreContext context;
     private transient URL baseURL;
+    private boolean disablePresignedUrls;
 
     @Override
     public String getPrefix() {
@@ -165,6 +166,15 @@ public final class MockBlobStore extends BlobStoreProvider {
     @Override
     public boolean isDeleteStashes() {
         return true;
+    }
+
+    void setDisablePresignedUrls(boolean disablePresignedUrls) {
+        this.disablePresignedUrls = disablePresignedUrls;
+    }
+
+    @Override
+    public boolean isDisablePresignedUrls() {
+        return disablePresignedUrls;
     }
 
 }

@@ -32,6 +32,9 @@
         <f:entry title="${%Disable Session Token}" field="disableSessionToken">
             <f:checkbox/>
         </f:entry>
+        <f:entry title="${%Disable Presigned URLs}" field="disablePresignedUrls">
+            <f:checkbox/>
+        </f:entry>
         <f:validateButton title="Validate S3 Bucket configuration" progress="Validate..." method="validateS3BucketConfig"
                           with="container,prefix,useHttp,useTransferAcceleration,usePathStyleUrl,disableSessionToken,customEndpoint,customSigningRegion"/>
         <f:validateButton title="Create S3 Bucket from configuration" progress="Creating S3 Bucket..." method="createS3Bucket"
