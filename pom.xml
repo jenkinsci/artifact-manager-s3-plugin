@@ -22,7 +22,7 @@
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
     <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
-    <hpi.bundledArtifacts>aws-s3,guice-assistedinject,jakarta.ws.rs-api,jclouds-blobstore,jclouds-core,s3,sts,tika-core</hpi.bundledArtifacts>
+    <hpi.bundledArtifacts>aws-s3,commonmark,commonmark-ext-gfm-strikethrough,commonmark-ext-gfm-tables,guice-assistedinject,jakarta.ws.rs-api,jclouds-blobstore,jclouds-core,s3,sts,tika-core</hpi.bundledArtifacts>
     <ban-commons-lang-2.skip>false</ban-commons-lang-2.skip>
   </properties>
 
