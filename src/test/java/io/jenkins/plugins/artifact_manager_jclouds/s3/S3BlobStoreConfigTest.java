@@ -2,12 +2,19 @@ package io.jenkins.plugins.artifact_manager_jclouds.s3;
 
 import java.util.logging.Logger;
 
+import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import org.jclouds.aws.domain.SessionCredentials;
+import org.jclouds.domain.Credentials;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.JCloudsArtifactManagerFactory;
+import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 
 import hudson.model.Failure;
 import hudson.util.FormValidation;
@@ -17,6 +24,7 @@ import software.amazon.awssdk.regions.Region;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -36,6 +44,23 @@ public class S3BlobStoreConfigTest {
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
+
+    @Test
+    public void usesBasicCredentialsWhenSessionTokensAreDisabled() throws Exception {
+        CredentialsProvider.lookupStores(j.jenkins)
+                .iterator()
+                .next()
+                .addCredentials(Domain.global(), new AWSCredentialsImpl(
+                        CredentialsScope.GLOBAL, "static", "access-key", "secret-key", null));
+        CredentialsAwsGlobalConfiguration.get().setCredentialsId("static");
+        S3BlobStoreConfig.get().setDisableSessionToken(true);
+
+        Credentials credentials = new S3BlobStore().getCredentialsSupplier().get();
+
+        assertThat(credentials, not(instanceOf(SessionCredentials.class)));
+        assertEquals("access-key", credentials.identity);
+        assertEquals("secret-key", credentials.credential);
+    }
 
     @Test
     public void checkConfigurationManually() throws Exception {
