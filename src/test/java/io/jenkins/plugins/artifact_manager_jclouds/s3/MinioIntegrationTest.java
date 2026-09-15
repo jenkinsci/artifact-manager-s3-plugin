@@ -34,6 +34,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.testcontainers.containers.MinIOContainer;
 import org.junit.Before;
+import org.testcontainers.utility.DockerImageName;
 
 public class MinioIntegrationTest extends AbstractIntegrationTest {
     private static final String REGION = "us-east-1";
@@ -42,7 +43,7 @@ public class MinioIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        minioServer = new MinIOContainer("minio/minio");
+        minioServer = new MinIOContainer(DockerImageName.parse("quay.io/minio/minio").asCompatibleSubstituteFor("minio/minio"));
         minioServer.start();
     }
     
