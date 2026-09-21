@@ -4,9 +4,6 @@ Artifact Manager on S3 plugin is an Artifact Manager that allow you to store you
 The use of this S3 Bucket as a artifact storage is transparent to Jenkins and your jobs, it works like the default 
 Artifact Manager.
 
-Artifact manager implementation for Amazon S3, currently using the jClouds library.
-[wiki](https://wiki.jenkins.io/display/JENKINS/Artifact+Manager+S3+Plugin)
-
 # Prerequisites
 
 First of all, you will need a Amazon account, this Amazon account should have permissions over the S3 Bucket that 

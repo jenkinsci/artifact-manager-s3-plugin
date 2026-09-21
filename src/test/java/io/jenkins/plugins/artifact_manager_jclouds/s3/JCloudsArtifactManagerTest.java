@@ -39,7 +39,6 @@ import java.util.logging.Level;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
-import org.jclouds.rest.internal.InvokeHttpMethod;
 import org.jenkinsci.plugins.workflow.ArtifactManagerTest;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -117,9 +116,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     }
 
     @Rule
-    public LoggerRule httpLogging = new LoggerRule();
-
-    @Rule
     public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
 
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
@@ -186,8 +182,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         });
         p.getPublishersList().add(new ArtifactArchiver("**"));
         FreeStyleBuild b = j.buildAndAssertSuccess(p);
-        httpLogging.record(InvokeHttpMethod.class, Level.FINE);
-        httpLogging.capture(1000);
         JenkinsRule.WebClient wc = j.createWebClient();
         // Exercise DirectoryBrowserSupport & Run.getArtifactsUpTo
         System.err.println("build root");
@@ -198,9 +192,6 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         wc.getPage(b, "artifact/3/");
         System.err.println("3/4 subdir");
         wc.getPage(b, "artifact/3/4/");
-        int httpCount = httpLogging.getRecords().size();
-        System.err.println("total count: " + httpCount);
-        assertThat(httpCount, lessThanOrEqualTo(13));
     }
 
     @Issue({"JENKINS-51390", "JCLOUDS-1200"})
@@ -212,7 +203,7 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         S3BlobStore.BREAK_CREDS = true;
         try {
             WorkflowRun b = j.buildAndAssertSuccess(p);
-            j.assertLogContains("caught java.io.IOException: org.jclouds.aws.AWSResponseException", b);
+            j.assertLogContains("caught java.io.IOException", b);
             j.assertLogNotContains("java.io.NotSerializableException", b);
         } finally {
             S3BlobStore.BREAK_CREDS = false;

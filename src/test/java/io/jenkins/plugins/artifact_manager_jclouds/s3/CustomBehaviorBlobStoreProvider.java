@@ -29,8 +29,7 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
+import software.amazon.awssdk.services.s3.S3Client;
 
 public class CustomBehaviorBlobStoreProvider extends BlobStoreProvider {
 
@@ -64,8 +63,8 @@ public class CustomBehaviorBlobStoreProvider extends BlobStoreProvider {
     }
 
     @Override
-    public BlobStoreContext getContext() throws IOException {
-        return delegate.getContext();
+    public S3Client getClient() throws IOException {
+        return delegate.getClient();
     }
 
     @Override
@@ -74,8 +73,8 @@ public class CustomBehaviorBlobStoreProvider extends BlobStoreProvider {
     }
 
     @Override
-    public URL toExternalURL(Blob blob, BlobStoreProvider.HttpMethod httpMethod) throws IOException {
-        return delegate.toExternalURL(blob, httpMethod);
+    public URL toExternalURL(String container, String key, String contentType, BlobStoreProvider.HttpMethod httpMethod) throws IOException {
+        return delegate.toExternalURL(container, key, contentType, httpMethod);
     }
 
     @Override

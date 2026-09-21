@@ -54,34 +54,42 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.ArtifactManager;
 import jenkins.util.VirtualFile;
 import org.apache.http.client.methods.HttpGet;
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.BlobStores;
-import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.blobstore.domain.StorageMetadata;
-import org.jclouds.blobstore.options.CopyOptions;
-import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jenkinsci.plugins.workflow.flow.StashManager;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
 import static io.jenkins.plugins.artifact_manager_jclouds.TikaUtil.detectByTika;
 
 /**
- * Jenkins artifact/stash implementation using any blob store supported by Apache jclouds.
+ * Jenkins artifact/stash implementation using any blob store backed by the AWS SDK.
  * To offer a new backend, implement {@link BlobStoreProvider}.
  */
 @Restricted(NoExternalUse.class)
 public final class JCloudsArtifactManager extends ArtifactManager implements StashManager.StashAwareArtifactManager {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsArtifactManager.class.getName());
+
+    /** Maximum number of keys accepted per S3 DeleteObjects request. */
+    private static final int DELETE_BATCH_SIZE = 1000;
 
     static RobustHTTPClient client = new RobustHTTPClient();
 
@@ -123,8 +131,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         LOGGER.log(Level.FINE, "Archiving from {0}: {1}", new Object[] { workspace, artifacts });
         Map<String, String> contentTypes = workspace.act(new ContentTypeGuesser(new ArrayList<>(artifacts.values()), listener));
         LOGGER.fine(() -> "guessing content types: " + contentTypes);
-        BlobStore blobStore = getContext().getBlobStore();
-        Map<String, URL> artifactUrls = provider.artifactUrls(artifacts, contentTypes, blobStore, key);
+        Map<String, URL> artifactUrls = provider.artifactUrls(artifacts, contentTypes, key);
         workspace.act(new UploadToBlobStorage(artifactUrls, contentTypes, listener));
         listener.getLogger().printf("Uploaded %s artifact(s) to %s%n", artifactUrls.size(), provider.toURI(provider.getContainer(), getBlobPath("artifacts/")));
     }
@@ -199,7 +206,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             LOGGER.log(Level.FINE, "Ignoring blob deletion: {0}", blobPath);
             return false;
         }
-        return JCloudsVirtualFile.delete(provider, getContext().getBlobStore(), blobPath);
+        return JCloudsVirtualFile.delete(provider, blobPath);
     }
 
     @Override
@@ -209,15 +216,9 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     @Override
     public void stash(String name, FilePath workspace, Launcher launcher, EnvVars env, TaskListener listener, String includes, String excludes, boolean useDefaultExcludes, boolean allowEmpty) throws IOException, InterruptedException {
-        BlobStore blobStore = getContext().getBlobStore();
-
         // Map stash to url for upload
         String path = getBlobPath("stashes/" + name + ".tgz");
-        Blob blob = blobStore.blobBuilder(path).build();
-        blob.getMetadata().setContainer(provider.getContainer());
-        // We don't care about content-type when stashing files
-        blob.getMetadata().getContentMetadata().setContentType(null);
-        URL url = provider.toExternalURL(blob, HttpMethod.PUT);
+        URL url = provider.toExternalURL(provider.getContainer(), path, null, HttpMethod.PUT);
         FilePath tempDir = WorkspaceList.tempDir(workspace);
         if (tempDir == null) {
             throw new AbortException("Could not make temporary directory in " + workspace);
@@ -278,16 +279,19 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
 
     @Override
     public void unstash(String name, FilePath workspace, Launcher launcher, EnvVars env, TaskListener listener) throws IOException, InterruptedException {
-        BlobStore blobStore = getContext().getBlobStore();
-
         // Map stash to url for download
         String blobPath = getBlobPath("stashes/" + name + ".tgz");
-        Blob blob = blobStore.getBlob(provider.getContainer(), blobPath);
-        if (blob == null) {
-            throw new AbortException(
-                    String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
+        try (S3Client client = provider.getClient()) {
+            client.headObject(HeadObjectRequest.builder().bucket(provider.getContainer()).key(blobPath).build());
+        } catch (SdkException x) {
+            if (x instanceof NoSuchKeyException || (x instanceof software.amazon.awssdk.services.s3.model.S3Exception
+                    && ((software.amazon.awssdk.services.s3.model.S3Exception) x).statusCode() == 404)) {
+                throw new AbortException(
+                        String.format("No such saved stash ‘%s’ found at %s/%s", name, provider.getContainer(), blobPath));
+            }
+            throw new IOException(x);
         }
-        URL url = provider.toExternalURL(blob, HttpMethod.GET);
+        URL url = provider.toExternalURL(provider.getContainer(), blobPath, null, HttpMethod.GET);
         workspace.act(new Unstash(url, listener));
         listener.getLogger().printf("Unstashed file(s) from %s%n", provider.toURI(provider.getContainer(), blobPath));
     }
@@ -328,17 +332,22 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
             return;
         }
 
-        BlobStore blobStore = getContext().getBlobStore();
         int count = 0;
-        try {
-            for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(stashPrefix).recursive())) {
-                String path = sm.getName();
-                assert path.startsWith(stashPrefix);
-                LOGGER.fine("deleting " + path);
-                blobStore.removeBlob(provider.getContainer(), path);
-                count++;
+        try (S3Client client = provider.getClient()) {
+            List<ObjectIdentifier> ids = new ArrayList<>();
+            ListObjectsV2Iterable pages = client.listObjectsV2Paginator(ListObjectsV2Request.builder()
+                    .bucket(provider.getContainer()).prefix(stashPrefix).build());
+            for (var page : pages) {
+                for (S3Object object : page.contents()) {
+                    ids.add(ObjectIdentifier.builder().key(object.key()).build());
+                }
             }
-        } catch (RuntimeException x) {
+            for (int i = 0; i < ids.size(); i += DELETE_BATCH_SIZE) {
+                List<ObjectIdentifier> batch = ids.subList(i, Math.min(i + DELETE_BATCH_SIZE, ids.size()));
+                client.deleteObjects(DeleteObjectsRequest.builder().bucket(provider.getContainer()).delete(d -> d.objects(batch)).build());
+                count += batch.size();
+            }
+        } catch (SdkException x) {
             throw new IOException(x);
         }
         listener.getLogger().printf("Deleted %d stash(es) from %s%n", count, provider.toURI(provider.getContainer(), stashPrefix));
@@ -352,25 +361,28 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
         }
         JCloudsArtifactManager dest = (JCloudsArtifactManager) am;
         String allPrefix = getBlobPath("");
-        BlobStore blobStore = getContext().getBlobStore();
         int count = 0;
-        try {
-            for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(allPrefix).recursive())) {
-                String path = sm.getName();
-                assert path.startsWith(allPrefix);
-                String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
-                LOGGER.fine("copying " + path + " to " + destPath);
-                blobStore.copyBlob(provider.getContainer(), path, provider.getContainer(), destPath, CopyOptions.NONE);
-                count++;
+        try (S3Client client = provider.getClient()) {
+            ListObjectsV2Iterable pages = client.listObjectsV2Paginator(ListObjectsV2Request.builder()
+                    .bucket(provider.getContainer()).prefix(allPrefix).build());
+            for (var page : pages) {
+                for (S3Object object : page.contents()) {
+                    String path = object.key();
+                    assert path.startsWith(allPrefix);
+                    String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
+                    LOGGER.fine("copying " + path + " to " + destPath);
+                    client.copyObject(CopyObjectRequest.builder()
+                            .copySource(provider.getContainer() + "/" + path)
+                            .destinationBucket(provider.getContainer())
+                            .destinationKey(destPath)
+                            .build());
+                    count++;
+                }
             }
-        } catch (RuntimeException x) {
+        } catch (SdkException x) {
             throw new IOException(x);
         }
         listener.getLogger().printf("Copied %d artifact(s)/stash(es) from %s to %s%n", count, provider.toURI(provider.getContainer(), allPrefix), provider.toURI(provider.getContainer(), dest.getBlobPath("")));
-    }
-
-    private BlobStoreContext getContext() throws IOException {
-        return provider.getContext();
     }
 
 }
