@@ -32,18 +32,25 @@ import jenkins.model.Jenkins;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.testcontainers.containers.MinIOContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.junit.Before;
 import org.testcontainers.utility.DockerImageName;
 
 public class MinioIntegrationTest extends AbstractIntegrationTest {
     private static final String REGION = "us-east-1";
-    
-    private static MinIOContainer minioServer;
+    private static final String ACCESS_KEY = "username";
+    private static final String SECRET_KEY = "password";
+
+    private static GenericContainer<?> minioServer;
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        minioServer = new MinIOContainer(DockerImageName.parse("quay.io/minio/minio").asCompatibleSubstituteFor("minio/minio"));
+        minioServer = new GenericContainer<>(DockerImageName.parse("rustfs/rustfs:1.0.0"))
+                .withExposedPorts(9000, 9001)
+                .withEnv("RUSTFS_ACCESS_KEY", ACCESS_KEY)
+                .withEnv("RUSTFS_SECRET_KEY", SECRET_KEY)
+                .waitingFor(Wait.forListeningPort());
         minioServer.start();
     }
     
@@ -56,9 +63,9 @@ public class MinioIntegrationTest extends AbstractIntegrationTest {
 
     @Before public void configure() throws Throwable {
         rr.startJenkins();
-        var endpoint = minioServer.getS3URL().replaceFirst("^http://", "");
-        var username = minioServer.getUserName();
-        var password = minioServer.getPassword();
+        var endpoint = "%s:%s".formatted(minioServer.getHost(), minioServer.getMappedPort(9000));
+        var username = ACCESS_KEY;
+        var password = SECRET_KEY;
         rr.run(r -> {
             CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
             credentialsConfig.setRegion(REGION);
