@@ -32,41 +32,48 @@ import jenkins.model.Jenkins;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.testcontainers.containers.MinIOContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.junit.Before;
 import org.testcontainers.utility.DockerImageName;
 
-public class MinioIntegrationTest extends AbstractIntegrationTest {
+public class S3IntegrationTest extends AbstractIntegrationTest {
     private static final String REGION = "us-east-1";
-    
-    private static MinIOContainer minioServer;
+    private static final String ACCESS_KEY = "username";
+    private static final String SECRET_KEY = "password";
+
+    private static GenericContainer<?> s3Server;
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        minioServer = new MinIOContainer(DockerImageName.parse("quay.io/minio/minio").asCompatibleSubstituteFor("minio/minio"));
-        minioServer.start();
+        s3Server = new GenericContainer<>(DockerImageName.parse("rustfs/rustfs:1.0.0"))
+                .withExposedPorts(9000, 9001)
+                .withEnv("RUSTFS_ACCESS_KEY", ACCESS_KEY)
+                .withEnv("RUSTFS_SECRET_KEY", SECRET_KEY)
+                .waitingFor(Wait.forListeningPort());
+        s3Server.start();
     }
-    
+
     @AfterClass
     public static void shutDownClass() {
-        if (minioServer != null && minioServer.isRunning()) {
-            minioServer.stop();
+        if (s3Server != null && s3Server.isRunning()) {
+            s3Server.stop();
         }
     }
 
     @Before public void configure() throws Throwable {
         rr.startJenkins();
-        var endpoint = minioServer.getS3URL().replaceFirst("^http://", "");
-        var username = minioServer.getUserName();
-        var password = minioServer.getPassword();
+        var endpoint = "%s:%s".formatted(s3Server.getHost(), s3Server.getMappedPort(9000));
+        var username = ACCESS_KEY;
+        var password = SECRET_KEY;
         rr.run(r -> {
             CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
             credentialsConfig.setRegion(REGION);
             CredentialsProvider.lookupStores(Jenkins.get())
                     .iterator()
                     .next()
-                    .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "MinioIntegrationTest", username, password, null));
-            credentialsConfig.setCredentialsId("MinioIntegrationTest");
+                    .addCredentials(Domain.global(), new AWSCredentialsImpl(CredentialsScope.GLOBAL, "S3IntegrationTest", username, password, null));
+            credentialsConfig.setCredentialsId("S3IntegrationTest");
 
             var config = S3BlobStoreConfig.get();
             config.setContainer(CONTAINER_NAME);
