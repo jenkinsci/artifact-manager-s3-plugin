@@ -160,7 +160,7 @@ public class S3BlobStore extends BlobStoreProvider {
      * @return the proper credential supplier using the configuration settings.
      * @throws IOException in case of error.
      */
-    private Supplier<Credentials> getCredentialsSupplier() throws IOException {
+    Supplier<Credentials> getCredentialsSupplier() throws IOException {
         // get user credentials from env vars, profiles,...
         String accessKeyId;
         String secretKey;
@@ -173,7 +173,8 @@ public class S3BlobStore extends BlobStoreProvider {
             AwsCredentials awsCredentials = amazonWebServicesCredentials.resolveCredentials();
             accessKeyId = awsCredentials.accessKeyId();
             secretKey = awsCredentials.secretAccessKey();
-            sessionToken = "";
+            Credentials credentials = new Credentials(accessKeyId, secretKey);
+            return () -> credentials;
         } else {
             AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
                     .sessionCredentials(getRegion(), CredentialsAwsGlobalConfiguration.get().getCredentialsId());
