@@ -31,30 +31,16 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import jenkins.security.FIPS140;
-import org.jclouds.ContextBuilder;
-import org.jclouds.aws.domain.SessionCredentials;
-import org.jclouds.aws.s3.AWSS3ProviderMetadata;
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.domain.Credentials;
-import org.jclouds.location.reference.LocationConstants;
-import org.jclouds.osgi.ProviderRegistry;
-import org.jclouds.s3.reference.S3Constants;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
-
-import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
-import com.google.common.base.Supplier;
 
 import hudson.Extension;
 import hudson.Util;
@@ -62,8 +48,6 @@ import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProviderDescriptor;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import org.jenkinsci.Symbol;
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -118,86 +102,15 @@ public class S3BlobStore extends BlobStoreProvider {
     }
 
     @Override
-    public BlobStoreContext getContext() throws IOException {
-        LOGGER.log(Level.FINEST, "Building context");
-        ProviderRegistry.registerProvider(AWSS3ProviderMetadata.builder().build());
-        try {
-            Properties props = new Properties();
-            String resolvedCustomEndpoint = getConfiguration().getResolvedCustomEndpoint();
-            boolean hasCustomEndpoint = resolvedCustomEndpoint != null && !resolvedCustomEndpoint.isBlank();
-
-            if(!getRegion().isBlank()) {
-                props.setProperty(LocationConstants.PROPERTY_REGIONS, getRegion());
-            }
-            if (hasCustomEndpoint) {
-                // We need to set the endpoint here and in the builder or listing
-                // will still use s3.amazonaws.com
-                props.setProperty(LocationConstants.ENDPOINT, resolvedCustomEndpoint);
-            }
-            props.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, Boolean.toString(!getConfiguration().getUsePathStyleUrl()));
-
-            ContextBuilder builder = ContextBuilder.newBuilder("aws-s3")
-                    .credentialsSupplier(getCredentialsSupplier())
-                    .overrides(props);
-
-            if (hasCustomEndpoint) {
-                builder = builder.endpoint(resolvedCustomEndpoint);
-            }
-
-            return builder.buildView(BlobStoreContext.class);
-        } catch (NoSuchElementException x) {
-            throw new IOException(x);
-        }
+    public S3Client getClient() throws IOException {
+        LOGGER.log(Level.FINEST, "Building client");
+        return getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
     }
 
     /**
      * field only for tests.
      */
     static boolean BREAK_CREDS;
-
-    /**
-     *
-     * @return the proper credential supplier using the configuration settings.
-     * @throws IOException in case of error.
-     */
-    private Supplier<Credentials> getCredentialsSupplier() throws IOException {
-        // get user credentials from env vars, profiles,...
-        String accessKeyId;
-        String secretKey;
-        String sessionToken;
-        if (getConfiguration().getDisableSessionToken()) {
-            AmazonWebServicesCredentials amazonWebServicesCredentials = CredentialsAwsGlobalConfiguration.get().getCredentials();
-            if (amazonWebServicesCredentials == null) {
-                throw new IOException("No static AWS credentials found");
-            }
-            AwsCredentials awsCredentials = amazonWebServicesCredentials.resolveCredentials();
-            accessKeyId = awsCredentials.accessKeyId();
-            secretKey = awsCredentials.secretAccessKey();
-            sessionToken = "";
-        } else {
-            AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
-                    .sessionCredentials(getRegion(), CredentialsAwsGlobalConfiguration.get().getCredentialsId());
-            if(awsSessionCredentials != null ) {
-                accessKeyId = awsSessionCredentials.accessKeyId();
-                secretKey = awsSessionCredentials.secretAccessKey();
-                sessionToken = awsSessionCredentials.sessionToken();
-            } else {
-                throw new IOException("No session AWS credentials found");
-            }
-        }
-
-        if (BREAK_CREDS) {
-            sessionToken = "<broken>";
-        }
-
-        SessionCredentials sessionCredentials = SessionCredentials.builder()
-                .accessKeyId(accessKeyId)
-                .secretAccessKey(secretKey)
-                .sessionToken(sessionToken)
-                .build();
-
-        return () -> sessionCredentials;
-    }
 
     @NonNull
     @Override
@@ -238,27 +151,23 @@ public class S3BlobStore extends BlobStoreProvider {
         return presignerBuilder.build();
     }
 
-    private URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod, S3Presigner presigner) throws IOException {
+    private URL toExternalURL(@NonNull String container, @NonNull String key, @CheckForNull String contentType, @NonNull HttpMethod httpMethod, S3Presigner presigner) throws IOException {
         Duration expiration = Duration.ofHours(1);
-        String container = blob.getMetadata().getContainer();
-        String name = blob.getMetadata().getName();
         LOGGER.log(Level.FINE, "Generating presigned URL for {0} / {1} for method {2}",
-                new Object[]{container, name, httpMethod});
-        String contentType;
+                new Object[]{container, key, httpMethod});
         switch (httpMethod) {
             case PUT:
                 // Only set content type for upload URLs, so that the right S3 metadata gets set
-                contentType = blob.getMetadata().getContentMetadata().getContentType();
                 PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(container)
                         .contentType(contentType)
-                        .key(name)
+                        .key(key)
                         .build();
                 PutObjectPresignRequest putObjectPresignRequest = PutObjectPresignRequest.builder()
                         .signatureDuration(expiration)
                         .putObjectRequest(putObjectRequest).build();
                 return presigner.presignPutObject(putObjectPresignRequest).url();
             case GET:
-                GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(container).key(name).build();
+                GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(container).key(key).build();
                 GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
                         .signatureDuration(expiration)
                         .getObjectRequest(getObjectRequest).build();
@@ -273,15 +182,15 @@ public class S3BlobStore extends BlobStoreProvider {
      *      Pre-signed Object URL using AWS SDK for Java</a>
      */
     @Override
-    public URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException {
+    public URL toExternalURL(@NonNull String container, @NonNull String key, @CheckForNull String contentType, @NonNull HttpMethod httpMethod) throws IOException {
         try (S3Client s3Client = getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
              S3Presigner presigner = getS3Presigner(s3Client)) {
-            return toExternalURL(blob, httpMethod, presigner);
+            return toExternalURL(container, key, contentType, httpMethod, presigner);
         }
     }
 
     @Override
-    public Map<String, URL> artifactUrls(Map<String, String> artifacts, Map<String, String> contentTypes, BlobStore blobStore, String key) throws IOException {
+    public Map<String, URL> artifactUrls(Map<String, String> artifacts, Map<String, String> contentTypes, String key) throws IOException {
         Map<String, URL> artifactUrls = new HashMap<>();
         try (S3Client s3Client = this.getConfiguration().getAmazonS3ClientBuilderWithCredentials().build();
              S3Presigner s3Presigner = this.getS3Presigner(s3Client)) {
@@ -289,10 +198,7 @@ public class S3BlobStore extends BlobStoreProvider {
             for (Map.Entry<String, String> entry : artifacts.entrySet()) {
                 String path = "artifacts/" + entry.getKey();
                 String blobPath = getBlobPath(key, path);
-                Blob blob = blobStore.blobBuilder(blobPath).build();
-                blob.getMetadata().setContainer(this.getContainer());
-                blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-                artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT, s3Presigner));
+                artifactUrls.put(entry.getValue(), this.toExternalURL(this.getContainer(), blobPath, contentTypes.get(entry.getValue()), HttpMethod.PUT, s3Presigner));
             }
         }
         return artifactUrls;

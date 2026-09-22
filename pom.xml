@@ -22,7 +22,7 @@
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
     <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
-    <hpi.bundledArtifacts>aws-s3,guice-assistedinject,jakarta.ws.rs-api,jclouds-blobstore,jclouds-core,s3,sts,tika-core</hpi.bundledArtifacts>
+    <hpi.bundledArtifacts>tika-core</hpi.bundledArtifacts>
     <ban-commons-lang-2.skip>false</ban-commons-lang-2.skip>
   </properties>
 
@@ -78,27 +78,6 @@
         <exclusion>
           <groupId>commons-io</groupId> <!-- take version from Jenkins Core -->
           <artifactId>commons-io</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.jclouds.provider</groupId>
-      <artifactId>aws-s3</artifactId>
-      <version>2.6.0</version>
-      <exclusions>
-        <!-- Provided by gson-api plugin -->
-        <exclusion>
-          <groupId>com.google.code.gson</groupId>
-          <artifactId>gson</artifactId>
-        </exclusion>
-        <!-- Provided by jaxb plugin -->
-        <exclusion>
-          <groupId>com.sun.xml.bind</groupId>
-          <artifactId>jaxb-impl</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.errorprone</groupId>
-          <artifactId>error_prone_annotations</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -270,49 +249,8 @@
         <scope>import</scope>
         <type>pom</type>
       </dependency>
-      <!-- TODO remove when core has upgraded to 7.0.0 or newer -->
-      <dependency>
-        <groupId>com.google.inject.extensions</groupId>
-        <artifactId>guice-assistedinject</artifactId>
-        <version>6.0.0</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <configuration>
-          <rules combine.children="append">
-            <requireSameVersions>
-              <dependencies>
-                <dependency>com.google.inject:guice</dependency>
-                <dependency>com.google.inject.extensions:guice-assistedinject</dependency>
-              </dependencies>
-            </requireSameVersions>
-          </rules>
-        </configuration>
-        <!-- TODO remove when core has upgraded to 7.0.0 or newer -->
-        <executions>
-          <execution>
-            <id>display-info</id>
-            <configuration>
-              <rules>
-                <requireUpperBoundDeps>
-                  <excludes combine.children="append">
-                    <exclude>com.google.inject:guice</exclude>
-                    <exclude>com.google.inject.extensions:guice-assistedinject</exclude>
-                  </excludes>
-                </requireUpperBoundDeps>
-              </rules>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
 
   <repositories>
     <repository>
