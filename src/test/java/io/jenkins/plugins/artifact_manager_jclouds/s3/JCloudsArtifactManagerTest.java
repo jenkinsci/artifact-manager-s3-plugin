@@ -118,6 +118,9 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
     @Rule
     public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
 
+    @Rule
+    public LoggerRule httpLogging = new LoggerRule();
+
     protected ArtifactManagerFactory getArtifactManagerFactory(Boolean deleteArtifacts, Boolean deleteStashes) {
         return new JCloudsArtifactManagerFactory(new CustomBehaviorBlobStoreProvider(provider, deleteArtifacts, deleteStashes));
     }
@@ -192,6 +195,9 @@ public class JCloudsArtifactManagerTest extends S3AbstractTest {
         wc.getPage(b, "artifact/3/");
         System.err.println("3/4 subdir");
         wc.getPage(b, "artifact/3/4/");
+        int httpCount = httpLogging.getRecords().size();
+        System.err.println("total count: " + httpCount);
+        assertThat(httpCount, lessThanOrEqualTo(13));
     }
 
     @Issue({"JENKINS-51390", "JCLOUDS-1200"})
