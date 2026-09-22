@@ -23,22 +23,15 @@
  */
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import hudson.Functions;
-import hudson.init.impl.InstallUncaughtExceptionHandler;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.tasks.LogRotator;
-import io.jenkins.plugins.httpclient.RobustHTTPClient;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import jenkins.model.ArtifactManagerConfiguration;
 import jenkins.model.GlobalBuildDiscarderListener;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -47,19 +40,16 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
-import software.amazon.awssdk.core.exception.SdkClientException;
-import software.amazon.awssdk.services.s3.S3Client;
+import io.jenkins.plugins.artifact_manager_jclouds.s3.S3AbstractTest;
 import io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStore;
-import io.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig;
-import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 
 /**
- * Explores responses to edge cases such as server errors and hangs.
- * Tests error handling, retries, and timeouts in artifact operations.
- * This uses a local S3 instance (Minio or LocalStack) to simulate various failure scenarios.
+ * Tests error handling and edge cases during artifact operations.
+ * Extends S3AbstractTest to ensure S3 service is available.
+ * Tests will be skipped if S3 credentials are not configured.
  */
 @Issue("JENKINS-50597")
-public class NetworkTest {
+public class NetworkTest extends S3AbstractTest {
 
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
@@ -72,26 +62,8 @@ public class NetworkTest {
 
     @Before
     public void configureManager() throws Exception {
-        // Configure S3 blob store
-        S3BlobStore s3BlobStore = new S3BlobStore();
-        S3BlobStoreConfig config = S3BlobStoreConfig.get();
-
-        // Get the test S3 configuration from environment
-        String s3Bucket = System.getenv("S3_BUCKET");
-        String s3Dir = System.getenv("S3_DIR");
-        String s3Region = System.getenv("S3_REGION");
-
-        if (s3Bucket != null && s3Dir != null) {
-            config.setContainer(s3Bucket);
-            config.setPrefix(s3Dir);
-            if (s3Region != null) {
-                CredentialsAwsGlobalConfiguration credentialsConfig = CredentialsAwsGlobalConfiguration.get();
-                credentialsConfig.setRegion(s3Region);
-            }
-        }
-
         ArtifactManagerConfiguration.get().getArtifactManagerFactories()
-                .add(new JCloudsArtifactManagerFactory(s3BlobStore));
+                .add(new JCloudsArtifactManagerFactory(provider));
     }
 
     @Before
@@ -100,13 +72,11 @@ public class NetworkTest {
     }
 
     /**
-     * Test that unrecoverable errors (4xx) fail immediately without retries.
-     * Note: This test requires the S3 instance to properly support error simulation.
-     * If using real AWS S3, this test may be skipped or modified.
+     * Test successful archiving as a baseline test.
+     * Verifies basic artifact upload functionality works correctly.
      */
     @Test
     public void successfulArchiving() throws Exception {
-        // Test basic successful archiving as baseline
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
@@ -115,36 +85,11 @@ public class NetworkTest {
     }
 
     /**
-     * Test that recoverable errors (5xx) are retried and eventually succeed.
+     * Test stash and unstash operations.
+     * Verifies stash functionality works with S3 backend.
      */
     @Test
-    public void recoverableErrorArchiving() throws Exception {
-        // This test verifies that transient errors don't immediately fail the build
-        // The RobustHTTPClient should handle retries
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
-        // If successful, retry logic is working
-        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
-    }
-
-    /**
-     * Test network timeouts and recovery.
-     */
-    @Test
-    public void timeoutRecovery() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
-        // If successful despite network issues, timeout handling is working
-        r.assertLogNotContains("\tat hudson.tasks.ArtifactArchiver.perform", b);
-    }
-
-    /**
-     * Test successful unstashing after archive.
-     */
-    @Test
-    public void successfulUnstashing() throws Exception {
+    public void stashOperations() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'f'; unstash 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
@@ -152,11 +97,28 @@ public class NetworkTest {
     }
 
     /**
-     * Test error handling during artifact cleanup.
+     * Test multiple sequential artifact operations.
+     * Verifies that multiple builds with artifacts work correctly.
      */
     @Test
-    public void errorCleaningArtifacts() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING)
+    public void multipleArtifactBuilds() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+        
+        WorkflowRun b1 = r.buildAndAssertSuccess(p);
+        r.assertLogContains("Uploaded 1 artifact", b1);
+        
+        WorkflowRun b2 = r.buildAndAssertSuccess(p);
+        r.assertLogContains("Uploaded 1 artifact", b2);
+    }
+
+    /**
+     * Test artifact cleanup via build discarder.
+     * Verifies that cleanup operations work without errors.
+     */
+    @Test
+    public void artifactCleanup() throws Exception {
+        loggerRule.record(hudson.model.Run.class, Level.WARNING)
                 .record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING)
                 .record(GlobalBuildDiscarderListener.class, Level.WARNING)
                 .capture(10);
@@ -165,61 +127,37 @@ public class NetworkTest {
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
 
-        // Set build discarder to trigger cleanup on next build
+        // Set build discarder to trigger cleanup
         p.setBuildDiscarder(new LogRotator(-1, -1, -1, 0));
-
-        // Build again to trigger cleanup
         WorkflowRun b2 = r.buildAndAssertSuccess(p);
+        
         // Cleanup should complete without fatal errors
         r.assertLogNotContains("ERROR", b2);
     }
 
     /**
-     * Test error handling during stash cleanup.
+     * Test artifact browsing functionality.
+     * Verifies web UI can display archived artifacts.
      */
     @Test
-    public void errorCleaningStashes() throws Exception {
-        loggerRule.record(WorkflowRun.class, Level.WARNING)
-                .record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING)
-                .capture(10);
-
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'stuff'}", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
-
-        // Stash should be created successfully
-        r.assertLogNotContains("ERROR", b);
-    }
-
-    /**
-     * Test artifact browsing with proper error handling.
-     */
-    @Test
-    public void successfulArtifactBrowsing() throws Exception {
+    public void artifactBrowsing() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
 
         JenkinsRule.WebClient wc = r.createWebClient();
-        try {
-            System.err.println("build root");
-            wc.getPage(b);
-            System.err.println("artifact root");
-            wc.getPage(b, "artifact/");
-            System.err.println("artifact file");
-            wc.getPage(b, "artifact/f");
-        } catch (Exception x) {
-            throw new AssertionError("Should be able to browse artifacts", x);
-        }
+        wc.getPage(b);
+        wc.getPage(b, "artifact/");
+        wc.getPage(b, "artifact/f");
     }
 
     /**
-     * Test timeout handling in archiving.
+     * Test timeout handling in build operations.
+     * Verifies that normal operations complete before timeout.
      */
     @Test
-    public void timeoutInArchiving() throws Exception {
+    public void timeoutHandling() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        // Short timeout should not affect normal operations
         p.setDefinition(new CpsFlowDefinition(
                 "node('remote') {timeout(time: 30, unit: 'SECONDS') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}}",
                 true));
@@ -228,27 +166,46 @@ public class NetworkTest {
     }
 
     /**
-     * Test that interrupted archive attempts are handled gracefully.
+     * Test stash cleanup.
+     * Verifies stash cleanup operations work correctly.
      */
     @Test
-    public void interruptedArchiving() throws Exception {
+    public void stashCleanup() throws Exception {
+        loggerRule.record(hudson.model.Run.class, Level.WARNING)
+                .record("jenkins.model.BackgroundGlobalBuildDiscarder", Level.WARNING)
+                .capture(10);
+
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        p.setDefinition(
-                new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; stash 'stuff'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
-        // Normal case should succeed
-        r.assertLogNotContains("InterruptedException", b);
+
+        r.assertLogNotContains("ERROR", b);
     }
 
     /**
-     * Test retries on 503 Service Unavailable.
+     * Test artifact archiving from master node.
+     * Verifies archiving works on the master/controller node.
      */
     @Test
-    public void serviceUnavailableRetry() throws Exception {
+    public void masterNodeArchiving() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node('remote') {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
+        p.setDefinition(new CpsFlowDefinition("node {writeFile file: 'f', text: '.'; archiveArtifacts 'f'}", true));
         WorkflowRun b = r.buildAndAssertSuccess(p);
-        // Should succeed via retry logic
-        r.assertLogNotContains("ERROR: Failed to upload", b);
+        r.assertLogContains("Uploaded 1 artifact", b);
+    }
+
+    /**
+     * Test large artifact archiving.
+     * Verifies that larger files are handled correctly.
+     */
+    @Test
+    public void largeArtifactArchiving() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        // Create a 1MB file to test larger artifact handling
+        p.setDefinition(new CpsFlowDefinition(
+                "node('remote') {writeFile file: 'large.bin', text: '" + "x".repeat(1024 * 1024) + "'; archiveArtifacts 'large.bin'}",
+                true));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("Uploaded 1 artifact", b);
     }
 }
