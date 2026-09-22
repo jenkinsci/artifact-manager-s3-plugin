@@ -76,6 +76,7 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
+import software.amazon.awssdk.utils.http.SdkHttpUtils;
 
 import static io.jenkins.plugins.artifact_manager_jclouds.TikaUtil.detectByTika;
 
@@ -372,7 +373,7 @@ public final class JCloudsArtifactManager extends ArtifactManager implements Sta
                     String destPath = getBlobPath(dest.key, path.substring(allPrefix.length()));
                     LOGGER.fine("copying " + path + " to " + destPath);
                     client.copyObject(CopyObjectRequest.builder()
-                            .copySource(provider.getContainer() + "/" + path)
+                            .copySource(SdkHttpUtils.urlEncodeIgnoreSlashes(provider.getContainer() + "/" + path))
                             .destinationBucket(provider.getContainer())
                             .destinationKey(destPath)
                             .build());
