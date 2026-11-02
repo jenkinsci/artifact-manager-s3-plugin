@@ -29,7 +29,7 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import io.jenkins.plugins.aws.global_configuration.CredentialsAwsGlobalConfiguration;
 import jenkins.model.Jenkins;
-import org.jclouds.aws.domain.Region;
+import software.amazon.awssdk.regions.Region;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.testcontainers.Testcontainers;
@@ -83,7 +83,7 @@ public class LocalStackIntegrationTest extends AbstractIntegrationTest {
             config.setUseHttp(true);
             config.setUsePathStyleUrl(true);
             config.setDisableSessionToken(true);
-            config.setCustomSigningRegion(region == null || region.isBlank() ? Region.US_EAST_1.toLowerCase(Locale.US) : region);
+            config.setCustomSigningRegion(region == null || region.isBlank() ? Region.US_EAST_1.id().toLowerCase(Locale.US) : region);
         });
     }
 

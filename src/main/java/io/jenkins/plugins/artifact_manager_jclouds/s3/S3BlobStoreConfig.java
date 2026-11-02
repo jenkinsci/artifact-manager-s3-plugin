@@ -355,6 +355,13 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             AwsSessionCredentials awsSessionCredentials = CredentialsAwsGlobalConfiguration.get()
                     .sessionCredentials(getRegion().id(), CredentialsAwsGlobalConfiguration.get().getCredentialsId());
             if(awsSessionCredentials != null ) {
+                if (S3BlobStore.BREAK_CREDS) {
+                    awsSessionCredentials = AwsSessionCredentials.builder()
+                            .accessKeyId(awsSessionCredentials.accessKeyId())
+                            .secretAccessKey(awsSessionCredentials.secretAccessKey())
+                            .sessionToken("<broken>")
+                            .build();
+                }
                 builder.credentialsProvider(StaticCredentialsProvider.create(awsSessionCredentials));
             } else {
                 throw new IOException("No session AWS credentials found");

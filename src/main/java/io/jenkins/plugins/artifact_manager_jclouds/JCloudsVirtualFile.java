@@ -24,33 +24,24 @@
 
 package io.jenkins.plugins.artifact_manager_jclouds;
 
-import static org.jclouds.blobstore.options.ListContainerOptions.Builder.*;
-
 import java.io.FileNotFoundException;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.StreamSupport;
+import java.util.stream.Collectors;
 
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.BlobStores;
-import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.blobstore.domain.MutableBlobMetadata;
-import org.jclouds.blobstore.domain.StorageMetadata;
-import org.jclouds.blobstore.options.ListContainerOptions;
-import org.jclouds.rest.AuthorizationException;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -62,9 +53,24 @@ import hudson.AbortException;
 import hudson.remoting.Callable;
 import io.jenkins.plugins.artifact_manager_jclouds.BlobStoreProvider.HttpMethod;
 import jenkins.util.VirtualFile;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
 /**
- * <a href="https://jclouds.apache.org/start/blobstore/">JClouds BlobStore Guide</a>
+ * Implementation of {@link VirtualFile} backed by an S3-compatible blob store, accessed via the AWS SDK.
  */
 @Restricted(NoExternalUse.class)
 public class JCloudsVirtualFile extends VirtualFile {
@@ -73,19 +79,22 @@ public class JCloudsVirtualFile extends VirtualFile {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsVirtualFile.class.getName());
 
+    /** Maximum number of keys accepted per S3 DeleteObjects request. */
+    private static final int DELETE_BATCH_SIZE = 1000;
+
     @NonNull
     private BlobStoreProvider provider;
     @NonNull
     private final String container;
     @NonNull
     private final String key;
-    @CheckForNull
-    private transient Blob blob;
 
+    /** Cache of a successful (or negative) {@code headObject} call for this exact key. */
     @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
-            justification = "This field is expected to be loaded by a provider instead of deserialization.")
+            justification = "The metadata cache is intentionally rebuilt after deserialization.")
+    private transient boolean metadataChecked;
     @CheckForNull
-    private transient BlobStoreContext context;
+    private transient HeadObjectResponse metadata;
 
     public JCloudsVirtualFile(@NonNull BlobStoreProvider provider, @NonNull String container, @NonNull String key) {
         this.provider = provider;
@@ -98,18 +107,14 @@ public class JCloudsVirtualFile extends VirtualFile {
 
     private JCloudsVirtualFile(@NonNull JCloudsVirtualFile related, @NonNull String key) {
         this(related.provider, related.container, key);
-        context = related.context;
     }
 
     /**
-     * Build jclouds blob context that is the base for all operations
+     * Build the AWS SDK client that is the base for all operations. Callers are responsible for closing it.
      */
     @Restricted(NoExternalUse.class) // testing only
-    BlobStoreContext getContext() throws IOException {
-        if (context == null) {
-            context = provider.getContext();
-        }
-        return context;
+    S3Client getClient() throws IOException {
+        return provider.getClient();
     }
 
     private String getContainer() {
@@ -131,16 +136,25 @@ public class JCloudsVirtualFile extends VirtualFile {
         return key.replaceFirst(".+/", "");
     }
 
-    private Blob getBlob() throws IOException {
-        if (blob == null) {
+    private HeadObjectResponse getMetadata() throws IOException {
+        if (!metadataChecked) {
             LOGGER.log(Level.FINE, "checking for existence of blob {0} / {1}", new Object[] {container, key});
-            blob = getContext().getBlobStore().getBlob(getContainer(), getKey());
-            if (blob == null) {
-                blob = getContext().getBlobStore().blobBuilder(getKey()).build();
-                blob.getMetadata().setContainer(getContainer());
+            try (S3Client client = getClient()) {
+                metadata = client.headObject(HeadObjectRequest.builder().bucket(container).key(key).build());
+            } catch (NoSuchKeyException x) {
+                metadata = null;
+            } catch (S3Exception x) {
+                if (x.statusCode() == 404) {
+                    metadata = null;
+                } else {
+                    throw new IOException(x);
+                }
+            } catch (SdkException x) {
+                throw new IOException(x);
             }
+            metadataChecked = true;
         }
-        return blob;
+        return metadata;
     }
 
     @Override
@@ -150,7 +164,7 @@ public class JCloudsVirtualFile extends VirtualFile {
 
     @Override
     public URL toExternalURL() throws IOException {
-        return provider.toExternalURL(getBlob(), HttpMethod.GET);
+        return provider.toExternalURL(container, key, null, HttpMethod.GET);
     }
 
     @Override
@@ -169,7 +183,12 @@ public class JCloudsVirtualFile extends VirtualFile {
             return frame.children.keySet().stream().anyMatch(f -> f.startsWith(relSlash));
         }
         LOGGER.log(Level.FINE, "checking directory status {0} / {1}", new Object[] {container, key});
-        return !getContext().getBlobStore().list(getContainer(), prefix(key + "/")).isEmpty();
+        try (S3Client client = getClient()) {
+            ListObjectsV2Request req = ListObjectsV2Request.builder().bucket(container).prefix(keyS).maxKeys(1).build();
+            return client.listObjectsV2(req).keyCount() > 0;
+        } catch (SdkException x) {
+            throw new IOException(x);
+        }
     }
 
     @Override
@@ -177,12 +196,12 @@ public class JCloudsVirtualFile extends VirtualFile {
         CacheFrame frame = findCacheFrame(key);
         if (frame != null) {
             String rel = key.substring(frame.root.length());
-            CachedMetadata metadata = frame.children.get(rel);
+            CachedMetadata cachedMetadata = frame.children.get(rel);
             LOGGER.log(Level.FINER, "cache hit on file status of {0} / {1}", new Object[] {container, key});
-            return metadata != null;
+            return cachedMetadata != null;
         }
         LOGGER.log(Level.FINE, "checking file status {0} / {1}", new Object[] {container, key});
-        return getBlob().getMetadata().getSize() != null;
+        return getMetadata() != null;
     }
 
     @Override
@@ -191,17 +210,28 @@ public class JCloudsVirtualFile extends VirtualFile {
     }
 
     /**
-     * List all the blobs under this one
-     *
-     * @return some blobs
-     * @throws RuntimeException either now or when the stream is processed; wrap in {@link IOException} if desired
+     * List all the objects one level under this one (files and direct “directories”, non-recursive).
      */
-    private Iterable<StorageMetadata> listStorageMetadata(boolean recursive) throws IOException {
-        ListContainerOptions options = prefix(key + "/");
-        if (recursive) {
-            options.recursive();
+    private List<String> listDirectChildren() throws IOException {
+        List<String> names = new ArrayList<>();
+        try (S3Client client = getClient()) {
+            ListObjectsV2Request req = ListObjectsV2Request.builder().bucket(container).prefix(key + "/").delimiter("/").build();
+            ListObjectsV2Iterable pages = client.listObjectsV2Paginator(req);
+            for (var page : pages) {
+                for (S3Object obj : page.contents()) {
+                    String name = obj.key().substring((key + "/").length()).replaceFirst("/$", "");
+                    if (!name.contains("/")) {
+                        names.add(name);
+                    }
+                }
+                for (CommonPrefix cp : page.commonPrefixes()) {
+                    names.add(cp.prefix().substring((key + "/").length()).replaceFirst("/$", ""));
+                }
+            }
+        } catch (SdkException x) {
+            throw new IOException(x);
         }
-        return BlobStores.listAll(getContext().getBlobStore(), getContainer(), options);
+        return names;
     }
 
     @Override
@@ -220,8 +250,8 @@ public class JCloudsVirtualFile extends VirtualFile {
         }
         VirtualFile[] list;
         try {
-            list = StreamSupport.stream(listStorageMetadata(false).spliterator(), false)
-                .map(meta -> new JCloudsVirtualFile(this, meta.getName().replaceFirst("/$", "")))
+            list = listDirectChildren().stream()
+                .map(name -> new JCloudsVirtualFile(this, key + "/" + name))
                 .toArray(VirtualFile[]::new);
         } catch (RuntimeException x) {
             throw new IOException(x);
@@ -241,14 +271,13 @@ public class JCloudsVirtualFile extends VirtualFile {
         CacheFrame frame = findCacheFrame(key);
         if (frame != null) {
             String rel = key.substring(frame.root.length());
-            CachedMetadata metadata = frame.children.get(rel);
+            CachedMetadata cachedMetadata = frame.children.get(rel);
             LOGGER.log(Level.FINER, "cache hit on length of {0} / {1}", new Object[] {container, key});
-            return metadata != null ? metadata.length : 0;
+            return cachedMetadata != null ? cachedMetadata.length : 0;
         }
         LOGGER.log(Level.FINE, "checking length {0} / {1}", new Object[] {container, key});
-        MutableBlobMetadata metadata = getBlob().getMetadata();
-        Long size = metadata == null ? Long.valueOf(0) : metadata.getSize();
-        return size == null ? 0 : size;
+        HeadObjectResponse head = getMetadata();
+        return head == null || head.contentLength() == null ? 0 : head.contentLength();
     }
 
     @Override
@@ -256,13 +285,14 @@ public class JCloudsVirtualFile extends VirtualFile {
         CacheFrame frame = findCacheFrame(key);
         if (frame != null) {
             String rel = key.substring(frame.root.length());
-            CachedMetadata metadata = frame.children.get(rel);
+            CachedMetadata cachedMetadata = frame.children.get(rel);
             LOGGER.log(Level.FINER, "cache hit on lastModified of {0} / {1}", new Object[] {container, key});
-            return metadata != null ? metadata.lastModified : 0;
+            return cachedMetadata != null ? cachedMetadata.lastModified : 0;
         }
         LOGGER.log(Level.FINE, "checking modification time {0} / {1}", new Object[] {container, key});
-        MutableBlobMetadata metadata = getBlob().getMetadata();
-        return metadata == null || metadata.getLastModified() == null ? 0 : metadata.getLastModified().getTime();
+        HeadObjectResponse head = getMetadata();
+        Instant lastModified = head == null ? null : head.lastModified();
+        return lastModified == null ? 0 : lastModified.toEpochMilli();
     }
 
     @Override
@@ -270,6 +300,8 @@ public class JCloudsVirtualFile extends VirtualFile {
         return true;
     }
 
+    @SuppressFBWarnings(value = "SIC_INNER_SHOULD_BE_STATIC_ANON",
+            justification = "The stream wrapper must close the client created for this object.")
     @Override
     public InputStream open() throws IOException {
         LOGGER.log(Level.FINE, "reading {0} / {1}", new Object[] {container, key});
@@ -281,7 +313,23 @@ public class JCloudsVirtualFile extends VirtualFile {
             throw new FileNotFoundException(
                     String.format("%s/%s (No such file or directory)", getContainer(), getKey()));
         }
-        return getBlob().getPayload().openStream();
+        S3Client client = getClient();
+        try {
+            InputStream is = client.getObject(GetObjectRequest.builder().bucket(container).key(key).build());
+            return new FilterInputStream(is) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        client.close();
+                    }
+                }
+            };
+        } catch (SdkException x) {
+            client.close();
+            throw new IOException(x);
+        }
     }
 
     /**
@@ -323,19 +371,23 @@ public class JCloudsVirtualFile extends VirtualFile {
         Deque<CacheFrame> stack = cacheFrames();
         Map<String, CachedMetadata> saved = new HashMap<>();
         int prefixLength = key.length() + /* / */1;
-        try {
-            for (StorageMetadata sm : listStorageMetadata(true)) {
-                Long length = sm.getSize();
-                if (length != null) {
-                    Date lastModified = sm.getLastModified();
-                    saved.put(sm.getName().substring(prefixLength), new CachedMetadata(length, lastModified != null ? lastModified.getTime() : 0));
+        try (S3Client client = getClient()) {
+            ListObjectsV2Request req = ListObjectsV2Request.builder().bucket(container).prefix(key + "/").build();
+            ListObjectsV2Iterable pages = client.listObjectsV2Paginator(req);
+            for (var page : pages) {
+                for (S3Object obj : page.contents()) {
+                    Long length = obj.size();
+                    if (length != null) {
+                        Instant lastModified = obj.lastModified();
+                        saved.put(obj.key().substring(prefixLength), new CachedMetadata(length, lastModified != null ? lastModified.toEpochMilli() : 0));
+                    }
                 }
             }
-        } catch (AuthorizationException e) {
-            String cause = e.getCause() != null ? e.getCause().getMessage() : "";
-            throw new AbortException(String.format("Authorization failed: %s %s", e.getMessage(), cause));
-        } catch (RuntimeException x) {
-            throw new IOException(x);
+        } catch (AwsServiceException | SdkClientException e) {
+            if (e instanceof S3Exception s3x && s3x.statusCode() == 403) {
+                throw new AbortException(String.format("Authorization failed: %s", e.getMessage()));
+            }
+            throw new IOException(e);
         }
         stack.push(new CacheFrame(key + "/", saved));
         try {
@@ -359,26 +411,36 @@ public class JCloudsVirtualFile extends VirtualFile {
     /**
      * Delete all blobs starting with a given prefix.
      */
-    public static boolean delete(BlobStoreProvider provider, BlobStore blobStore, String prefix) throws IOException, InterruptedException {
-        try {
+    public static boolean delete(BlobStoreProvider provider, String prefix) throws IOException, InterruptedException {
+        try (S3Client client = provider.getClient()) {
             List<String> paths = new ArrayList<>();
-            for (StorageMetadata sm : BlobStores.listAll(blobStore, provider.getContainer(), ListContainerOptions.Builder.prefix(prefix).recursive())) {
-                String path = sm.getName();
-                if (!path.startsWith(prefix)) {
-                    LOGGER.warning(() -> path + " does not start with " + prefix);
-                    continue;
+            ListObjectsV2Request req = ListObjectsV2Request.builder().bucket(provider.getContainer()).prefix(prefix).build();
+            ListObjectsV2Iterable pages = client.listObjectsV2Paginator(req);
+            for (var page : pages) {
+                for (S3Object obj : page.contents()) {
+                    String path = obj.key();
+                    if (!path.startsWith(prefix)) {
+                        LOGGER.warning(() -> path + " does not start with " + prefix);
+                        continue;
+                    }
+                    paths.add(path);
                 }
-                paths.add(path);
             }
             if (paths.isEmpty()) {
                 LOGGER.log(Level.FINE, "nothing to delete under {0}", prefix);
                 return false;
-            } else {
-                LOGGER.log(Level.FINE, "deleting {0} blobs under {1}", new Object[] {paths.size(), prefix});
-                blobStore.removeBlobs(provider.getContainer(), paths);
-                return true;
             }
-        } catch (RuntimeException x) {
+            LOGGER.log(Level.FINE, "deleting {0} blobs under {1}", new Object[] {paths.size(), prefix});
+            for (int i = 0; i < paths.size(); i += DELETE_BATCH_SIZE) {
+                List<String> batch = paths.subList(i, Math.min(i + DELETE_BATCH_SIZE, paths.size()));
+                List<ObjectIdentifier> ids = batch.stream().map(p -> ObjectIdentifier.builder().key(p).build()).collect(Collectors.toList());
+                client.deleteObjects(DeleteObjectsRequest.builder()
+                        .bucket(provider.getContainer())
+                        .delete(d -> d.objects(ids))
+                        .build());
+            }
+            return true;
+        } catch (SdkException x) {
             throw new IOException(x);
         }
     }

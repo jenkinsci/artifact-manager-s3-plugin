@@ -31,18 +31,17 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.Beta;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionPoint;
 import hudson.model.AbstractDescribableImpl;
+import software.amazon.awssdk.services.s3.S3Client;
 
 /**
- * Provider for jclouds-based blob stores usable for artifact storage.
+ * Provider for blob stores usable for artifact storage, backed by the AWS SDK.
  * An instance will be copied into a build record together with any fields it defines.
  */
 @Restricted(Beta.class)
@@ -68,9 +67,11 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
     /** A constant to define whether we should delete stashes or leave them to be managed on the blob service side. */
     public abstract boolean isDeleteStashes();
 
-    /** Creates the jclouds handle for working with blob. */
+    /**
+     * Creates a client usable for working with the blob store. Callers are responsible for closing it.
+     */
     @NonNull
-    public abstract BlobStoreContext getContext() throws IOException;
+    public abstract S3Client getClient() throws IOException;
 
     /**
      * Get a provider-specific URI.
@@ -86,32 +87,33 @@ public abstract class BlobStoreProvider extends AbstractDescribableImpl<BlobStor
 
     /**
      * Generate a URL valid for downloading OR uploading the blob for a limited period of time
-     * 
-     * @param blob
-     *            blob to generate the URL for
+     *
+     * @param container
+     *            container where the blob exists (or will exist).
+     * @param key
+     *            fully qualified name relative to the container.
+     * @param contentType
+     *            content type to associate with the object; only relevant for uploads, may be {@code null} otherwise.
      * @param httpMethod
      *            HTTP method to create a URL for (downloads or uploads)
      * @return the URL
      * @throws IOException
      */
     @NonNull
-    public abstract URL toExternalURL(@NonNull Blob blob, @NonNull HttpMethod httpMethod) throws IOException;
+    public abstract URL toExternalURL(@NonNull String container, @NonNull String key, @CheckForNull String contentType, @NonNull HttpMethod httpMethod) throws IOException;
 
     @Override
     public BlobStoreProviderDescriptor getDescriptor() {
         return (BlobStoreProviderDescriptor) super.getDescriptor();
     }
 
-    public Map<String, URL> artifactUrls(Map<String, String> artifacts, Map<String, String> contentTypes, BlobStore blobStore, String key) throws IOException {
+    public Map<String, URL> artifactUrls(Map<String, String> artifacts, Map<String, String> contentTypes, String key) throws IOException {
         Map<String, URL> artifactUrls = new HashMap<>();
         // Map artifacts to urls for upload
         for (Map.Entry<String, String> entry : artifacts.entrySet()) {
             String path = "artifacts/" + entry.getKey();
             String blobPath = getBlobPath(key, path);
-            Blob blob = blobStore.blobBuilder(blobPath).build();
-            blob.getMetadata().setContainer(this.getContainer());
-            blob.getMetadata().getContentMetadata().setContentType(contentTypes.get(entry.getValue()));
-            artifactUrls.put(entry.getValue(), this.toExternalURL(blob, HttpMethod.PUT));
+            artifactUrls.put(entry.getValue(), this.toExternalURL(this.getContainer(), blobPath, contentTypes.get(entry.getValue()), HttpMethod.PUT));
         }
         return artifactUrls;
     }

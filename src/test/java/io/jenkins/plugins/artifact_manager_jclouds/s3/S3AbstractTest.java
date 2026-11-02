@@ -34,8 +34,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import java.util.logging.Level;
 
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -79,8 +77,7 @@ public abstract class S3AbstractTest {
     @Rule
     public JenkinsRule j = new JenkinsRule();
 
-    protected BlobStoreContext context;
-    protected BlobStore blobStore;
+    protected S3Client client;
     private String prefix;
 
     public static String getContainer() {
@@ -115,9 +112,7 @@ public abstract class S3AbstractTest {
         prefix = generateUniquePrefix();
         config.setPrefix(prefix);
 
-        context = provider.getContext();
-
-        blobStore = context.getBlobStore();
+        client = provider.getClient();
 
         setup();
     }
@@ -127,14 +122,14 @@ public abstract class S3AbstractTest {
 
     @After
     public void tearDown() throws Exception {
-        if (context != null) {
-            context.close();
+        if (client != null) {
+            client.close();
         }
     }
 
     @After
     public void deleteBlobs() throws Exception {
-        JCloudsVirtualFile.delete(provider, blobStore, prefix);
+        JCloudsVirtualFile.delete(provider, prefix);
     }
 
 }
