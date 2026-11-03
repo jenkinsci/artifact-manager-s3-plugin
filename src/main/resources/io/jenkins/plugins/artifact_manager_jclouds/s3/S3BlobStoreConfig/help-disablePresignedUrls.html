@@ -1,0 +1,9 @@
+<div>
+    Disable the use of pre-signed S3 URLs when browsing or downloading artifacts.
+    When enabled, artifacts are streamed through the Jenkins controller instead of
+    redirecting the browser to a temporary S3 URL. This is useful when serving HTML
+    reports that contain relative links, which would otherwise break because the
+    browser resolves them against the S3 URL rather than the Jenkins URL.
+    Note that this increases load on the Jenkins controller since all artifact
+    downloads will be proxied through it. Upload and stash operations are not affected.
+</div>

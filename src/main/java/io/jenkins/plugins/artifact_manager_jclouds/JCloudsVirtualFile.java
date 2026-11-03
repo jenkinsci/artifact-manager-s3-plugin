@@ -150,6 +150,9 @@ public class JCloudsVirtualFile extends VirtualFile {
 
     @Override
     public URL toExternalURL() throws IOException {
+        if (provider.isDisablePresignedUrls()) {
+            return null;
+        }
         return provider.toExternalURL(getBlob(), HttpMethod.GET);
     }
 
