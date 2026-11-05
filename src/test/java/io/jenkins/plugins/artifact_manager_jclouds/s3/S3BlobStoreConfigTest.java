@@ -18,6 +18,7 @@ import software.amazon.awssdk.regions.Region;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -169,5 +170,17 @@ public class S3BlobStoreConfigTest {
         S3BlobStoreConfig descriptor = S3BlobStoreConfig.get();
         assertEquals(descriptor.doCheckUseHttp(true).kind , FormValidation.Kind.OK);
         assertEquals(descriptor.doCheckUseHttp(false).kind , FormValidation.Kind.OK);
+    }
+
+    @Test
+    public void validateS3BucketConfigDoesNotSaveConfiguration() {
+        S3BlobStoreConfig config = S3BlobStoreConfig.get();
+        config.setContainer(CONTAINER_NAME);
+        config.setPrefix(CONTAINER_PREFIX);
+        config.doValidateS3BucketConfig("other-container", "other-prefix/", false, false, false, true, "127.0.0.1:1", null);
+        S3BlobStoreConfig reloaded = new S3BlobStoreConfig();
+        assertEquals(CONTAINER_NAME, reloaded.getContainer());
+        assertEquals(CONTAINER_PREFIX, reloaded.getPrefix());
+        assertNull(reloaded.getCustomEndpoint());
     }
 }
