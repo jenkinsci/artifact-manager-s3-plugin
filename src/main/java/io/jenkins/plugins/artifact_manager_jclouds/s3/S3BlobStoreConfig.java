@@ -41,6 +41,7 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+import hudson.BulkChange;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Util;
@@ -134,14 +135,17 @@ public final class S3BlobStoreConfig extends AbstractAwsGlobalConfiguration {
             boolean disableSessionToken, String customEndpoint,
             String customSigningRegion) {
             config = new S3BlobStoreConfig();
-            config.setContainer(container);
-            config.setPrefix(prefix);
-            config.setCustomEndpoint(customEndpoint);
-            config.setCustomSigningRegion(customSigningRegion);
-            config.setUseHttp(useHttp);
-            config.setUseTransferAcceleration(useTransferAcceleration);
-            config.setUsePathStyleUrl(usePathStyleUrl);
-            config.setDisableSessionToken(disableSessionToken);
+            // The setters call save(), which would write the values being validated to the global configuration file.
+            try (BulkChange bc = new BulkChange(config)) {
+                config.setContainer(container);
+                config.setPrefix(prefix);
+                config.setCustomEndpoint(customEndpoint);
+                config.setCustomSigningRegion(customSigningRegion);
+                config.setUseHttp(useHttp);
+                config.setUseTransferAcceleration(useTransferAcceleration);
+                config.setUsePathStyleUrl(usePathStyleUrl);
+                config.setDisableSessionToken(disableSessionToken);
+            }
         }
 
         @Override
