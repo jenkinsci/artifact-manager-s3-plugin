@@ -270,10 +270,10 @@ aws sso login
 eval $(aws configure export-credentials --format env)
 ```
 
-Alternately, you can test against MinIO:
+Alternately, you can test against RustFS:
 
 ```bash
-docker run --rm -e MINIO_ROOT_USER=dummy -e MINIO_ROOT_PASSWORD=dummydummy -p 127.0.0.1:9000:9000 minio/minio server /data
+docker run --rm -e RUSTFS_ACCESS_KEY=dummy -e RUSTFS_SECRET_KEY=dummydummy -p 127.0.0.1:9000:9000 rustfs/rustfs:1.0.0
 ```
 
 creating AWS credentials with that access & secret key,
